@@ -1,0 +1,38 @@
+import json
+import os
+
+from dotenv import load_dotenv
+
+# ----------------------------------------
+# -------------- Load env files
+# ----------------------------------------
+load_dotenv('.env.base')
+
+env = os.getenv('APP_ENV', 'development')
+
+if env in ['production', 'test', 'development']:
+    dotenv_file = f'.env.{env}'
+    load_dotenv(dotenv_file, override=True)
+
+
+# ----------------------------------------
+# -------------- Application configs
+# ----------------------------------------
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+ATTENDANCE_CHECK_DELAY = int(os.getenv('ATTENDANCE_CHECK_DELAY', 1800))
+PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
+MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
+
+# ----------------------------------------
+# -------------- Discord configs
+# ----------------------------------------
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD_ID = int(os.getenv('GUILD_ID'))
+
+# ----------------------------------------
+# -------------- GS Adapter configs
+# ----------------------------------------
+GOOGLE_SHEETS_CREDENTIALS = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
+SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+GS_ATTENDANCE_PLAYER_MAPPING = json.loads(os.getenv('GS_ATTENDANCE_PLAYER_MAPPING')) \
+    if os.getenv('GS_ATTENDANCE_PLAYER_MAPPING') else {}
