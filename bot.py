@@ -7,7 +7,7 @@ import utils
 from application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent
 from application.events.event_system import EventSystem, EventType
 from application.events.listeners import EventListeners
-from application.services.pururu_service import PururuService
+from domain.services.pururu_service import PururuService
 from infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
 
 

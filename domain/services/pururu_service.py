@@ -3,11 +3,10 @@ import utils
 from application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, NewGameIntentEvent
 from application.events.event_system import EventSystem, EventType
 from domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
-from domain.interfaces.database import DatabaseInterface
-from domain.interfaces.pururu_service import PururuInterface
+from domain.services.database_service import DatabaseInterface
 
 
-class PururuService(PururuInterface):
+class PururuService:
     def __init__(self, database_service: DatabaseInterface, event_system: EventSystem):
         self.database_service = database_service
         self.event_system = event_system
