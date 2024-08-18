@@ -17,20 +17,22 @@ class AttendanceSheet:
     DATA_COL_INIT = "A"
     DATA_COL_END = "Q"
 
-    def __init__(self, game_id: int, attendance: list, justified: list, motives: list, date: str,
+    def __init__(self, game_id: int, absence: list, unjustified: list, motives: list, date: str,
                  description: str):
         self.game_id = game_id
-        self.attendance = attendance
-        self.justified = justified
+        self.absence = absence
+        self.unjustified = unjustified
         self.motives = motives
         self.date = date
         self.description = description
 
     def to_row_values(self):
-        return [self.description, self.date, self.attendance[0], self.justified[0], self.motives[0], self.attendance[1],
-                self.justified[1], self.motives[1], self.attendance[2], self.justified[2], self.motives[2],
-                self.attendance[3], self.justified[3], self.motives[3], self.attendance[4], self.justified[4],
-                self.motives[4]]
+        row = [self.description, self.date]
+        for i in range(len(self.absence)):
+            row.append(self.absence[i])
+            row.append(self.unjustified[i])
+            row.append(self.motives[i] if i < len(self.motives) else "")
+        return row
 
 
 class ClockingSheet:

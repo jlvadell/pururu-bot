@@ -2,3 +2,4 @@ discord.py
 python-dotenv~=1.0.1
 google-auth
 gspread~=6.1.2
+pytest

@@ -27,7 +27,7 @@ MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
 # -------------- Discord configs
 # ----------------------------------------
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD_ID = int(os.getenv('GUILD_ID'))
+GUILD_ID = int(os.getenv('GUILD_ID', 0))
 
 # ----------------------------------------
 # -------------- GS Adapter configs

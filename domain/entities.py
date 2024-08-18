@@ -22,7 +22,7 @@ class Attendance:
 
 
 class Clocking:
-    def __init__(self, member: str, game_id: str, clock_in: str, clock_out: str):
+    def __init__(self, member: str, game_id: int, clock_in: str, clock_out: str):
         self.member = member
         self.game_id = game_id
         self.clock_in = clock_in
