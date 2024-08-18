@@ -19,7 +19,8 @@ if env in ['production', 'test', 'development']:
 # -------------- Application configs
 # ----------------------------------------
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-ATTENDANCE_CHECK_DELAY = int(os.getenv('ATTENDANCE_CHECK_DELAY', 1800))
+ATTENDANCE_CHECK_DELAY = int(os.getenv('ATTENDANCE_CHECK_DELAY', 1800))  # defaults to 30 minutes
+MIN_ATTENDANCE_TIME = int(os.getenv('MIN_ATTENDANCE_TIME', 1800))  # defaults to 30 minutes
 PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
 MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
 

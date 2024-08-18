@@ -1,6 +1,9 @@
+from datetime import datetime
+
 import config
 import utils
-from application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, NewGameIntentEvent
+from application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, NewGameIntentEvent, \
+    MemberJoinedChannelEvent, MemberLeftChannelEvent
 from application.events.event_system import EventSystem, EventType
 from domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
 from domain.services.database_service import DatabaseInterface
@@ -16,6 +19,24 @@ class PururuService:
             "players_out": {}
         }
         self.players = []
+
+    def handle_voice_state_update(self, member: str, before_channel: str, after_channel: str):
+        """
+        Handles the Discord voice state update event
+        :param member: member name
+        :param before_channel: before_state channel
+        :param after_channel: after_state channel
+        :return: None
+        """
+        if member not in config.PLAYERS:
+            return
+        if before_channel != after_channel:
+            if before_channel is None:
+                self.event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL,
+                                             MemberJoinedChannelEvent(member, after_channel))
+            if after_channel is None:
+                self.event_system.emit_event(EventType.MEMBER_LEFT_CHANNEL,
+                                             MemberLeftChannelEvent(member, before_channel))
 
     def register_bot_event(self, event: BotEvent):
         """
@@ -104,21 +125,49 @@ class PururuService:
         members = []
         clockings = []
         now = utils.get_current_time_formatted()
+        player_attendance_count = 0
         for player in config.PLAYERS:
+            player_attended = self.__has_player_attended(player)
+            if player_attended:
+                player_attendance_count += 1
             if player in self.current_game['players'].keys():
                 clockings.append(
                     Clocking(player, self.current_game['game_id'], self.current_game['players'][player],
-                             self.current_game['players_out'][player]))
-            members.append(MemberAttendance(player, player in self.current_game['players'].keys(),
-                                            player in self.current_game['players'].keys(), ""))
+                             self.current_game['players_out'][player]
+                             if self.current_game['players_out'][player] else utils.get_current_time_formatted()))
+            members.append(MemberAttendance(player, player_attended, player_attended, ""))
 
         attendance = Attendance(self.current_game['game_id'], members, now, "Game")
+        if player_attendance_count < config.MIN_ATTENDANCE_MEMBERS:
+            self.logger.info(f"Attendance not enough, attendance count: {player_attendance_count}; discarding game")
+            self.__reset_current_game()
+            return
         self.database_service.upsert_attendance(attendance)
         for clocking in clockings:
             self.database_service.insert_clocking(clocking)
 
+        self.__reset_current_game()
+        self.event_system.emit_event(EventType.GAME_ENDED, GameEndedEvent(attendance))
+
+    def __has_player_attended(self, player):
+        """
+        Checks if a player meets the conditions to be considered as attended
+        :param player: player name
+        :return: bool
+        """
+        if player in self.current_game['players'].keys():
+            clock_in = datetime.strptime(self.current_game['players'][player], utils.FORMATTED_TIME_STR)
+            clock_out = self.current_game['players_out'][player]
+            if clock_out is None:
+                clock_out = datetime.now()
+            else:
+                clock_out = datetime.strptime(clock_out, utils.FORMATTED_TIME_STR)
+            return (clock_out - clock_in).total_seconds() >= config.MIN_ATTENDANCE_TIME
+        return False
+
+    def __reset_current_game(self):
         self.current_game = {
             "players": {},
             "players_out": {}
         }
-        self.event_system.emit_event(EventType.GAME_ENDED, GameEndedEvent(attendance))
+        self.players = []
