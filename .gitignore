@@ -166,6 +166,3 @@ google_creds.json
 # intellij
 .idea/
 *.iml
-
-# Tox
-.coverage
