@@ -1,4 +1,3 @@
-from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -7,9 +6,8 @@ from hamcrest import assert_that, equal_to, has_key, is_not
 
 from application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
-from application.events.event_system import EventType, EventSystem
+from application.events.event_system import EventType
 from domain.entities import BotEvent, Attendance
-from domain.services.database_service import DatabaseInterface
 from domain.services.pururu_service import PururuService
 from tests.test_domain.test_entities import attendance
 
@@ -55,6 +53,13 @@ def test_handle_voice_state_update_player_changed_channels():
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
+@patch("config.PLAYERS", ["member1", "member2", "member3"])
+def test_handle_voice_state_update_player_changed_channels_same_name():
+    service = set_up()
+    service.handle_voice_state_update("member1", "channel", "channel")
+    service.event_system.assert_not_called()
+    service.database_service.assert_not_called()
+
 
 @patch("config.PLAYERS", ["member1", "member2", "member3"])
 def test_handle_voice_state_update_player_not_in_array():
@@ -77,11 +82,29 @@ def test_register_bot_event():
 
 
 @patch("config.MIN_ATTENDANCE_MEMBERS", 3)
-def test_register_new_player_ok():
+@patch("utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
+def test_register_new_player_ok(utils_mock):
     service = set_up()
     service.register_new_player("member1")
     assert_that(service.players, equal_to(["member1"]))
     assert_that(service.current_game['players'], has_key("member1"))
+    assert_that(service.current_game['players']["member1"], equal_to("2023-08-10 10:00:00"))
+    assert_that(service.current_game['players_out'], has_key("member1"))
+    assert_that(service.current_game['players_out']["member1"], equal_to(None))
+    service.event_system.assert_not_called()
+    service.database_service.assert_not_called()
+
+@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("utils.get_current_time_formatted", return_value="2023-08-10 10:30:00")
+def test_register_new_player_player_rejoined(utils_mock):
+    service = set_up()
+    service.players = ["member2"]
+    service.current_game['players'] = {"member1": "2023-08-10 10:00:00", "member2": "2023-08-10 10:00:00"}
+    service.current_game['players_out'] = {"member1": "2023-08-10 10:25:00", "member2": None}
+    service.register_new_player("member1")
+    assert_that(service.players, equal_to(["member2", "member1"]))
+    assert_that(service.current_game['players'], has_key("member1"))
+    assert_that(service.current_game['players']["member1"], equal_to("2023-08-10 10:00:00"))
     assert_that(service.current_game['players_out'], has_key("member1"))
     assert_that(service.current_game['players_out']["member1"], equal_to(None))
     service.event_system.assert_not_called()

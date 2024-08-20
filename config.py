@@ -10,9 +10,9 @@ load_dotenv('.env.base')
 
 env = os.getenv('APP_ENV', 'development')
 
-if env in ['production', 'test', 'development']:
+if env in ['production', 'development']:
     dotenv_file = f'.env.{env}'
-    load_dotenv(dotenv_file, override=True)
+    load_dotenv(dotenv_file, override=True, verbose=True)
 
 
 # ----------------------------------------
