@@ -2,12 +2,12 @@ from application.events.entities import MemberJoinedChannelEvent, MemberLeftChan
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
 
 from application.events.event_system import EventSystem, EventType
-from domain.interfaces.pururu_service import PururuInterface
+from domain.services.pururu_service import PururuService
 from utils import get_logger
 
 
 class EventListeners:
-    def __init__(self, event_system: EventSystem, pururu_service: PururuInterface):
+    def __init__(self, event_system: EventSystem, pururu_service: PururuService):
         self.event_system = event_system
         self.pururu_service = pururu_service
         self.logger = get_logger(__name__)

@@ -3,11 +3,9 @@ from discord import app_commands
 
 import config
 import utils
-
-from application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent
-from application.events.event_system import EventSystem, EventType
+from application.events.event_system import EventSystem
 from application.events.listeners import EventListeners
-from application.services.pururu_service import PururuService
+from domain.services.pururu_service import PururuService
 from infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
 
 
@@ -25,13 +23,7 @@ class Application:
         @self.dc_client.event
         async def on_voice_state_update(member, before_state, after_state):
             self.logger.debug(f'{member.name} has changed voice state from {before_state} to {after_state}')
-            if before_state.channel != after_state.channel:
-                if before_state.channel is None:
-                    self.event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL,
-                                                 MemberJoinedChannelEvent(member.name, after_state.channel))
-                if after_state.channel is None:
-                    self.event_system.emit_event(EventType.MEMBER_LEFT_CHANNEL,
-                                                 MemberLeftChannelEvent(member.name, before_state.channel))
+            self.pururu_service.handle_voice_state_update(member.name, before_state.channel, after_state.channel)
 
         @self.dc_command_tree.command(
             name='test',

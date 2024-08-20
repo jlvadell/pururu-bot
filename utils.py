@@ -3,6 +3,8 @@ from datetime import datetime
 
 import config
 
+FORMATTED_TIME_STR = '%Y-%m-%d %H:%M:%S'
+
 
 def get_logger(name: str):
     """
@@ -11,7 +13,7 @@ def get_logger(name: str):
     :return: Logger
     """
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt=FORMATTED_TIME_STR)
     logger = logging.getLogger(name)
     logger.setLevel(config.LOG_LEVEL)
     return logger
@@ -22,4 +24,4 @@ def get_current_time_formatted():
     Returns the current time in a formatted string, e.g. 2021-09-01 12:00:00
     :return: str
     """
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.now().strftime(FORMATTED_TIME_STR)

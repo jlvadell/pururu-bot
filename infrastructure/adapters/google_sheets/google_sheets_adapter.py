@@ -4,7 +4,7 @@ from google.oauth2.service_account import Credentials
 import infrastructure.adapters.google_sheets.mapper as mapper
 import utils
 from domain.entities import BotEvent, Attendance, Clocking
-from domain.interfaces.database import DatabaseInterface
+from domain.services.database_service import DatabaseInterface
 from infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
 
@@ -25,14 +25,14 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.logger = utils.get_logger(__name__)
         self.cache = {}
 
-    def upsert_attendance(self, attendance: Attendance):
+    def upsert_attendance(self, attendance: Attendance) -> None:
         sheet = mapper.attendance_to_sheet(attendance)
         self.spreadsheet.values_update(
             range=self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, sheet.game_id,
                                              AttendanceSheet.DATA_COL_END, sheet.game_id),
             params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
 
-    def insert_clocking(self, clocking: Clocking):
+    def insert_clocking(self, clocking: Clocking) -> None:
         sheet = mapper.clocking_to_sheet(clocking)
         row_idx = self.__get_last_row(ClockingSheet.SHEET) + 1
         self.spreadsheet.values_update(
@@ -40,7 +40,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
                                              ClockingSheet.DATA_COL_END, row_idx),
             params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
 
-    def register_bot_event(self, bot_event: BotEvent):
+    def insert_bot_event(self, bot_event: BotEvent) -> None:
         """
         Register a bot event in the Google sheet
         :param bot_event: the event
@@ -52,7 +52,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
             range=self.__build_data_notation(BotEventSheet.SHEET, BotEventSheet.DATA_COL_INIT, row_idx),
             params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
 
-    def get_last_attendance(self):
+    def get_last_attendance(self) -> Attendance:
         self.logger.debug("Getting last attendance")
         attendance_idx = self.__get_last_row(AttendanceSheet.SHEET)
         attendance_value_range = self.spreadsheet.values_get(
@@ -61,10 +61,10 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.logger.debug(f"find last attendance result: {attendance_value_range}")
         attendance_row = attendance_value_range['values'][0]
         attendance = mapper.gs_to_attendance_sheet(game_id=attendance_idx, row=attendance_row)
-        self.logger.debug(f"Attendance sheet: {repr(attendance)}")
+        self.logger.debug(f"Attendance sheet: {attendance}")
         return mapper.sheet_to_attendance(attendance)
 
-    def __get_last_row(self, sheet: str, col: str = "A"):
+    def __get_last_row(self, sheet: str, col: str = "A") -> int:
         """
         Given a sheet with n rows with data in column 'col', return the max index of the last row with data
         :param sheet: the sheet name (check entities.SHEET values)
@@ -75,13 +75,14 @@ class GoogleSheetsAdapter(DatabaseInterface):
         if f'{sheet}_last_row' in self.cache:
             current_max = self.cache[f'{sheet}_last_row']
 
-        rows = self.spreadsheet.values_get(f'{sheet}!{col}{current_max}:{col}')
+        rows = self.spreadsheet.values_get(self.__build_data_notation(sheet, col, current_max, col))
         actual_max = current_max + len(rows['values']) - 1
         self.cache[f'{sheet}_last_row'] = actual_max
         return actual_max
 
-    def __build_data_notation(self, sheet: str, col_start: str, row_start: int = None, col_end: str = None,
-                              row_end: int = None):
+    @staticmethod
+    def __build_data_notation(sheet: str, col_start: str, row_start: int = None, col_end: str = None,
+                              row_end: int = None) -> str:
         """
         Given google sheet, row, column or range data, return the correct A1 for the google sheets API.
         Check out google_docs: https://developers.google.com/sheets/api/guides/concepts#expandable-1
@@ -99,10 +100,3 @@ class GoogleSheetsAdapter(DatabaseInterface):
         elif row_start:
             return f'{sheet}!{col_start}{row_start}'
         return f'{sheet}!{col_start}:{col_start}'
-
-    def find_current_game_id(self, date: str):
-        # get last gameId
-        # check if date is the same as the last game
-        # else if time diff is < 3 hours, return last gameId
-        # else return none
-        pass
