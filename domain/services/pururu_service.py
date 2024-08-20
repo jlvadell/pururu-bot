@@ -20,7 +20,7 @@ class PururuService:
         }
         self.players = []
 
-    def handle_voice_state_update(self, member: str, before_channel: str, after_channel: str):
+    def handle_voice_state_update(self, member: str, before_channel: str, after_channel: str) -> None:
         """
         Handles the Discord voice state update event
         :param member: member name
@@ -38,15 +38,15 @@ class PururuService:
                 self.event_system.emit_event(EventType.MEMBER_LEFT_CHANNEL,
                                              MemberLeftChannelEvent(member, before_channel))
 
-    def register_bot_event(self, event: BotEvent):
+    def register_bot_event(self, event: BotEvent) -> None:
         """
         Logs a bot event in the database
         :param event: BotEvent
         :return: None
         """
-        self.database_service.register_bot_event(event)
+        self.database_service.insert_bot_event(event)
 
-    def register_new_player(self, player: str):
+    def register_new_player(self, player: str) -> None:
         """
         Adds a new player to the current game and if the conditions are met, emit a new game intent
         :param player: player name
@@ -64,7 +64,7 @@ class PururuService:
             self.event_system.emit_event_with_delay(EventType.NEW_GAME_INTENT, NewGameIntentEvent(self.players),
                                                     config.ATTENDANCE_CHECK_DELAY)
 
-    def remove_player(self, player: str):
+    def remove_player(self, player: str) -> None:
         """
         Removes a player from the current game and if the conditions are met, emit an end game intent
         :param player: player string
@@ -80,21 +80,21 @@ class PururuService:
                                                     EndGameIntentEvent(self.current_game['game_id'], self.players),
                                                     config.ATTENDANCE_CHECK_DELAY)
 
-    def __should_start_new_game(self):
+    def __should_start_new_game(self) -> bool:
         """
         Checks if the conditions to start a new game are met
         :return: bool
         """
         return "game_id" not in self.current_game.keys() and len(self.players) >= config.MIN_ATTENDANCE_MEMBERS
 
-    def __should_end_game(self):
+    def __should_end_game(self) -> bool:
         """
         Checks if the conditions to end the current game are met
         :return: bool
         """
         return "game_id" in self.current_game.keys() and len(self.players) < config.MIN_ATTENDANCE_MEMBERS
 
-    def register_new_game(self):
+    def register_new_game(self) -> None:
         """
         Locally creates a new game (attendance) and stores it in the current_game attribute
         :return: None
@@ -113,7 +113,7 @@ class PururuService:
         self.event_system.emit_event(EventType.GAME_STARTED,
                                      GameStartedEvent(self.current_game['game_id'], self.players))
 
-    def end_game(self):
+    def end_game(self) -> None:
         """
         Ends the current game and stores the attendance and clocking in the database
         :return: None
@@ -149,7 +149,7 @@ class PururuService:
         self.__reset_current_game()
         self.event_system.emit_event(EventType.GAME_ENDED, GameEndedEvent(attendance))
 
-    def __has_player_attended(self, player):
+    def __has_player_attended(self, player) -> bool:
         """
         Checks if a player meets the conditions to be considered as attended
         :param player: player name
@@ -165,7 +165,11 @@ class PururuService:
             return (clock_out - clock_in).total_seconds() >= config.MIN_ATTENDANCE_TIME
         return False
 
-    def __reset_current_game(self):
+    def __reset_current_game(self) -> None:
+        """
+        Resets the current game and players attributes
+        :return: None
+        """
         self.current_game = {
             "players": {},
             "players_out": {}

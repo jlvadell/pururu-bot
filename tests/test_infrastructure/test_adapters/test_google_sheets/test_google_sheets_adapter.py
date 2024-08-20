@@ -62,11 +62,11 @@ def test_cache_ok(mapper_mock, clocking: Clocking, clocking_sheet: ClockingSheet
 
 @patch('infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
 @pytest.mark.usefixtures("bot_event", "bot_event_sheet")
-def test_register_bot_event_ok(mapper_mock, bot_event: BotEvent, bot_event_sheet: BotEventSheet):
+def test_insert_bot_event_ok(mapper_mock, bot_event: BotEvent, bot_event_sheet: BotEventSheet):
     adapter = set_up()
     mapper_mock.bot_event_to_sheet.return_value = bot_event_sheet
     adapter.spreadsheet.values_get.return_value = {'values': []}
-    adapter.register_bot_event(bot_event)
+    adapter.insert_bot_event(bot_event)
     adapter.spreadsheet.values_update.assert_called_with(
         range=f"{BotEventSheet.SHEET}!{BotEventSheet.DATA_COL_INIT}1",
         params=adapter.DEFAULT_PARAMS, body={"values": [bot_event_sheet.to_row_values()]})
