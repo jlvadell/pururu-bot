@@ -1,9 +1,11 @@
 # Pururu Bot
+<div>
 <img src="https://sonarcloud.io/api/project_badges/measure?project=jlvadell_pururu-bot&metric=alert_status">
 <img src="https://sonarcloud.io/api/project_badges/measure?project=jlvadell_pururu-bot&metric=coverage">
 <img src="https://img.shields.io/github/languages/top/jlvadell/pururu-bot">
 <img src="https://img.shields.io/github/license/jlvadell/pururu-bot">
 <img src="https://img.shields.io/github/v/tag/jlvadell/pururu-bot">
+</div>
 
 This is the repository for the Discord bot Pururu.
 
