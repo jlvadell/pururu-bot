@@ -31,11 +31,11 @@ uses [Discord.py](https://discordpy.readthedocs.io/en/latest/index.html) to inte
 
 ### Google Sheets API
 
-The app is designed to use a google sheet as the main database service, for this, it uses
+The app is designed to use a Google Sheet as the main database service, for this, it uses
 the [Google Sheets API](https://developers.google.com/sheets/api).
 
-The why of this is because originally everything was done by hand using a Google sheet, so when I was planing this bot
-I wanted to preserve the easy way of visualizing and editing the data a google sheet provides.
+The why of this is because originally everything was made by hand using a Google Sheet, so when I was planning this bot
+I wanted to preserve the easy way of visualizing and editing the data a Google Sheet provides.
 
 ## How it works?
 
@@ -68,8 +68,8 @@ No bot commands are currently implemented.
 
 ## Deployment
 
-The app is configured to be deployed in an EC2 instance from AWS, to do so, it uses the deployment workflow from github
-actions.
+The app is configured to be deployed in an EC2 instance from AWS, to do so, it uses the deployment workflow from GitHub
+Actions.
 
 ![Deployment Workflow](docs/img/pururu_deployment.png)
 
