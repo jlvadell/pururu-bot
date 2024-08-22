@@ -29,9 +29,9 @@ jobs:
         echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
         chmod 700 /tmp/ssh_key
 
-    - name: Copy project files to EC2
+    - name: Sync project files to EC2
       run: |
-        scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r ./* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
+        rsync -avL --progress -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key" ./* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
 
     - name: Deploy on EC2
       run: |
