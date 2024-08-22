@@ -6,7 +6,7 @@ from domain.entities import BotEvent, Attendance, Clocking
 from infrastructure.adapters.google_sheets.entities import BotEventSheet, AttendanceSheet, ClockingSheet
 from tests.test_infrastructure.test_adapters.test_google_sheets.test_entities import bot_event_sheet, \
     attendance_sheet, clocking_sheet
-from tests.test_domain.test_entities import bot_event, attendance, clocking
+from app.tests.test_domain.test_entities import bot_event, attendance, clocking
 from unittest.mock import patch
 
 

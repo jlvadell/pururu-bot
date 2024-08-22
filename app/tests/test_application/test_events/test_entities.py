@@ -7,7 +7,7 @@ from application.events.entities import MemberJoinedChannelEvent, MemberLeftChan
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
 from application.events.event_system import EventType
 from domain.entities import Attendance
-from tests.test_domain.test_entities import attendance
+from app.tests.test_domain.test_entities import attendance
 
 
 @pytest.fixture

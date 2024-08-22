@@ -3,7 +3,7 @@ from application.events.entities import MemberJoinedChannelEvent, MemberLeftChan
 
 from application.events.event_system import EventSystem, EventType
 from domain.services.pururu_service import PururuService
-from utils import get_logger
+from app.utils import get_logger
 
 
 class EventListeners:

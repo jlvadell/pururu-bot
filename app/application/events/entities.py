@@ -1,4 +1,4 @@
-import utils
+from app import utils
 from application.events.event_system import EventType
 from domain.entities import BotEvent, Attendance
 

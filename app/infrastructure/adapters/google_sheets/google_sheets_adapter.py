@@ -2,7 +2,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 import infrastructure.adapters.google_sheets.mapper as mapper
-import utils
+from app import utils
 from domain.entities import BotEvent, Attendance, Clocking
 from domain.services.database_service import DatabaseInterface
 from infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet

@@ -2,9 +2,7 @@ import pytest
 
 from domain.entities import Attendance, Clocking, BotEvent
 from infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet, BotEventSheet
-from tests.test_domain.test_entities import attendance, clocking, bot_event
-from tests.test_infrastructure.test_adapters.test_google_sheets.test_entities import attendance_sheet, clocking_sheet, \
-    bot_event_sheet
+from app.tests.test_domain.test_entities import attendance, clocking, bot_event
 from infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
 
 from unittest.mock import patch, Mock
