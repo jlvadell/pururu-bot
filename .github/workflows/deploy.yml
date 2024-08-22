@@ -13,19 +13,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Get Configuration building script
-      uses: actions/checkout@v4
-      with:
-          repository: jlvadell/general-scripts
-          path: general-scripts
-          ssh-key: ${{ secrets.SCRIPTS_REPO_SSH_PRIVATE }}
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - name: Run build_pururu_secrets.py script
+    - name: Setup production environment
       env:
         DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
         GS_ATTENDANCE_PLAYER_MAPPING: ${{ secrets.GS_ATTENDANCE_PLAYER_MAPPING }}
@@ -33,12 +21,8 @@ jobs:
         PLAYERS: ${{ secrets.PLAYERS }}
         SPREADSHEET_CREDS: ${{ secrets.SPREADSHEET_CREDS }}
       run: | 
-        python general-scripts/create_secrets_file/build_pururu_secrets.py > /dev/null 2>&1
+        bash scripts/build_prod_env.sh
       working-directory: .
-
-    - name: Clean project folder
-      run: |
-        rm -rf ./general-scripts
 
     - name: Load EC2 Key
       run: |
