@@ -26,29 +26,35 @@ jobs:
         python-version: '3.12'
 
     - name: Run build_pururu_secrets.py script
+      env:
+        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        GS_ATTENDANCE_PLAYER_MAPPING: ${{ secrets.GS_ATTENDANCE_PLAYER_MAPPING }}
+        GUILD_ID: ${{ secrets.GUILD_ID }}
+        PLAYERS: ${{ secrets.PLAYERS }}
+        SPREADSHEET_CREDS: ${{ secrets.SPREADSHEET_CREDS }}
       run: | 
         python general-scripts/create_secrets_file/build_pururu_secrets.py > /dev/null 2>&1
       working-directory: .
 
-    - name: verify secrets created
+    - name: Clean project folder
       run: |
-        if test -f ".env.production"; then echo "File exists"; else echo "File does not exist"; exit 1; fi
+        rm -rf ./general-scripts
 
-#    - name: Load EC2 Key
-#      run: |
-#        echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
-#        chmod 600 /tmp/ssh_key
+    - name: Load EC2 Key
+      run: |
+        echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
+        chmod 600 /tmp/ssh_key
 
-#    - name: Copy project files to EC2
-#      run: |
-#        scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r ./* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
+    - name: Copy project files to EC2
+      run: |
+        scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r ./* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
 
-#    - name: Deploy on EC2
-#      run: |
-#        ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-#          cd /home/${{ secrets.EC2_USER }}/app/
-#          docker build -t your-python-app .
-#          docker stop your-python-app || true
-#          docker rm your-python-app || true
-#          docker run -d --name your-python-app -p 80:80 your-python-app
-#        EOF
+    - name: Deploy on EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd /home/${{ secrets.EC2_USER }}/app/
+          docker build -t pururu-bot .
+          docker stop pururu-bot || true
+          docker rm pururu-bot || true
+          docker run -d --name pururu-bot pururu-bot
+        EOF
