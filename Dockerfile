@@ -16,8 +16,19 @@ ENV APP_ENV=production
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# copy project
-COPY ../pururu-bot .
+# Copy project
+COPY bot.py .
+COPY utils.py .
+COPY config.py .
+COPY domain .
+COPY infrastructure .
+COPY application .
+
+# Copy Configs
+COPY google_creds.json .
+COPY .env.base .
+COPY .env.prod .
+
 
 # Run the application
 CMD ["python", "bot.py"]
