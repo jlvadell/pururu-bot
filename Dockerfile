@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 
+RUN addgroup -S nonroot \
+    && adduser -S nonroot -G nonroot
+
+USER nonroot
+
 # set working directory
 WORKDIR /app
 
@@ -12,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # copy project
-COPY . .
+COPY ../pururu-bot .
 
 # Run the application
 CMD ["python", "bot.py"]
