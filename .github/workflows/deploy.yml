@@ -26,7 +26,8 @@ jobs:
         python-version: '3.12'
 
     - name: Run build_pururu_secrets.py script
-      run: python ../../general-scripts/create_secrets_file/build_pururu_secrets.py
+      run: | 
+        python general-scripts/create_secrets_file/build_pururu_secrets.py
       working-directory: .
 
     - name: verify secrets created
