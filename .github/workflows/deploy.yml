@@ -43,7 +43,7 @@ jobs:
     - name: Load EC2 Key
       run: |
         echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
-        chmod 600 /tmp/ssh_key
+        chmod 700 /tmp/ssh_key
 
     - name: Copy project files to EC2
       run: |
