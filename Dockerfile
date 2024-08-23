@@ -1,12 +1,15 @@
 FROM python:3.12-slim
 
-RUN addgroup -S nonroot \
-    && adduser -S nonroot -G nonroot
+# Update the package list, install sudo, create a non-root user, and grant password-less sudo permissions
+RUN addgroup --gid $GID nonroot && \
+    adduser --uid $UID --gid $GID --disabled-password --gecos "" nonroot && \
+    echo 'nonroot ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
+# Set the non-root user as the default user
 USER nonroot
 
 # set working directory
-WORKDIR /app
+WORKDIR /home/nonroot/app
 
 # set environment variables
 ENV APP_ENV=production
@@ -17,7 +20,7 @@ COPY src/pururu/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY src/pururu ./
+COPY src/* ./
 
 
 # Run the application
