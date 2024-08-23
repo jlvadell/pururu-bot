@@ -9,7 +9,7 @@ from application.events.entities import MemberJoinedChannelEvent, MemberLeftChan
 from application.events.event_system import EventType
 from domain.entities import BotEvent, Attendance
 from domain.services.pururu_service import PururuService
-from app.tests.test_domain.test_entities import attendance
+from test_domain.test_entities import attendance
 
 
 @patch('application.events.event_system.EventSystem')

@@ -3,7 +3,7 @@ from unittest.mock import patch
 from freezegun import freeze_time
 from hamcrest import assert_that, equal_to
 
-from app import utils
+import utils
 
 
 @patch("config.LOG_LEVEL", "DEBUG")

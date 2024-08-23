@@ -61,8 +61,8 @@ class Application:
         # ----------------------------------------
         # -------------- RUN APP
         # ----------------------------------------
-        self.logger.info('Application started')
         self.dc_client.run(config.DISCORD_TOKEN)
+        self.logger.info('Application started')
 
 
 if __name__ == '__main__':

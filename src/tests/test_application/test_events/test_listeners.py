@@ -6,9 +6,9 @@ from application.events.entities import MemberJoinedChannelEvent, MemberLeftChan
 from application.events.event_system import EventType
 from application.events.listeners import EventListeners
 from domain.entities import Attendance
-from tests.test_application.test_events.test_entities import member_joined_channel_event, member_left_channel_event, \
+from test_application.test_events.test_entities import member_joined_channel_event, member_left_channel_event, \
     new_game_intent_event, end_game_intent_event, game_started_event, game_ended_event
-from app.tests.test_domain.test_entities import attendance
+from test_domain.test_entities import attendance
 
 
 @patch('application.events.event_system.EventSystem')

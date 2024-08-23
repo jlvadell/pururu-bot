@@ -1,6 +1,6 @@
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-from hamcrest import assert_that, is_in, is_not, raises, calling, equal_to
+from hamcrest import assert_that, is_in, raises, calling, equal_to
 
 from application.events.event_system import EventType, Event, EventSystem
 

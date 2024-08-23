@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import config
-from app import utils
+import utils
 from application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, NewGameIntentEvent, \
     MemberJoinedChannelEvent, MemberLeftChannelEvent
 from application.events.event_system import EventSystem, EventType
