@@ -1,18 +1,18 @@
 from unittest import mock
 from unittest.mock import patch, call
 
-from application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
+from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
-from application.events.event_system import EventType
-from application.events.listeners import EventListeners
-from domain.entities import Attendance
-from test_application.test_events.test_entities import member_joined_channel_event, member_left_channel_event, \
+from pururu.application.events.event_system import EventType
+from pururu.application.events.listeners import EventListeners
+from pururu.domain.entities import Attendance
+from tests.test_application.test_events.test_entities import member_joined_channel_event, member_left_channel_event, \
     new_game_intent_event, end_game_intent_event, game_started_event, game_ended_event
-from test_domain.test_entities import attendance
+from tests.test_domain.test_entities import attendance
 
 
-@patch('application.events.event_system.EventSystem')
-@patch('domain.services.pururu_service.PururuService')
+@patch('pururu.application.events.event_system.EventSystem')
+@patch('pururu.domain.services.pururu_service.PururuService')
 def set_up(event_type: EventType, service_mock, event_mock) -> EventListeners:
     listener = EventListeners(service_mock, event_mock)
     listener.event_system.create_event.assert_has_calls([call(event_type)])

@@ -1,5 +1,5 @@
 import pytest
-from domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
 
 
 @pytest.fixture

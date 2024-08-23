@@ -3,10 +3,10 @@ from unittest.mock import patch
 from freezegun import freeze_time
 from hamcrest import assert_that, equal_to
 
-import utils
+import pururu.utils as utils
 
 
-@patch("config.LOG_LEVEL", "DEBUG")
+@patch("pururu.config.LOG_LEVEL", "DEBUG")
 def test_get_logger():
     actual = utils.get_logger("name")
     assert_that(actual.name, equal_to("name"))

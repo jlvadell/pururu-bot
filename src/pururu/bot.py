@@ -1,12 +1,12 @@
 import discord
 from discord import app_commands
 
-import config
-import utils
-from application.events.event_system import EventSystem
-from application.events.listeners import EventListeners
-from domain.services.pururu_service import PururuService
-from infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
+import pururu.config as config
+import pururu.utils as utils
+from pururu.application.events.event_system import EventSystem
+from pururu.application.events.listeners import EventListeners
+from pururu.domain.services.pururu_service import PururuService
+from pururu.infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
 
 
 class Application:

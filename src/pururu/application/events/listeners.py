@@ -1,9 +1,9 @@
-from application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
+from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
 
-from application.events.event_system import EventSystem, EventType
-from domain.services.pururu_service import PururuService
-from utils import get_logger
+from pururu.application.events.event_system import EventSystem, EventType
+from pururu.domain.services.pururu_service import PururuService
+from pururu.utils import get_logger
 
 
 class EventListeners:

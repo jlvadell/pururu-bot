@@ -4,21 +4,21 @@ import pytest
 from freezegun import freeze_time
 from hamcrest import assert_that, equal_to, has_key, is_not
 
-from application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
+from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
-from application.events.event_system import EventType
-from domain.entities import BotEvent, Attendance
-from domain.services.pururu_service import PururuService
-from test_domain.test_entities import attendance
+from pururu.application.events.event_system import EventType
+from pururu.domain.entities import BotEvent, Attendance
+from pururu.domain.services.pururu_service import PururuService
+from tests.test_domain.test_entities import attendance
 
 
-@patch('application.events.event_system.EventSystem')
-@patch('domain.services.database_service.DatabaseInterface')
+@patch('pururu.application.events.event_system.EventSystem')
+@patch('pururu.domain.services.database_service.DatabaseInterface')
 def set_up(db_mock, event_mock) -> PururuService:
     return PururuService(db_mock, event_mock)
 
 
-@patch("config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
 def test_handle_voice_state_update_player_joined_ok():
     service = set_up()
     service.handle_voice_state_update("member1", None, "channel")
@@ -32,7 +32,7 @@ def test_handle_voice_state_update_player_joined_ok():
     service.database_service.assert_not_called()
 
 
-@patch("config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
 def test_handle_voice_state_update_player_left_ok():
     service = set_up()
     service.handle_voice_state_update("member1", "channel", None)
@@ -46,14 +46,14 @@ def test_handle_voice_state_update_player_left_ok():
     service.database_service.assert_not_called()
 
 
-@patch("config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
 def test_handle_voice_state_update_player_changed_channels():
     service = set_up()
     service.handle_voice_state_update("member1", "before_channel", "after_channel")
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
-@patch("config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
 def test_handle_voice_state_update_player_changed_channels_same_name():
     service = set_up()
     service.handle_voice_state_update("member1", "channel", "channel")
@@ -61,7 +61,7 @@ def test_handle_voice_state_update_player_changed_channels_same_name():
     service.database_service.assert_not_called()
 
 
-@patch("config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
 def test_handle_voice_state_update_player_not_in_array():
     service = set_up()
     service.handle_voice_state_update("member15", None, "channel")
@@ -81,8 +81,8 @@ def test_register_bot_event():
     service.database_service.insert_bot_event.assert_called_once_with(event)
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
 def test_register_new_player_ok(utils_mock):
     service = set_up()
     service.register_new_player("member1")
@@ -94,8 +94,8 @@ def test_register_new_player_ok(utils_mock):
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("utils.get_current_time_formatted", return_value="2023-08-10 10:30:00")
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:30:00")
 def test_register_new_player_player_rejoined(utils_mock):
     service = set_up()
     service.players = ["member2"]
@@ -111,7 +111,7 @@ def test_register_new_player_player_rejoined(utils_mock):
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
 def test_register_new_player_already_in():
     service = set_up()
     service.players = ["member2"]
@@ -127,8 +127,8 @@ def test_register_new_player_already_in():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("config.ATTENDANCE_CHECK_DELAY", 1000)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.ATTENDANCE_CHECK_DELAY", 1000)
 def test_register_new_player_emit_intent():
     service = set_up()
     service.players = ["member1", "member2"]
@@ -143,7 +143,7 @@ def test_register_new_player_emit_intent():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 1)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 1)
 def test_remove_player_ok():
     service = set_up()
     service.players = ["member1", "member2"]
@@ -164,7 +164,7 @@ def test_remove_player_ok():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 1)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 1)
 def test_remove_player_not_in():
     service = set_up()
     service.players = ["member2"]
@@ -183,8 +183,8 @@ def test_remove_player_not_in():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 2)
-@patch("config.ATTENDANCE_CHECK_DELAY", 1000)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 2)
+@patch("pururu.config.ATTENDANCE_CHECK_DELAY", 1000)
 def test_remove_player_emit_intent():
     service = set_up()
     service.players = ["member1", "member2"]
@@ -203,7 +203,7 @@ def test_remove_player_emit_intent():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
 def test_register_new_game_not_enough_players():
     service = set_up()
     service.players = ["member1", "member2"]
@@ -215,7 +215,7 @@ def test_register_new_game_not_enough_players():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 1)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 1)
 def test_register_new_game_already_a_game_going():
     service = set_up()
     service.current_game["game_id"] = 1
@@ -228,8 +228,8 @@ def test_register_new_game_already_a_game_going():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 1)
-@patch("utils.get_current_time_formatted", return_value="curr_date")
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 1)
+@patch("pururu.utils.get_current_time_formatted", return_value="curr_date")
 @pytest.mark.usefixtures("attendance")
 def test_register_new_game_ok(utils_mock, attendance: Attendance):
     service = set_up()
@@ -250,7 +250,7 @@ def test_register_new_game_ok(utils_mock, attendance: Attendance):
     service.database_service.get_last_attendance.assert_called_once()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 2)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 2)
 def test_end_game_there_are_still_players():
     service = set_up()
     service.players = ["member1", "member2"]
@@ -262,7 +262,7 @@ def test_end_game_there_are_still_players():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 5)
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 5)
 def test_end_game_no_current_game():
     service = set_up()
     service.players = ["member1", "member2"]
@@ -273,10 +273,10 @@ def test_end_game_no_current_game():
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("config.PLAYERS", ["member1", "member2", "member3", "member4"])
-@patch("config.MIN_ATTENDANCE_TIME", 60)
-@patch("utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
+@patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
+@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
 @freeze_time("2023-08-10 10:10:00")
 def test_end_game_not_enough_player_attendance(utils_mock):
     service = set_up()
@@ -289,10 +289,10 @@ def test_end_game_not_enough_player_attendance(utils_mock):
     service.database_service.assert_not_called()
 
 
-@patch("config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("config.PLAYERS", ["member1", "member2", "member3", "member4"])
-@patch("config.MIN_ATTENDANCE_TIME", 60)
-@patch("utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
+@patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
+@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
 @freeze_time("2023-08-10 10:10:00")
 def test_end_game_ok(utils_mock):
     service = set_up()

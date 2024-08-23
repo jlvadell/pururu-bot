@@ -1,12 +1,12 @@
 from datetime import datetime
 
-import config
-import utils
-from application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, NewGameIntentEvent, \
-    MemberJoinedChannelEvent, MemberLeftChannelEvent
-from application.events.event_system import EventSystem, EventType
-from domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
-from domain.services.database_service import DatabaseInterface
+import pururu.config as config
+import pururu.utils as utils
+from pururu.application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent,  \
+    NewGameIntentEvent, MemberJoinedChannelEvent, MemberLeftChannelEvent
+from pururu.application.events.event_system import EventSystem, EventType
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
+from pururu.domain.services.database_service import DatabaseInterface
 
 
 class PururuService:

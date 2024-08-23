@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from domain.entities import Attendance, BotEvent, Clocking
+from pururu.domain.entities import Attendance, BotEvent, Clocking
 
 
 class DatabaseInterface(ABC):

@@ -17,8 +17,8 @@ COPY src/pururu/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY src/pururu/* ./
+COPY src/pururu ./
 
 
 # Run the application
-CMD ["python", "bot.py"]
+CMD ["python", "pururu/bot.py"]

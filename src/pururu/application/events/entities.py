@@ -1,6 +1,6 @@
-import utils
-from application.events.event_system import EventType
-from domain.entities import BotEvent, Attendance
+import pururu.utils as utils
+from pururu.application.events.event_system import EventType
+from pururu.domain.entities import BotEvent, Attendance
 
 
 class MemberJoinedChannelEvent:

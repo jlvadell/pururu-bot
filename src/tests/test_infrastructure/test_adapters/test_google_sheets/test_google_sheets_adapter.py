@@ -1,18 +1,18 @@
 import pytest
 
-from domain.entities import Attendance, Clocking, BotEvent
-from infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet, BotEventSheet
-from test_domain.test_entities import attendance, clocking, bot_event
-from test_infrastructure.test_adapters.test_google_sheets.test_entities import attendance_sheet, clocking_sheet, \
+from pururu.domain.entities import Attendance, Clocking, BotEvent
+from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet, BotEventSheet
+from tests.test_domain.test_entities import attendance, clocking, bot_event
+from tests.test_infrastructure.test_adapters.test_google_sheets.test_entities import attendance_sheet, clocking_sheet, \
     bot_event_sheet
-from infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
+from pururu.infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
 
 from unittest.mock import patch, Mock
 
 
-@patch('infrastructure.adapters.google_sheets.google_sheets_adapter.gspread')
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.gspread')
 @patch('google.oauth2.service_account.Credentials.from_service_account_file')
-@patch('utils.get_logger')
+@patch('pururu.utils.get_logger')
 def set_up(gspread_mock, credentials_mock, logger_mock) -> GoogleSheetsAdapter:
     gs_client_mock = Mock()
     gspread_mock.authorize.return_value = gs_client_mock
@@ -20,7 +20,7 @@ def set_up(gspread_mock, credentials_mock, logger_mock) -> GoogleSheetsAdapter:
     return GoogleSheetsAdapter('credentials.json', 'spreadsheet_id')
 
 
-@patch('infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
 @pytest.mark.usefixtures("attendance", "attendance_sheet")
 def test_upsert_attendance_ok(mapper_mock, attendance: Attendance, attendance_sheet: AttendanceSheet):
     adapter = set_up()
@@ -33,7 +33,7 @@ def test_upsert_attendance_ok(mapper_mock, attendance: Attendance, attendance_sh
     )
 
 
-@patch('infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
 @pytest.mark.usefixtures("clocking", "clocking_sheet")
 def test_insert_clocking_ok(mapper_mock, clocking: Clocking, clocking_sheet: ClockingSheet):
     adapter = set_up()
@@ -45,7 +45,7 @@ def test_insert_clocking_ok(mapper_mock, clocking: Clocking, clocking_sheet: Clo
         params=adapter.DEFAULT_PARAMS, body={"values": [clocking_sheet.to_row_values()]})
 
 
-@patch('infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
 @pytest.mark.usefixtures("clocking", "clocking_sheet")
 def test_cache_ok(mapper_mock, clocking: Clocking, clocking_sheet: ClockingSheet):
     adapter = set_up()
@@ -58,7 +58,7 @@ def test_cache_ok(mapper_mock, clocking: Clocking, clocking_sheet: ClockingSheet
     assert adapter.cache[f'{ClockingSheet.SHEET}_last_row'] == 4
 
 
-@patch('infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
 @pytest.mark.usefixtures("bot_event", "bot_event_sheet")
 def test_insert_bot_event_ok(mapper_mock, bot_event: BotEvent, bot_event_sheet: BotEventSheet):
     adapter = set_up()
@@ -70,7 +70,7 @@ def test_insert_bot_event_ok(mapper_mock, bot_event: BotEvent, bot_event_sheet: 
         params=adapter.DEFAULT_PARAMS, body={"values": [bot_event_sheet.to_row_values()]})
 
 
-@patch('infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
 @pytest.mark.usefixtures("attendance", "attendance_sheet")
 def test_get_last_attendance_ok(mapper_mock, attendance: Attendance, attendance_sheet: AttendanceSheet):
     adapter = set_up()

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-import config
+import pururu.config as config
 
 FORMATTED_TIME_STR = '%Y-%m-%d %H:%M:%S'
 

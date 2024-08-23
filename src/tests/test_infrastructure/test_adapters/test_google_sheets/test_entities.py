@@ -1,7 +1,7 @@
 import pytest
 from hamcrest import assert_that, equal_to
 
-from infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
+from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
 
 @pytest.fixture
