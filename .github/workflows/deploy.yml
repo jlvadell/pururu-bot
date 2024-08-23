@@ -1,0 +1,45 @@
+name: Deploy EC2
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup production environment
+      env:
+        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        GS_ATTENDANCE_PLAYER_MAPPING: ${{ secrets.GS_ATTENDANCE_PLAYER_MAPPING }}
+        GUILD_ID: ${{ secrets.GUILD_ID }}
+        PLAYERS: ${{ secrets.PLAYERS }}
+        SPREADSHEET_CREDS: ${{ secrets.SPREADSHEET_CREDS }}
+        SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+      run: | 
+        chmod +x scripts/build_prod_env.sh
+        sh scripts/build_prod_env.sh
+        mv google_creds.json src/pururu/google_creds.json
+        mv production.properties src/pururu/.env.production
+
+    - name: Load EC2 Key
+      run: |
+        echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
+        chmod 700 /tmp/ssh_key
+
+    - name: Sync project files to EC2
+      run: |
+        rsync -avL --progress -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key" ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
+
+    - name: Deploy on EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd /home/${{ secrets.EC2_USER }}/app/
+          docker build -t pururu-bot .
+          docker stop pururu-bot || true
+          docker rm pururu-bot || true
+          docker run -d --name pururu-bot pururu-bot
+        EOF
