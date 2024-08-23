@@ -21,7 +21,10 @@ jobs:
         PLAYERS: ${{ secrets.PLAYERS }}
         SPREADSHEET_CREDS: ${{ secrets.SPREADSHEET_CREDS }}
       run: | 
-        bash scripts/build_prod_env.sh
+        chmod +x scripts/build_prod_env.sh
+        sh scripts/build_prod_env.sh
+        mv google_creds.json src/pururu/google_creds.json
+        mv production.properties src/pururu/.env.production
 
     - name: Load EC2 Key
       run: |
@@ -30,7 +33,7 @@ jobs:
 
     - name: Sync project files to EC2
       run: |
-        rsync -avL --progress -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key" ./. ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
+        rsync -avL --progress -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key" ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
 
     - name: Deploy on EC2
       run: |
