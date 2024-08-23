@@ -1,10 +1,10 @@
 FROM python:3.12-slim
 
-# Update the package list, install sudo, create a non-root user, and grant password-less sudo permissions
+# Create a non-root user and add sudo permision
 RUN adduser --no-create-home nonroot
 RUN usermod -aG sudo nonroot
 
-# Update the package list, install sudo, create a non-root user, and grant password-less sudo permissions
+# Update the package list and clenaup after the install
 RUN apt update \
     && apt upgrade -y \
     && apt-get install -y --no-install-recommends \
@@ -21,14 +21,14 @@ WORKDIR /home/nonroot/app
 
 # set environment variables
 ENV APP_ENV=production
-# ENV APP_ENV=development
+ENV PYTHONPATH="${PYTHONPATH}:/home/nonroot/app/src"
 
 # Install requirements
 COPY src/pururu/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY src/ ./
+COPY ./src/ ./
 
 
 # Run the application
