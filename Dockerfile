@@ -28,7 +28,7 @@ COPY src/pururu/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY src/* ./
+COPY src/ ./
 
 
 # Run the application
