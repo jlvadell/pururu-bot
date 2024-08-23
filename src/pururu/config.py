@@ -33,7 +33,7 @@ GUILD_ID = int(os.getenv('GUILD_ID', 0))
 # ----------------------------------------
 # -------------- GS Adapter configs
 # ----------------------------------------
-GOOGLE_SHEETS_CREDENTIALS = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
+GOOGLE_SHEETS_CREDENTIALS = os.getenv('GOOGLE_SHEETS_CREDENTIALS', './google_creds.json')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 GS_ATTENDANCE_PLAYER_MAPPING = json.loads(os.getenv('GS_ATTENDANCE_PLAYER_MAPPING')) \
     if os.getenv('GS_ATTENDANCE_PLAYER_MAPPING') else {}
