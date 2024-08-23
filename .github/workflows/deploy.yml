@@ -20,6 +20,7 @@ jobs:
         GUILD_ID: ${{ secrets.GUILD_ID }}
         PLAYERS: ${{ secrets.PLAYERS }}
         SPREADSHEET_CREDS: ${{ secrets.SPREADSHEET_CREDS }}
+        SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
       run: | 
         chmod +x scripts/build_prod_env.sh
         sh scripts/build_prod_env.sh
