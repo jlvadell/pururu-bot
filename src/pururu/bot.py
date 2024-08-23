@@ -7,6 +7,7 @@ from pururu.application.events.event_system import EventSystem
 from pururu.application.events.listeners import EventListeners
 from pururu.domain.services.pururu_service import PururuService
 from pururu.infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
+from pururu.__version__ import __version__
 
 
 class Application:
@@ -26,12 +27,11 @@ class Application:
             self.pururu_service.handle_voice_state_update(member.name, before_state.channel, after_state.channel)
 
         @self.dc_command_tree.command(
-            name='test',
-            description='Test command',
-            guild=discord.Object(id=config.GUILD_ID)
+            name='ping',
+            description='Sends a ping to Pururu'
         )
-        async def first_command(interaction):
-            await interaction.response.send_message("Hello!")
+        async def ping_command(interaction):
+            await interaction.response.send_message(f"Pong! Pururu v{__version__} is watching! :3")
 
         @self.dc_client.event
         async def on_ready():

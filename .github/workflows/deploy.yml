@@ -3,8 +3,6 @@ on:
   push:
     tags:
       - 'v*'
-  pull_request: #just for testing remove after
-    types: [ opened, synchronize, reopened ] #just for testing remove after
 jobs:
   deploy:
     runs-on: ubuntu-latest
