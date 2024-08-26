@@ -33,7 +33,7 @@ class NewGameIntentEvent:
 
 
 class EndGameIntentEvent:
-    def __init__(self, game_id: str, players: list[str]):
+    def __init__(self, game_id: int, players: list[str]):
         self.game_id = game_id
         self.players = players
 
@@ -43,7 +43,7 @@ class EndGameIntentEvent:
 
 
 class GameStartedEvent:
-    def __init__(self, game_id: str, players: list[str]):
+    def __init__(self, game_id: int, players: list[str]):
         self.game_id = game_id
         self.players = players
 

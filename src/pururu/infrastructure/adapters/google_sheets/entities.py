@@ -38,13 +38,13 @@ class AttendanceSheet:
 class ClockingSheet:
     SHEET = "Fichaje"
     DATA_COL_INIT = "A"
-    DATA_COL_END = "D"
+    DATA_COL_END = "F"
 
-    def __init__(self, member: str, game_id: str, clock_in: str, clock_out: str):
-        self.member = member
+    def __init__(self, game_id: int, playtimes: list[int]):
         self.game_id = game_id
-        self.clock_in = clock_in
-        self.clock_out = clock_out
+        self.playtimes = playtimes
 
     def to_row_values(self):
-        return [self.game_id, self.member, self.clock_in, self.clock_out]
+        row = [self.game_id]
+        row.extend(self.playtimes)
+        return row

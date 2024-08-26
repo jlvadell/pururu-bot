@@ -2,7 +2,7 @@ import pytest
 from hamcrest import assert_that, equal_to, is_not
 
 import pururu.infrastructure.adapters.google_sheets.mapper as mapper
-from pururu.domain.entities import BotEvent, Attendance, Clocking
+from pururu.domain.entities import BotEvent, Attendance, Clocking, AttendanceEventType
 from pururu.infrastructure.adapters.google_sheets.entities import BotEventSheet, AttendanceSheet, ClockingSheet
 from tests.test_infrastructure.test_adapters.test_google_sheets.test_entities import bot_event_sheet, \
     attendance_sheet, clocking_sheet
@@ -32,10 +32,8 @@ def test_attendance_to_sheet(attendance: Attendance, attendance_sheet: Attendanc
 @pytest.mark.usefixtures("clocking", "clocking_sheet")
 def test_clocking_to_sheet(clocking: Clocking, clocking_sheet: ClockingSheet):
     actual = mapper.clocking_to_sheet(clocking)
-    assert_that(actual.member, equal_to(clocking_sheet.member))
     assert_that(actual.game_id, equal_to(clocking_sheet.game_id))
-    assert_that(actual.clock_in, equal_to(clocking_sheet.clock_in))
-    assert_that(actual.clock_out, equal_to(clocking_sheet.clock_out))
+    assert_that(actual.playtimes, equal_to(clocking_sheet.playtimes))
 
 
 @pytest.mark.usefixtures("attendance_sheet", "attendance")
@@ -49,7 +47,7 @@ def test_sheet_to_attendance(attendance_sheet: AttendanceSheet, attendance: Atte
         assert_that(actual.members[idx].justified, equal_to(member.justified))
         assert_that(actual.members[idx].motive, equal_to(member.motive))
     assert_that(actual.date, equal_to(attendance.date))
-    assert_that(actual.description, equal_to(attendance.description))
+    assert_that(actual.event_type.value, equal_to(attendance.event_type.value))
 
 
 @pytest.mark.usefixtures("attendance_sheet")
@@ -63,6 +61,7 @@ def test_gs_to_attendance_sheet(attendance_sheet: AttendanceSheet):
     assert_that(actual.motives, equal_to(attendance_sheet.motives))
     assert_that(actual.date, equal_to(attendance_sheet.date))
     assert_that(actual.description, equal_to(attendance_sheet.description))
+
 
 @pytest.mark.usefixtures("attendance_sheet")
 @patch("pururu.config.GS_ATTENDANCE_PLAYER_MAPPING", {"member1": "C", "member2": "F", "member3": "I"})
@@ -94,3 +93,13 @@ def test_column_to_index():
 
 def test_index_to_column():
     assert_that(mapper.__index_to_column(5), equal_to("F"))
+
+
+def test_map_attendance_event_type_ok():
+    assert_that(mapper.__map_attendance_event_type(AttendanceEventType.OFFICIAL_GAME.value).value,
+                equal_to(AttendanceEventType.OFFICIAL_GAME.value))
+
+
+def test_map_attendance_event_type_unknown():
+    assert_that(mapper.__map_attendance_event_type("unknown event type123465").value,
+                equal_to(AttendanceEventType.UNKNOWN.value))

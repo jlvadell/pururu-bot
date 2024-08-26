@@ -26,11 +26,13 @@ def test_on_member_joined_channel_ok(member_joined_channel_event: MemberJoinedCh
     listener.pururu_service.register_bot_event.assert_called_once()
     listener.pururu_service.register_new_player.assert_called_once_with(member_joined_channel_event.member)
 
+
 def test_on_member_left_channel_ok(member_left_channel_event: MemberLeftChannelEvent):
     listener = set_up(EventType.MEMBER_LEFT_CHANNEL)
     listener.on_member_left_channel(member_left_channel_event)
     listener.pururu_service.register_bot_event.assert_called_once()
     listener.pururu_service.remove_player.assert_called_once_with(member_left_channel_event.member)
+
 
 def test_on_new_game_intent_ok(new_game_intent_event: NewGameIntentEvent):
     listener = set_up(EventType.NEW_GAME_INTENT)
@@ -38,11 +40,13 @@ def test_on_new_game_intent_ok(new_game_intent_event: NewGameIntentEvent):
     listener.pururu_service.register_bot_event.assert_called_once()
     listener.pururu_service.register_new_game.assert_called_once()
 
+
 def test_on_end_game_intent_ok(end_game_intent_event: EndGameIntentEvent):
     listener = set_up(EventType.END_GAME_INTENT)
     listener.on_end_game_intent(end_game_intent_event)
     listener.pururu_service.register_bot_event.assert_called_once()
     listener.pururu_service.end_game.assert_called_once()
+
 
 def test_on_game_started_ok(game_started_event: GameStartedEvent):
     listener = set_up(EventType.GAME_STARTED)

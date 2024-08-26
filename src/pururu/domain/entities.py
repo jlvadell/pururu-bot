@@ -1,3 +1,6 @@
+from enum import Enum
+
+
 class BotEvent:
     def __init__(self, event_type: str, date: str, description: str):
         self.event_type = event_type
@@ -13,17 +16,29 @@ class MemberAttendance:
         self.motive = motive
 
 
+class AttendanceEventType(Enum):
+    OFFICIAL_GAME = "Juegueo Oficial"
+    ADDITIONAL_OFFICIAL_GAME = "Juegueo Adicional Oficial"
+    OFFICIAL_MEETING = "Quedada Oficial"
+    UNKNOWN = "unknown"
+
+    @staticmethod
+    def of(description: str) -> 'AttendanceEventType':
+        for event_type in AttendanceEventType:
+            if event_type.value == description:
+                return event_type
+        return AttendanceEventType.UNKNOWN
+
+
 class Attendance:
-    def __init__(self, game_id: int, members: list[MemberAttendance], date: str, description: str):
+    def __init__(self, game_id: int, members: list[MemberAttendance], date: str, event_type: AttendanceEventType):
         self.game_id = game_id
         self.members = members
         self.date = date
-        self.description = description
+        self.event_type = event_type
 
 
 class Clocking:
-    def __init__(self, member: str, game_id: int, clock_in: str, clock_out: str):
-        self.member = member
+    def __init__(self, game_id: int, playtimes: list[int]):
         self.game_id = game_id
-        self.clock_in = clock_in
-        self.clock_out = clock_out
+        self.playtimes = playtimes

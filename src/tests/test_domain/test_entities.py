@@ -1,5 +1,7 @@
 import pytest
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
+from hamcrest import assert_that, equal_to
+
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType
 
 
 @pytest.fixture
@@ -59,15 +61,26 @@ def attendance():
         game_id=1,
         members=[member1(), member2(), member3()],
         date="2023-08-10",
-        description="Attendance description"
+        event_type=AttendanceEventType.OFFICIAL_GAME
     )
 
 
 @pytest.fixture
 def clocking():
     return Clocking(
-        member="member",
         game_id=1,
-        clock_in="2023-08-10 10:00:00",
-        clock_out="2023-08-10 12:00:00"
+        playtimes=[300, 0, 1800]
     )
+
+
+@pytest.mark.parametrize("event, expected", [
+    ("Juegueo Oficial", AttendanceEventType.OFFICIAL_GAME),
+    ("Juegueo Adicional Oficial", AttendanceEventType.ADDITIONAL_OFFICIAL_GAME),
+    ("Quedada Oficial", AttendanceEventType.OFFICIAL_MEETING),
+    ("random_type123456", AttendanceEventType.UNKNOWN),
+    ("", AttendanceEventType.UNKNOWN),
+    (None, AttendanceEventType.UNKNOWN)
+])
+def test_attendance_event_type_of_test_cases(event: str, expected: AttendanceEventType):
+    actual = AttendanceEventType.of(event)
+    assert_that(actual, equal_to(expected))
