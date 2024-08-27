@@ -1,7 +1,7 @@
 import pytest
 from hamcrest import assert_that, equal_to
 
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats
 
 
 @pytest.fixture
@@ -71,6 +71,28 @@ def clocking():
         game_id=1,
         playtimes=[300, 0, 1800]
     )
+
+@pytest.fixture
+def member_stats():
+    stats = MemberStats(
+        member="member1",
+        total_events=3,
+        absences=2,
+        justifications=1,
+        points=3
+    )
+    stats.absent_events = [1, 2]
+    return stats
+
+def test_member_stats_as_message(member_stats: MemberStats):
+    actual = member_stats.as_message()
+    assert_that(actual, equal_to(f"Total de eventos: {member_stats.total_events}\n"
+                                 f"Asistencias: {member_stats.total_events - member_stats.absences}\n"
+                                 f"Faltas: {member_stats.absences}\n"
+                                 f"Injustificadas: {member_stats.absences - member_stats.justifications}\n"
+                                 f"Justificadas: {member_stats.justifications}\n"
+                                 f"Puntos: {member_stats.points}\n"
+                                 f"Eventos ausentes (Ids): {', '.join(map(str, member_stats.absent_events))}"))
 
 
 @pytest.mark.parametrize("event, expected", [

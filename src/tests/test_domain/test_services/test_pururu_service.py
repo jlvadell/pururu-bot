@@ -7,9 +7,9 @@ from hamcrest import assert_that, equal_to, has_key, is_not, has_item, has_items
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
 from pururu.application.events.event_system import EventType
-from pururu.domain.entities import BotEvent, Attendance
+from pururu.domain.entities import BotEvent, Attendance, MemberStats, AttendanceEventType, MemberAttendance
 from pururu.domain.services.pururu_service import PururuService
-from tests.test_domain.test_entities import attendance
+from tests.test_domain.test_entities import attendance, member_stats
 
 
 @patch('pururu.application.events.event_system.EventSystem')
@@ -342,3 +342,25 @@ def test_end_game_ok(utils_mock):
     service.database_service.insert_clocking.assert_called_once()
     service.event_system.emit_event.assert_called_once()
     service.database_service.upsert_attendance.assert_called_once()
+
+
+def test_retrieve_player_stats(member_stats: MemberStats):
+    service = set_up()
+    attendances = [
+        Attendance(game_id=1, members=[MemberAttendance(member_stats.member, False, True, "")],
+                   date="2023-08-10", event_type=AttendanceEventType.OFFICIAL_GAME),
+        Attendance(game_id=2, members=[MemberAttendance(member_stats.member, False, False, "")],
+                   date="2023-08-10", event_type=AttendanceEventType.OFFICIAL_GAME),
+        Attendance(game_id=3, members=[MemberAttendance(member_stats.member, True, True, "")],
+                   date="2023-08-10", event_type=AttendanceEventType.OFFICIAL_GAME),
+    ]
+    service.database_service.get_all_attendances.return_value = attendances
+    actual = service.retrieve_player_stats(member_stats.member)
+    assert_that(actual.member, equal_to(member_stats.member))
+    assert_that(actual.total_events, equal_to(member_stats.total_events))
+    assert_that(actual.absences, equal_to(member_stats.absences))
+    assert_that(actual.justifications, equal_to(member_stats.justifications))
+    assert_that(actual.points, equal_to(member_stats.points))
+    assert_that(actual.absent_events, equal_to(member_stats.absent_events))
+    service.database_service.get_all_attendances.assert_called_once()
+    service.event_system.assert_not_called()

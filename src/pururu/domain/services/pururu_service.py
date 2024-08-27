@@ -5,7 +5,7 @@ import pururu.utils as utils
 from pururu.application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, \
     NewGameIntentEvent, MemberJoinedChannelEvent, MemberLeftChannelEvent
 from pururu.application.events.event_system import EventSystem, EventType
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats
 from pururu.domain.services.database_service import DatabaseInterface
 
 
@@ -134,6 +134,30 @@ class PururuService:
             if after_channel is None:
                 self.event_system.emit_event(EventType.MEMBER_LEFT_CHANNEL,
                                              MemberLeftChannelEvent(member, before_channel))
+
+
+    def retrieve_player_stats(self, player: str) -> MemberStats:
+        """
+        Retrieves the attendance stats of a player
+        :param player: player name
+        :return: MemberStats
+        """
+        self.logger.debug(f"Retrieving stats for player {player}")
+        attendances = self.database_service.get_all_attendances()
+        member_stats = MemberStats(player, len(attendances), 0, 0, 0)
+        for attendance in attendances:
+            member_attendance = next((m for m in attendance.members if m.member == player), None)
+
+            if member_attendance:
+                if member_attendance.attendance:
+                    member_stats.points += attendance.event_type.points()
+                else:
+                    member_stats.absences += 1
+                    member_stats.absent_events.append(attendance.game_id)
+                    if member_attendance.justified:
+                        member_stats.justifications += 1
+                        member_stats.points += 1
+        return member_stats
 
     def register_bot_event(self, event: BotEvent) -> None:
         """

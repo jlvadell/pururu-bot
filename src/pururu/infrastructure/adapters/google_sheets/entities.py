@@ -1,5 +1,6 @@
 class BotEventSheet:
     SHEET = "Eventos"
+    DATA_ROW_INIT = 2
     DATA_COL_INIT = "A"
     DATA_COL_END = "C"
 
@@ -14,6 +15,7 @@ class BotEventSheet:
 
 class AttendanceSheet:
     SHEET = "Asistencia"
+    DATA_ROW_INIT = 4
     DATA_COL_INIT = "A"
     DATA_COL_END = "Q"
 
@@ -37,6 +39,7 @@ class AttendanceSheet:
 
 class ClockingSheet:
     SHEET = "Fichaje"
+    DATA_ROW_INIT = 3
     DATA_COL_INIT = "A"
     DATA_COL_END = "F"
 

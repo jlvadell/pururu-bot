@@ -1,4 +1,5 @@
 import pytest
+from hamcrest import assert_that, has_length, equal_to
 
 from pururu.domain.entities import Attendance, Clocking, BotEvent
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet, BotEventSheet
@@ -55,7 +56,7 @@ def test_cache_ok(mapper_mock, clocking: Clocking, clocking_sheet: ClockingSheet
     adapter.insert_clocking(clocking)
     adapter.spreadsheet.values_get.assert_called_with(
         f"{ClockingSheet.SHEET}!{ClockingSheet.DATA_COL_INIT}2:{ClockingSheet.DATA_COL_INIT}", )
-    assert adapter.cache[f'{ClockingSheet.SHEET}_last_row'] == 4
+    assert_that(adapter.cache[f'{ClockingSheet.SHEET}_last_row'], equal_to(4))
 
 
 @patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
@@ -78,4 +79,18 @@ def test_get_last_attendance_ok(mapper_mock, attendance: Attendance, attendance_
     mapper_mock.gs_to_attendance_sheet.return_value = attendance_sheet
     mapper_mock.sheet_to_attendance.return_value = attendance
     result = adapter.get_last_attendance()
-    assert result == attendance
+    assert_that(result, equal_to(attendance))
+
+
+@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
+def test_get_all_attendances_ok(mapper_mock, attendance_sheet: AttendanceSheet):
+    adapter = set_up()
+    adapter.spreadsheet.values_get.return_value = {
+        'values': [attendance_sheet.to_row_values(), attendance_sheet.to_row_values()]}
+    mapper_mock.gs_to_attendance_sheet.return_value = attendance_sheet
+    result = adapter.get_all_attendances()
+    assert_that(result, has_length(2))
+    assert_that(mapper_mock.gs_to_attendance_sheet.call_count, equal_to(2))
+    adapter.spreadsheet.values_get.assert_called_with(
+        f"{AttendanceSheet.SHEET}!{AttendanceSheet.DATA_COL_INIT}{AttendanceSheet.DATA_ROW_INIT}"
+        f":{AttendanceSheet.DATA_COL_END}2")
