@@ -26,13 +26,42 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.cache = {}
 
     def upsert_attendance(self, attendance: Attendance) -> None:
+        """
+        Upsert an attendance row into the Google sheet
+        :param attendance: Attendance; the attendance to be upserted
+        :return: None
+        """
+        self.logger.debug(f"Upserting attendance with id: {attendance.game_id}")
         sheet = mapper.attendance_to_sheet(attendance)
         self.spreadsheet.values_update(
             range=self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, sheet.game_id,
                                              AttendanceSheet.DATA_COL_END, sheet.game_id),
             params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
 
+
+    def get_all_attendances(self) -> list[Attendance]:
+        """
+        Get all attendances from the Google sheet
+        :return: list[Attendance]; all attendances
+        """
+        self.logger.debug("Getting all attendances")
+        all_attendances = []
+        last_row = self.__get_last_row(AttendanceSheet.SHEET)
+        attendance_value_range = self.spreadsheet.values_get(self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
+                                                               AttendanceSheet.DATA_ROW_INIT,
+                                                               AttendanceSheet.DATA_COL_END, last_row))
+        for row in attendance_value_range['values']:
+            attendance = mapper.gs_to_attendance_sheet(AttendanceSheet.DATA_ROW_INIT, row)
+            all_attendances.append(mapper.sheet_to_attendance(attendance))
+        return all_attendances
+
     def insert_clocking(self, clocking: Clocking) -> None:
+        """
+        Insert a new clocking row into the Google sheet
+        :param clocking: The clocking to be inserted
+        :return: None
+        """
+        self.logger.debug(f"Inserting clocking for game_id: {clocking.game_id}")
         sheet = mapper.clocking_to_sheet(clocking)
         row_idx = self.__get_last_row(ClockingSheet.SHEET) + 1
         self.spreadsheet.values_update(
@@ -53,6 +82,10 @@ class GoogleSheetsAdapter(DatabaseInterface):
             params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
 
     def get_last_attendance(self) -> Attendance:
+        """
+        Get the last attendance from the Google sheet
+        :return: Attendance; last attendance row
+        """
         self.logger.debug("Getting last attendance")
         attendance_idx = self.__get_last_row(AttendanceSheet.SHEET)
         attendance_value_range = self.spreadsheet.values_get(

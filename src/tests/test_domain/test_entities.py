@@ -1,5 +1,7 @@
 import pytest
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking
+from hamcrest import assert_that, equal_to
+
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats
 
 
 @pytest.fixture
@@ -59,15 +61,48 @@ def attendance():
         game_id=1,
         members=[member1(), member2(), member3()],
         date="2023-08-10",
-        description="Attendance description"
+        event_type=AttendanceEventType.OFFICIAL_GAME
     )
 
 
 @pytest.fixture
 def clocking():
     return Clocking(
-        member="member",
         game_id=1,
-        clock_in="2023-08-10 10:00:00",
-        clock_out="2023-08-10 12:00:00"
+        playtimes=[300, 0, 1800]
     )
+
+@pytest.fixture
+def member_stats():
+    stats = MemberStats(
+        member="member1",
+        total_events=3,
+        absences=2,
+        justifications=1,
+        points=3
+    )
+    stats.absent_events = [1, 2]
+    return stats
+
+def test_member_stats_as_message(member_stats: MemberStats):
+    actual = member_stats.as_message()
+    assert_that(actual, equal_to(f"Total de eventos: {member_stats.total_events}\n"
+                                 f"Asistencias: {member_stats.total_events - member_stats.absences}\n"
+                                 f"Faltas: {member_stats.absences}\n"
+                                 f"Injustificadas: {member_stats.absences - member_stats.justifications}\n"
+                                 f"Justificadas: {member_stats.justifications}\n"
+                                 f"Puntos: {member_stats.points}\n"
+                                 f"Eventos ausentes (Ids): {', '.join(map(str, member_stats.absent_events))}"))
+
+
+@pytest.mark.parametrize("event, expected", [
+    ("Juegueo Oficial", AttendanceEventType.OFFICIAL_GAME),
+    ("Juegueo Adicional Oficial", AttendanceEventType.ADDITIONAL_OFFICIAL_GAME),
+    ("Quedada Oficial", AttendanceEventType.OFFICIAL_MEETING),
+    ("random_type123456", AttendanceEventType.UNKNOWN),
+    ("", AttendanceEventType.UNKNOWN),
+    (None, AttendanceEventType.UNKNOWN)
+])
+def test_attendance_event_type_of_test_cases(event: str, expected: AttendanceEventType):
+    actual = AttendanceEventType.of(event)
+    assert_that(actual, equal_to(expected))

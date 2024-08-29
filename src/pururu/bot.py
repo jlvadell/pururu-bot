@@ -30,11 +30,22 @@ class Application:
             name='ping',
             description='Sends a ping to Pururu'
         )
-        async def ping_command(interaction):
+        async def ping_command(interaction: discord.Interaction):
             await interaction.response.send_message(f"Pong! Pururu v{__version__} is watching! :3")
+
+        @self.dc_command_tree.command(
+            name='stats',
+            description='Shows your attendance stats'
+        )
+        async def stats_command(interaction: discord.Interaction):
+            member_stats = self.pururu_service.retrieve_player_stats(interaction.user.name)
+            await interaction.response.send_message(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
+                                                    member_stats.as_message())
 
         @self.dc_client.event
         async def on_ready():
+            self.logger.info(f'Application Started and connected to {",".join([guild.name for guild in self.dc_client.guilds])}')
+            self.dc_command_tree.clear_commands(guild=discord.Object(id=config.GUILD_ID))
             await self.dc_command_tree.sync(guild=discord.Object(id=config.GUILD_ID))
 
     def init(self):
@@ -62,7 +73,6 @@ class Application:
         # -------------- RUN APP
         # ----------------------------------------
         self.dc_client.run(config.DISCORD_TOKEN)
-        self.logger.info('Application started')
 
 
 if __name__ == '__main__':

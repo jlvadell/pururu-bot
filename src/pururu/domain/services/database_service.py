@@ -9,6 +9,10 @@ class DatabaseInterface(ABC):
         pass
 
     @abstractmethod
+    def get_all_attendances(self) -> list[Attendance]:
+        pass
+
+    @abstractmethod
     def insert_clocking(self, clocking: Clocking) -> None:
         pass
 

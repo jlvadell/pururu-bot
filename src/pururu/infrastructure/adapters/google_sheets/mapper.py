@@ -1,5 +1,6 @@
 import pururu.config as config
-from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking
+import pururu.utils as utils
+from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking, AttendanceEventType
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
 
@@ -16,12 +17,11 @@ def attendance_to_sheet(domain_entity: Attendance) -> AttendanceSheet:
         justified.append(__parse_bool_to_str(member.justified))
         motives.append(member.motive)
     return AttendanceSheet(domain_entity.game_id, attendance, justified, motives, domain_entity.date,
-                           domain_entity.description)
+                           domain_entity.event_type.value)
 
 
 def clocking_to_sheet(domain_entity: Clocking) -> ClockingSheet:
-    return ClockingSheet(domain_entity.member, str(domain_entity.game_id), domain_entity.clock_in,
-                         domain_entity.clock_out)
+    return ClockingSheet(domain_entity.game_id, domain_entity.playtimes)
 
 
 def sheet_to_attendance(sheet: AttendanceSheet) -> Attendance:
@@ -30,7 +30,7 @@ def sheet_to_attendance(sheet: AttendanceSheet) -> Attendance:
         members.append(MemberAttendance(player, __parse_str_to_bool(sheet.absence[idx]),
                                         __parse_str_to_bool(sheet.unjustified[idx]), sheet.motives[idx]))
 
-    return Attendance(sheet.game_id, members, sheet.date, sheet.description)
+    return Attendance(sheet.game_id, members, sheet.date, AttendanceEventType.of(sheet.description))
 
 
 def gs_to_attendance_sheet(game_id: int, row: list) -> AttendanceSheet:
@@ -65,3 +65,14 @@ def __column_to_index(col: str) -> int:
 
 def __index_to_column(idx: int) -> str:
     return chr(idx + 65)
+
+
+def __map_attendance_event_type(description: str) -> AttendanceEventType:
+    event_type = AttendanceEventType.of(description)
+    if event_type == AttendanceEventType.UNKNOWN:
+        __get_logger().warn(f"Unknown event type: {description}")
+    return event_type
+
+
+def __get_logger():
+    return utils.get_logger(__name__)

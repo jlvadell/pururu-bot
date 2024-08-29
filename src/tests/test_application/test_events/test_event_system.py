@@ -63,4 +63,3 @@ def test_emit_event_with_delay_ok():
         event_system.events[EventType.MEMBER_JOINED_CHANNEL] = Event(EventType.MEMBER_JOINED_CHANNEL)
         event_system.emit_event_with_delay(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"}, 0)
         mock_emit_event.assert_called_once_with(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
-

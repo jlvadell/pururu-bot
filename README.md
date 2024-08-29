@@ -64,7 +64,17 @@ Here is an example of how the event logging sheet would look like:
 
 ## Bot Commands
 
-No bot commands are currently implemented.
+### Ping command (`/ping`)
+
+Send a ping to the bot, if the bot is online and responding the bot answers with a pong and his current version.
+
+### Stats command (`/stats`)
+
+When you call the stats command the bot will query your attendance data and will return a resume of your attendance.
+In this resume you will see:
+- Total events
+- Total attendances and absences
+- Total justifications / injustifications
 
 ## Deployment
 

@@ -2,7 +2,6 @@ __title__ = "Pururu"
 __description__ = "Discord bot for managing attendance."
 __url__ = "https://github.com/jlvadell/pururu-bot"
 __version__ = "1.0.0"
-__build__ = None
 __author__ = "Jose Vadell"
 __author_email__ = "me@jlvadell.com"
 __license__ = "Apache-2.0"
