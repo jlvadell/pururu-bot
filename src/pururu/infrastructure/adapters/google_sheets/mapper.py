@@ -1,7 +1,6 @@
 import pururu.config as config
-import utils
-from domain.entities import AttendanceEventType
-from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking
+import pururu.utils as utils
+from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking, AttendanceEventType
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
 
