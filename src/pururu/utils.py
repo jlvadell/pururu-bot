@@ -13,9 +13,10 @@ def get_logger(name: str):
     :return: Logger
     """
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        datefmt=FORMATTED_TIME_STR)
+                        datefmt=FORMATTED_TIME_STR,
+                        level=config.LOG_LEVEL,
+                        force=True)
     logger = logging.getLogger(name)
-    logger.setLevel(config.LOG_LEVEL)
     return logger
 
 
