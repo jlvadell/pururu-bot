@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import patch
 
 from freezegun import freeze_time
@@ -10,7 +11,7 @@ import pururu.utils as utils
 def test_get_logger():
     actual = utils.get_logger("name")
     assert_that(actual.name, equal_to("name"))
-    assert_that(actual.level, equal_to(10)) # DEBUG
+    assert_that(actual.getEffectiveLevel(), equal_to(logging.DEBUG))
 
 @freeze_time("2021-09-01 12:00:00")
 def test_get_current_time_formatted():
