@@ -101,13 +101,53 @@ class CurrentGame:
         """
         self.__init__()
 
-    def reset_clocking(self):
+    def adjust_clocking(self, start_time: datetime = None, end_time: datetime = None) -> None:
         """
-        Resets the clocking data
+        Matches the start_time and end_time of the players to the given times
         :return: None
         """
-        self.players_clock_ins = {}
-        self.players_clock_outs = {}
+        if start_time is not None:
+            for player in self.players_clock_ins:
+                last_start_time = self.get_player_last_start_time(player)
+                if last_start_time is None or last_start_time < start_time:
+                    last_start_time = start_time
+                self.players_clock_ins[player] = [last_start_time.strftime(utils.FORMATTED_TIME_STR)]
+        if end_time is not None:
+            for player in self.players_clock_outs:
+                last_end_time = self.get_player_last_end_time(player)
+                if last_end_time is None or last_end_time > end_time:
+                    last_end_time = end_time
+                self.players_clock_outs[player] = [last_end_time.strftime(utils.FORMATTED_TIME_STR)]
+
+    def get_player_last_start_time(self, player: str) -> datetime|None:
+        """
+        Gets the last start_time of a player.
+        :param player: member.name
+        :return: datetime: parsed start_time or None if currently offline
+        """
+        if player not in self.players_clock_ins:
+            return None
+        clock_ins = self.players_clock_ins[player]
+        clock_outs = self.players_clock_outs[player]
+        if len(clock_ins) <= len(clock_outs):
+            return None
+        last_clock_in = datetime.strptime(clock_ins[-1], utils.FORMATTED_TIME_STR)
+        return last_clock_in
+
+    def get_player_last_end_time(self, player: str) -> datetime|None:
+        """
+        Gets the last end_time of a player.
+        :param player: member.name
+        :return: datetime: parsed end_time or None if currently online or not clocked in
+        """
+        if player not in self.players_clock_outs:
+            return None
+        clock_ins = self.players_clock_ins[player]
+        clock_outs = self.players_clock_outs[player]
+        if len(clock_ins) > len(clock_outs):
+            return None
+        last_clock_out = datetime.strptime(clock_outs[-1], utils.FORMATTED_TIME_STR)
+        return last_clock_out
 
 
 class PururuService:
@@ -134,7 +174,6 @@ class PururuService:
             if after_channel is None:
                 self.event_system.emit_event(EventType.MEMBER_LEFT_CHANNEL,
                                              MemberLeftChannelEvent(member, before_channel))
-
 
     def retrieve_player_stats(self, player: str) -> MemberStats:
         """
@@ -179,7 +218,7 @@ class PururuService:
         self.logger.debug(f"Should start new game: {self.current_game.should_start_new_game()}")
         if self.current_game.should_start_new_game():
             self.event_system.emit_event_with_delay(EventType.NEW_GAME_INTENT,
-                                                    NewGameIntentEvent(self.current_game.get_players()),
+                                                    NewGameIntentEvent(self.current_game.get_players(), datetime.now()),
                                                     config.ATTENDANCE_CHECK_DELAY)
 
     def remove_player(self, player: str) -> None:
@@ -196,12 +235,14 @@ class PururuService:
         if self.current_game.should_end_game():
             self.event_system.emit_event_with_delay(EventType.END_GAME_INTENT,
                                                     EndGameIntentEvent(self.current_game.game_id,
-                                                                       self.current_game.get_players()),
+                                                                       self.current_game.get_players(),
+                                                                       datetime.now()),
                                                     config.ATTENDANCE_CHECK_DELAY)
 
-    def register_new_game(self) -> None:
+    def register_new_game(self, start_time: datetime) -> None:
         """
         Locally creates a new game (attendance) and stores it in the current_game attribute
+        :param start_time: start time of the game
         :return: None
         """
         if not self.current_game.should_start_new_game():
@@ -210,7 +251,7 @@ class PururuService:
             return
         last_attendance = self.database_service.get_last_attendance()
         self.logger.info(f"Starting new game, last attendance: {last_attendance.game_id}")
-        self.current_game.reset_clocking()
+        self.current_game.adjust_clocking(start_time=start_time)
         self.current_game.game_id = int(last_attendance.game_id) + 1
         now = utils.get_current_time_formatted()
         for player in self.current_game.get_players():
@@ -218,9 +259,10 @@ class PururuService:
         self.event_system.emit_event(EventType.GAME_STARTED,
                                      GameStartedEvent(self.current_game.game_id, self.current_game.get_players()))
 
-    def end_game(self) -> None:
+    def end_game(self, end_time: datetime) -> None:
         """
         Ends the current game and stores the attendance and clocking in the database
+        :param end_time: end time of the game
         :return: None
         """
         if not self.current_game.should_end_game():
@@ -229,7 +271,7 @@ class PururuService:
             return
         members = []
         playtimes = []
-        now = utils.get_current_time_formatted()
+        self.current_game.adjust_clocking(end_time=end_time)
         player_attendance_count = 0
         for player in config.PLAYERS:
             player_attended = self.__has_player_attended(player)
@@ -239,7 +281,8 @@ class PururuService:
             members.append(MemberAttendance(player, player_attended, player_attended, ""))
 
         clocking = Clocking(self.current_game.game_id, playtimes)
-        attendance = Attendance(self.current_game.game_id, members, now, AttendanceEventType.OFFICIAL_GAME)
+        attendance = Attendance(self.current_game.game_id, members, utils.get_current_time_formatted(),
+                                AttendanceEventType.OFFICIAL_GAME)
         if player_attendance_count < config.MIN_ATTENDANCE_MEMBERS:
             self.logger.info(f"Attendance not enough, attendance count: {player_attendance_count}; discarding game")
             self.current_game.reset()

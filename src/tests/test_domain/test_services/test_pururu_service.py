@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -15,6 +16,10 @@ from tests.test_domain.test_entities import attendance, member_stats
 @patch('pururu.application.events.event_system.EventSystem')
 @patch('pururu.domain.services.database_service.DatabaseInterface')
 def set_up(db_mock, event_mock) -> PururuService:
+    """
+    Set ups an instance of PururuService for testing
+    :return: PururuService loaded with mocks
+    """
     return PururuService(db_mock, event_mock)
 
 
@@ -224,7 +229,7 @@ def test_register_new_game_not_enough_players():
     service.current_game.game_id = None
     service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"]}
     service.current_game.players_clock_outs = {"member1": [], "member2": []}
-    service.register_new_game()
+    service.register_new_game(datetime(2023, 8, 10, 10))
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
@@ -237,30 +242,32 @@ def test_register_new_game_already_a_game_going():
     service.current_game.game_id = None
     service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"]}
     service.current_game.players_clock_outs = {"member1": [], "member2": []}
-    service.register_new_game()
+    service.register_new_game(datetime(2023, 8, 10, 10))
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 1)
-@patch("pururu.utils.get_current_time_formatted", return_value="curr_date")
+@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 2)
 @pytest.mark.usefixtures("attendance")
-def test_register_new_game_ok(utils_mock, attendance: Attendance):
+def test_register_new_game_ok(attendance: Attendance):
     service = set_up()
-    service.current_game.online_players = {"member1", "member2"}
-    service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"]}
-    service.current_game.players_clock_outs = {"member1": [], "member2": []}
+    service.current_game.online_players = {"member1", "member2", "member3"}
+    service.current_game.players_clock_ins = {"member1": ["2023-08-10 9:30:00"], "member2": ["2023-08-10 10:00:00"],
+                                              "member3": ["2023-08-10 10:30:00"]}
+    service.current_game.players_clock_outs = {"member1": [], "member2": [], "member3": []}
     service.database_service.get_last_attendance.return_value = attendance
-    service.register_new_game()
+    service.register_new_game(datetime(2023, 8, 10, 10))
     assert_that(service.current_game.game_id, equal_to(attendance.game_id + 1))
-    assert_that(service.current_game.players_clock_ins, equal_to({"member1": ["curr_date"], "member2": ["curr_date"]}))
-    assert_that(service.current_game.players_clock_outs, equal_to({"member1": [], "member2": []}))
+    assert_that(service.current_game.players_clock_ins, equal_to({"member1": ["2023-08-10 10:00:00"],
+                                                                  "member2": ["2023-08-10 10:00:00"],
+                                                                  "member3": ["2023-08-10 10:30:00"]}))
+    assert_that(service.current_game.players_clock_outs, equal_to({"member1": [], "member2": [], "member3": []}))
     event_type, event = service.event_system.emit_event.call_args[0]
     assert_that(event_type, equal_to(EventType.GAME_STARTED))
     assert_that(type(event), equal_to(GameStartedEvent))
     assert_that(event.game_id, equal_to(attendance.game_id + 1))
-    assert_that(len(event.players), equal_to(2))
-    assert_that(event.players, has_items("member1", "member2"))
+    assert_that(len(event.players), equal_to(3))
+    assert_that(event.players, has_items("member1", "member2", "member3"))
     service.event_system.emit_event.assert_called_once()
     service.database_service.get_last_attendance.assert_called_once()
 
@@ -272,7 +279,7 @@ def test_end_game_there_are_still_players():
     service.current_game.game_id = 1
     service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"]}
     service.current_game.players_clock_outs = {"member1": None, "member2": None}
-    service.end_game()
+    service.end_game(datetime(2023, 8, 10, 11))
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
@@ -283,7 +290,7 @@ def test_end_game_no_current_game():
     service.current_game.online_players = ["member1", "member2"]
     service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"]}
     service.current_game.players_clock_outs = {"member1": None, "member2": None}
-    service.end_game()
+    service.end_game(datetime(2023, 8, 10, 11))
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
@@ -299,7 +306,7 @@ def test_end_game_not_enough_player_attendance(utils_mock):
     service.current_game.game_id = 1
     service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"]}
     service.current_game.players_clock_outs = {"member1": ["2023-08-10 10:00:30"], "member2": []}
-    service.end_game()
+    service.end_game(datetime(2023, 8, 10, 10,0,20))
     service.event_system.assert_not_called()
     service.database_service.assert_not_called()
 
@@ -308,7 +315,6 @@ def test_end_game_not_enough_player_attendance(utils_mock):
 @patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
 @patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
 @patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
-@freeze_time("2023-08-10 10:10:00")
 def test_end_game_ok(utils_mock):
     service = set_up()
     service.current_game.online_players = {"member1", "member2"}
@@ -316,7 +322,7 @@ def test_end_game_ok(utils_mock):
     service.current_game.players_clock_ins = {"member1": ["2023-08-10 10:00:00"], "member2": ["2023-08-10 10:00:00"],
                                               "member3": ["2023-08-10 10:00:00"]}
     service.current_game.players_clock_outs = {"member1": [], "member2": [], "member3": ["2023-08-10 10:09:30"]}
-    service.end_game()
+    service.end_game(datetime(2023, 8, 10, 10, 10))
     event_type, event = service.event_system.emit_event.call_args[0]
     assert_that(event_type, equal_to(EventType.GAME_ENDED))
     assert_that(type(event), equal_to(GameEndedEvent))
