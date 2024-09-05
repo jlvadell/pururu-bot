@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
-from hamcrest import assert_that, equal_to, has_key, is_not, has_item, has_items
+from hamcrest import assert_that, equal_to, has_key, is_not, has_items
 
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent

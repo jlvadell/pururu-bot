@@ -253,9 +253,6 @@ class PururuService:
         self.logger.info(f"Starting new game, last attendance: {last_attendance.game_id}")
         self.current_game.adjust_clocking(start_time=start_time)
         self.current_game.game_id = int(last_attendance.game_id) + 1
-        now = utils.get_current_time_formatted()
-        for player in self.current_game.get_players():
-            self.current_game.clock_in(player, now)
         self.event_system.emit_event(EventType.GAME_STARTED,
                                      GameStartedEvent(self.current_game.game_id, self.current_game.get_players()))
 
