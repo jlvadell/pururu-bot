@@ -45,8 +45,13 @@ class Application:
         @self.dc_client.event
         async def on_ready():
             self.logger.info(f'Application Started and connected to {",".join([guild.name for guild in self.dc_client.guilds])}')
-            # self.dc_command_tree.clear_commands(guild=discord.Object(id=config.GUILD_ID))
-            await self.dc_command_tree.sync(guild=discord.Object(id=config.GUILD_ID))
+            guild = filter(lambda x: x.id == config.GUILD_ID, self.dc_client.guilds)
+            if guild:
+                guild = list(guild)[0]
+                self.dc_command_tree.clear_commands(guild=guild)
+                self.dc_command_tree.copy_global_to(guild=guild)
+                result = await self.dc_command_tree.sync(guild=guild)
+                self.logger.debug(f"Commands synced: {result}")
 
     def init(self):
         # ----------------------------------------
