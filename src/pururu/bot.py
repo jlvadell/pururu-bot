@@ -29,7 +29,6 @@ class Application:
         @self.dc_command_tree.command(
             name='ping',
             description='Sends a ping to Pururu',
-            guild = discord.Object(id=config.GUILD_ID)
         )
         async def ping_command(interaction: discord.Interaction):
             await interaction.response.send_message(f"Pong! Pururu v{__version__} is watching! :3")
@@ -37,7 +36,6 @@ class Application:
         @self.dc_command_tree.command(
             name='stats',
             description='Shows your attendance stats',
-            guild = discord.Object(id=config.GUILD_ID)
         )
         async def stats_command(interaction: discord.Interaction):
             await interaction.response.defer(ephemeral = True, thinking = True)
