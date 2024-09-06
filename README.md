@@ -88,7 +88,7 @@ Actions.
 To be able to run this app you will need:
 
 - Python, this app is designed in Python 3.12
-- Setup of the basic configurations
+- Setup of the [basic configurations](#basic-configurations)
 - Discord bot, see [Setting up a bot](#setting-up-a-discord-bot)
 - Access to a google sheet, see [Enabling access to a Google Sheet](#enabling-access-to-a-google-sheet)
 
