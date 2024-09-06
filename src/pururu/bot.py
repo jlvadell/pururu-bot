@@ -40,10 +40,10 @@ class Application:
             guild = discord.Object(id=config.GUILD_ID)
         )
         async def stats_command(interaction: discord.Interaction):
+            await interaction.response.defer(ephemeral = True, thinking = True)
             member_stats = self.pururu_service.retrieve_player_stats(interaction.user.name)
-            await interaction.response.send_message(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
+            await interaction.followup.send(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
                                                     member_stats.as_message())
-
         @self.dc_client.event
         async def on_ready():
             self.logger.info(f'Application Started and connected to {",".join([guild.name for guild in self.dc_client.guilds])}')

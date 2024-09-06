@@ -57,19 +57,17 @@ class GoogleSheetsAdapter(DatabaseInterface):
         return all_attendances
 
     def get_player_coins(self, player):
-        row_number = 2
         self.logger.debug("Getting kerocoins of player", player)
-        sheet = self.spreadsheet.worksheet(CoinsSheet.SHEET)
-        row_values = sheet.row_values(row_number)
-        try:
-            col_index = row_values.index(player) + 1
-        except ValueError:
-            print("user not found")
-            col_index = None
 
-        if col_index:
-            value_below = sheet.cell(row_number+1, col_index).value
-            return value_below
+        attendance_value_range = self.spreadsheet.values_get(
+            self.__build_data_notation(CoinsSheet.SHEET, CoinsSheet.DATA_COL_INIT,
+                                       CoinsSheet.DATA_ROW_INIT,
+                                       CoinsSheet.DATA_COL_END, CoinsSheet.DATA_ROW_END))
+
+        column = attendance_value_range['values'][0].index(player)
+        cell = attendance_value_range['values'][1][column]
+
+        return cell
 
     def insert_clocking(self, clocking: Clocking) -> None:
         """

@@ -79,7 +79,8 @@ def member_stats():
         total_events=3,
         absences=2,
         justifications=1,
-        points=3
+        points=3,
+        coins=1
     )
     stats.absent_events = [1, 2]
     return stats

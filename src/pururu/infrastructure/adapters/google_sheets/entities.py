@@ -39,20 +39,9 @@ class AttendanceSheet:
 class CoinsSheet:
     SHEET = "Economia"
     DATA_ROW_INIT = 2
+    DATA_ROW_END = 3
     DATA_COL_INIT = "A"
     DATA_COL_END = "E"
-
-    def __init__(self, player: str, coins: int):
-        self.player = player
-        self.coins = coins
-
-    def to_row_values(self):
-        row = [self.description, self.date]
-        for i in range(len(self.absence)):
-            row.append(self.absence[i])
-            row.append(self.unjustified[i])
-            row.append(self.motives[i] if i < len(self.motives) else "")
-        return row
 
 class ClockingSheet:
     SHEET = "Fichaje"
