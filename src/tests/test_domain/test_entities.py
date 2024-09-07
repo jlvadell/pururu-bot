@@ -79,7 +79,8 @@ def member_stats():
         total_events=3,
         absences=2,
         justifications=1,
-        points=3
+        points=3,
+        coins=1
     )
     stats.absent_events = [1, 2]
     return stats
@@ -92,8 +93,8 @@ def test_member_stats_as_message(member_stats: MemberStats):
                                  f"Injustificadas: {member_stats.absences - member_stats.justifications}\n"
                                  f"Justificadas: {member_stats.justifications}\n"
                                  f"Puntos: {member_stats.points}\n"
-                                 f"Eventos ausentes (Ids): {', '.join(map(str, member_stats.absent_events))}"))
-
+                                 f"Eventos ausentes (Ids): {', '.join(map(str, member_stats.absent_events))}\n"
+                                 f"KeroCoins: {member_stats.coins}"))
 
 @pytest.mark.parametrize("event, expected", [
     ("Juegueo Oficial", AttendanceEventType.OFFICIAL_GAME),

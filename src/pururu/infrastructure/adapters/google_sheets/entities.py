@@ -36,6 +36,12 @@ class AttendanceSheet:
             row.append(self.motives[i] if i < len(self.motives) else "")
         return row
 
+class CoinsSheet:
+    SHEET = "Economia"
+    DATA_ROW_INIT = 2
+    DATA_ROW_END = 3
+    DATA_COL_INIT = "A"
+    DATA_COL_END = "E"
 
 class ClockingSheet:
     SHEET = "Fichaje"

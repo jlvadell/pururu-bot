@@ -88,9 +88,14 @@ Actions.
 To be able to run this app you will need:
 
 - Python, this app is designed in Python 3.12
-- Setup of the basic configurations
+- [Install dependencies](#install-dependencies)
+- Setup of the [basic configurations](#basic-configurations)
 - Discord bot, see [Setting up a bot](#setting-up-a-discord-bot)
 - Access to a google sheet, see [Enabling access to a Google Sheet](#enabling-access-to-a-google-sheet)
+
+### Install dependencies
+
+``pip install -r .\src\pururu\requirements.txt``
 
 ### Basic Configurations
 
@@ -107,7 +112,7 @@ The required configurations to run the app are:
   unique username (`username#1234`) without the `#XXXX` part
 - `GUILD_ID`: The id of the guild where the bot will be used. You can get this id by right-clicking the server icon and
   selecting `Copy ID` (you will need to have the developer mode enabled in the discord settings)
-- `GOOGLE_SHEET_CREDENTIALS`: Refers to the location of the `google_credentials.json` file. This file is the credentials
+- `GOOGLE_SHEETS_CREDENTIALS`: Refers to the location of the `google_credentials.json` file. This file is the credentials
   to access the Google APIs as a service account.
   See [Enabling access to a Google Sheet](#enabling-access-to-a-google-sheet)
 - `SPREADSHEET_ID`: The id of the Google sheet where the data will be stored. You can get this id from the URL of the

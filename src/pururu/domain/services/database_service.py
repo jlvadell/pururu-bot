@@ -23,3 +23,7 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def get_last_attendance(self) -> Attendance:
         pass
+
+    @abstractmethod
+    def get_player_coins(self, player: str) -> int:
+        pass
