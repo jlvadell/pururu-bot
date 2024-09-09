@@ -2,13 +2,14 @@ import pytest
 from hamcrest import assert_that, has_length, equal_to
 
 from pururu.domain.entities import Attendance, Clocking, BotEvent
-from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet, BotEventSheet
+from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet, BotEventSheet, \
+    CoinsSheet
 from tests.test_domain.test_entities import attendance, clocking, bot_event
 from tests.test_infrastructure.test_adapters.test_google_sheets.test_entities import attendance_sheet, clocking_sheet, \
     bot_event_sheet
 from pururu.infrastructure.adapters.google_sheets.google_sheets_adapter import GoogleSheetsAdapter
 
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
 
 
 @patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.gspread')
@@ -88,9 +89,25 @@ def test_get_all_attendances_ok(mapper_mock, attendance_sheet: AttendanceSheet):
     adapter.spreadsheet.values_get.return_value = {
         'values': [attendance_sheet.to_row_values(), attendance_sheet.to_row_values()]}
     mapper_mock.gs_to_attendance_sheet.return_value = attendance_sheet
+
     result = adapter.get_all_attendances()
+
     assert_that(result, has_length(2))
     assert_that(mapper_mock.gs_to_attendance_sheet.call_count, equal_to(2))
     adapter.spreadsheet.values_get.assert_called_with(
         f"{AttendanceSheet.SHEET}!{AttendanceSheet.DATA_COL_INIT}{AttendanceSheet.DATA_ROW_INIT}"
         f":{AttendanceSheet.DATA_COL_END}2")
+
+def test_get_player_coins_ok():
+    adapter = set_up()
+    player :str = 'member1'
+    adapter.spreadsheet.values_get.return_value = {
+        'values': [['member1', 'member2'], [10, 20]]}
+
+    result = adapter.get_player_coins(player)
+
+    assert_that(result, equal_to(10))
+
+    adapter.spreadsheet.values_get.assert_called_with(
+        f"{CoinsSheet.SHEET}!{CoinsSheet.DATA_COL_INIT}{CoinsSheet.DATA_ROW_INIT}"
+        f":{CoinsSheet.DATA_COL_END}{CoinsSheet.DATA_ROW_END}")

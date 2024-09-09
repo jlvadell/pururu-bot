@@ -360,13 +360,20 @@ def test_retrieve_player_stats(member_stats: MemberStats):
         Attendance(game_id=3, members=[MemberAttendance(member_stats.member, True, True, "")],
                    date="2023-08-10", event_type=AttendanceEventType.OFFICIAL_GAME),
     ]
+
     service.database_service.get_all_attendances.return_value = attendances
+    service.database_service.get_player_coins.return_value = 1
+
     actual = service.retrieve_player_stats(member_stats.member)
+
     assert_that(actual.member, equal_to(member_stats.member))
     assert_that(actual.total_events, equal_to(member_stats.total_events))
     assert_that(actual.absences, equal_to(member_stats.absences))
     assert_that(actual.justifications, equal_to(member_stats.justifications))
     assert_that(actual.points, equal_to(member_stats.points))
     assert_that(actual.absent_events, equal_to(member_stats.absent_events))
+    assert_that(actual.coins, equal_to(member_stats.coins))
+
     service.database_service.get_all_attendances.assert_called_once()
     service.event_system.assert_not_called()
+    service.database_service.get_player_coins.assert_called_once()

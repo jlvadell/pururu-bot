@@ -5,7 +5,8 @@ import pururu.infrastructure.adapters.google_sheets.mapper as mapper
 import pururu.utils as utils
 from pururu.domain.entities import BotEvent, Attendance, Clocking
 from pururu.domain.services.database_service import DatabaseInterface
-from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
+from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet, \
+    CoinsSheet
 
 
 class GoogleSheetsAdapter(DatabaseInterface):
@@ -54,6 +55,19 @@ class GoogleSheetsAdapter(DatabaseInterface):
             attendance = mapper.gs_to_attendance_sheet(AttendanceSheet.DATA_ROW_INIT, row)
             all_attendances.append(mapper.sheet_to_attendance(attendance))
         return all_attendances
+
+    def get_player_coins(self, player):
+        self.logger.debug("Getting kerocoins of player", player)
+
+        attendance_value_range = self.spreadsheet.values_get(
+            self.__build_data_notation(CoinsSheet.SHEET, CoinsSheet.DATA_COL_INIT,
+                                       CoinsSheet.DATA_ROW_INIT,
+                                       CoinsSheet.DATA_COL_END, CoinsSheet.DATA_ROW_END))
+
+        column = attendance_value_range['values'][0].index(player)
+        cell = attendance_value_range['values'][1][column]
+
+        return cell
 
     def insert_clocking(self, clocking: Clocking) -> None:
         """

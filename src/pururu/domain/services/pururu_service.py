@@ -183,7 +183,8 @@ class PururuService:
         """
         self.logger.debug(f"Retrieving stats for player {player}")
         attendances = self.database_service.get_all_attendances()
-        member_stats = MemberStats(player, len(attendances), 0, 0, 0)
+        coins = self.database_service.get_player_coins(player)
+        member_stats = MemberStats(player, len(attendances), 0, 0, 0, coins)
         for attendance in attendances:
             member_attendance = next((m for m in attendance.members if m.member == player), None)
 

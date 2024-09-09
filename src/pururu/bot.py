@@ -28,20 +28,20 @@ class Application:
 
         @self.dc_command_tree.command(
             name='ping',
-            description='Sends a ping to Pururu'
+            description='Sends a ping to Pururu',
         )
         async def ping_command(interaction: discord.Interaction):
             await interaction.response.send_message(f"Pong! Pururu v{__version__} is watching! :3")
 
         @self.dc_command_tree.command(
             name='stats',
-            description='Shows your attendance stats'
+            description='Shows your attendance stats',
         )
         async def stats_command(interaction: discord.Interaction):
+            await interaction.response.defer(ephemeral = True, thinking = True)
             member_stats = self.pururu_service.retrieve_player_stats(interaction.user.name)
-            await interaction.response.send_message(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
+            await interaction.followup.send(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
                                                     member_stats.as_message())
-
         @self.dc_client.event
         async def on_ready():
             self.logger.info(f'Application Started and connected to {",".join([guild.name for guild in self.dc_client.guilds])}')

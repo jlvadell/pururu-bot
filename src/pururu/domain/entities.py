@@ -54,13 +54,14 @@ class Clocking:
 
 
 class MemberStats:
-    def __init__(self, member: str, total_events: int, absences: int, justifications: int, points: int):
+    def __init__(self, member: str, total_events: int, absences: int, justifications: int, points: int, coins: int):
         self.member = member
         self.total_events = total_events
         self.absences = absences
         self.justifications = justifications
         self.points = points
         self.absent_events: list[int] = []
+        self.coins = coins
 
     def as_message(self) -> str:
         return f"Total de eventos: {self.total_events}\n" \
@@ -69,4 +70,5 @@ class MemberStats:
                f"Injustificadas: {self.absences - self.justifications}\n" \
                f"Justificadas: {self.justifications}\n" \
                f"Puntos: {self.points}\n" \
-               f"Eventos ausentes (Ids): {', '.join(map(str, self.absent_events))}"
+               f"Eventos ausentes (Ids): {', '.join(map(str, self.absent_events))}\n" \
+               f"KeroCoins: {self.coins}"
