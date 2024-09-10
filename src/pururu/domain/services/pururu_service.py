@@ -246,7 +246,7 @@ class PururuService:
             self.current_game.reset()
             return
         self.database_service.upsert_attendance(attendance)
-        self.database_service.insert_clocking(clocking)
+        self.database_service.upsert_clocking(clocking)
 
         self.current_game.reset()
         self.event_system.emit_event(EventType.GAME_ENDED, GameEndedEvent(attendance))

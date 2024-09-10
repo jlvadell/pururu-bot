@@ -339,7 +339,7 @@ def test_end_game_ok(utils_mock):
     assert_that(event.attendance.members[3].attendance, equal_to(False))
     assert_that(event.attendance.members[3].justified, equal_to(False))
     assert_that(event.attendance.members[3].motive, equal_to(""))
-    service.database_service.insert_clocking.assert_called_once()
+    service.database_service.upsert_clocking.assert_called_once()
     service.event_system.emit_event.assert_called_once()
     service.database_service.upsert_attendance.assert_called_once()
 
