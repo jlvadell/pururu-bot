@@ -144,7 +144,7 @@ class PururuService:
             self.logger.info(f"Attendance not enough, attendance count: {player_attendance_count}; discarding game")
             return
         self.database_service.upsert_attendance(attendance)
-        self.database_service.insert_clocking(clocking)
+        self.database_service.upsert_clocking(clocking)
 
         self.current_session.reset()
         self.event_system.emit_event(EventType.GAME_ENDED, GameEndedEvent(attendance))

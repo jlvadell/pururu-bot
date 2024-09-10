@@ -289,14 +289,14 @@ def test_end_game_ok(utils_mock):
     service.end_game(datetime(2023, 8, 10, 10, 10))
     # Then
     event_type, event = service.event_system.emit_event.call_args[0]
-    actual_clocking = service.database_service.insert_clocking.call_args[0][0]
+    actual_clocking = service.database_service.upsert_clocking.call_args[0][0]
     actual_attendance = service.database_service.upsert_attendance.call_args[0][0]
     __verify_attendance(actual_attendance, expected_attendance)
     __verify_clocking(actual_clocking, expected_clocking)
     assert_that(event_type, equal_to(EventType.GAME_ENDED))
     assert_that(type(event), equal_to(GameEndedEvent))
     __verify_attendance(event.attendance, expected_attendance)
-    service.database_service.insert_clocking.assert_called_once()
+    service.database_service.upsert_clocking.assert_called_once()
     service.event_system.emit_event.assert_called_once()
     service.database_service.upsert_attendance.assert_called_once()
     service.current_session.reset.assert_called_once()

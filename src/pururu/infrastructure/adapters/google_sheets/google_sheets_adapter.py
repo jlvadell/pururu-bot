@@ -32,13 +32,12 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :param attendance: Attendance; the attendance to be upserted
         :return: None
         """
-        self.logger.debug(f"Upserting attendance with id: {attendance.game_id}")
+        self.logger.debug(f"Upsertting attendance with id: {attendance.game_id}")
         sheet = mapper.attendance_to_sheet(attendance)
         self.spreadsheet.values_update(
             range=self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, sheet.game_id,
                                              AttendanceSheet.DATA_COL_END, sheet.game_id),
             params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
-
 
     def get_all_attendances(self) -> list[Attendance]:
         """
@@ -48,9 +47,10 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.logger.debug("Getting all attendances")
         all_attendances = []
         last_row = self.__get_last_row(AttendanceSheet.SHEET)
-        attendance_value_range = self.spreadsheet.values_get(self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
-                                                               AttendanceSheet.DATA_ROW_INIT,
-                                                               AttendanceSheet.DATA_COL_END, last_row))
+        attendance_value_range = self.spreadsheet.values_get(
+            self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
+                                       AttendanceSheet.DATA_ROW_INIT,
+                                       AttendanceSheet.DATA_COL_END, last_row))
         for row in attendance_value_range['values']:
             attendance = mapper.gs_to_attendance_sheet(AttendanceSheet.DATA_ROW_INIT, row)
             all_attendances.append(mapper.sheet_to_attendance(attendance))
@@ -69,15 +69,19 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
         return cell
 
-    def insert_clocking(self, clocking: Clocking) -> None:
+    def upsert_clocking(self, clocking: Clocking) -> None:
         """
-        Insert a new clocking row into the Google sheet
-        :param clocking: The clocking to be inserted
+        Upsert a clocking row into the Google sheet
+        :param clocking: The clocking to be upserted
         :return: None
         """
-        self.logger.debug(f"Inserting clocking for game_id: {clocking.game_id}")
+        self.logger.debug(f"Upsertting clocking for game_id: {clocking.game_id}")
+        game_id_rows = self.spreadsheet.values_get(
+            self.__build_data_notation(sheet=ClockingSheet.SHEET, row_start=ClockingSheet.DATA_ROW_INIT,
+                                       col_start=ClockingSheet.DATA_COL_INIT, col_end=ClockingSheet.DATA_COL_INIT))
+        game_ids = [int(row[0]) for row in game_id_rows['values']]
+        row_idx = game_ids.index(clocking.game_id) +1 if clocking.game_id in game_ids else len(game_ids)
         sheet = mapper.clocking_to_sheet(clocking)
-        row_idx = self.__get_last_row(ClockingSheet.SHEET) + 1
         self.spreadsheet.values_update(
             range=self.__build_data_notation(ClockingSheet.SHEET, ClockingSheet.DATA_COL_INIT, row_idx,
                                              ClockingSheet.DATA_COL_END, row_idx),

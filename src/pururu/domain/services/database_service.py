@@ -13,7 +13,7 @@ class DatabaseInterface(ABC):
         pass
 
     @abstractmethod
-    def insert_clocking(self, clocking: Clocking) -> None:
+    def upsert_clocking(self, clocking: Clocking) -> None:
         pass
 
     @abstractmethod
