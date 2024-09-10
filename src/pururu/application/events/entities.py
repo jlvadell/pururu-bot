@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pururu.utils as utils
 from pururu.application.events.event_system import EventType
 from pururu.domain.entities import BotEvent, Attendance
@@ -24,22 +26,24 @@ class MemberLeftChannelEvent:
 
 
 class NewGameIntentEvent:
-    def __init__(self, players: list[str]):
+    def __init__(self, players: list[str], start_time: datetime):
         self.players = players
+        self.start_time = start_time
 
     def as_bot_event(self) -> BotEvent:
         return BotEvent(EventType.NEW_GAME_INTENT.value, utils.get_current_time_formatted(),
-                        f'players: {self.players}')
+                        f'players: {self.players}, start_time {self.start_time}')
 
 
 class EndGameIntentEvent:
-    def __init__(self, game_id: int, players: list[str]):
+    def __init__(self, game_id: int, players: list[str], end_time: datetime):
         self.game_id = game_id
         self.players = players
+        self.end_time = end_time
 
     def as_bot_event(self) -> BotEvent:
         return BotEvent(EventType.END_GAME_INTENT.value, utils.get_current_time_formatted(),
-                        f'game_id: {self.game_id}, players: {self.players}')
+                        f'game_id: {self.game_id}, players: {self.players}, end_time {self.end_time}')
 
 
 class GameStartedEvent:

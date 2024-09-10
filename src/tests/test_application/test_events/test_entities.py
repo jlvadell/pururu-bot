@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -30,21 +31,23 @@ def member_left_channel_event():
 def new_game_intent_event():
     return NewGameIntentEvent(
         players=["member1"],
+        start_time=datetime(2023, 8, 10, 10),
     )
 
 
 @pytest.fixture
 def end_game_intent_event():
     return EndGameIntentEvent(
-        game_id="1",
+        game_id=1,
         players=["member1"],
+        end_time=datetime(2023, 8, 10, 11),
     )
 
 
 @pytest.fixture
 def game_started_event():
     return GameStartedEvent(
-        game_id="1",
+        game_id=1,
         players=["member1"],
     )
 
@@ -78,7 +81,7 @@ def test_new_game_intent_event_as_bot_event(utils_mock, new_game_intent_event: N
     actual = new_game_intent_event.as_bot_event()
     assert_that(actual.event_type, equal_to(EventType.NEW_GAME_INTENT.value))
     assert_that(actual.date, equal_to("2023-08-10"))
-    assert_that(actual.description, equal_to("players: ['member1']"))
+    assert_that(actual.description, equal_to("players: ['member1'], start_time 2023-08-10 10:00:00"))
 
 
 @patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
@@ -86,7 +89,7 @@ def test_end_game_intent_event_as_bot_event(utils_mock, end_game_intent_event: E
     actual = end_game_intent_event.as_bot_event()
     assert_that(actual.event_type, equal_to(EventType.END_GAME_INTENT.value))
     assert_that(actual.date, equal_to("2023-08-10"))
-    assert_that(actual.description, equal_to("game_id: 1, players: ['member1']"))
+    assert_that(actual.description, equal_to("game_id: 1, players: ['member1'], end_time 2023-08-10 11:00:00"))
 
 
 @patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
