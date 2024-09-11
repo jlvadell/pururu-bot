@@ -171,9 +171,11 @@ We use [Semantic Versioning](http://semver.org/) for versioning. For the version
 available, see the [tags on this
 repository](https://github.com/jlvadell/pururu-bot/tags).
 
-## Authors
+## Contributors
 
-- **José Vadell** - [jlvadell](https://github.com/jlvadell)
+- Author: **José Vadell** - [jlvadell](https://github.com/jlvadell)
+- Contributor: **Rubén Mariscal** - [rmariscal13](https://github.com/rmariscal13)
+- Contributor: **Julien Gillet** - [JulienyGillet](https://github.com/JulienyGillet)
 
 ## License
 
