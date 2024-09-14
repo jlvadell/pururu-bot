@@ -77,10 +77,11 @@ class GoogleSheetsAdapter(DatabaseInterface):
         """
         self.logger.debug(f"Upsertting clocking for game_id: {clocking.game_id}")
         game_id_rows = self.spreadsheet.values_get(
-            self.__build_data_notation(sheet=ClockingSheet.SHEET, row_start=ClockingSheet.DATA_ROW_INIT,
-                                       col_start=ClockingSheet.DATA_COL_INIT, col_end=ClockingSheet.DATA_COL_INIT))
+            self.__build_data_notation(sheet=ClockingSheet.SHEET, col_start=ClockingSheet.DATA_COL_INIT,
+                                       row_start=ClockingSheet.DATA_ROW_INIT, col_end=ClockingSheet.DATA_COL_INIT))
         game_ids = [int(row[0]) for row in game_id_rows['values']]
-        row_idx = game_ids.index(clocking.game_id) +1 if clocking.game_id in game_ids else len(game_ids)
+        row_idx = ClockingSheet.DATA_ROW_INIT
+        row_idx = row_idx + (game_ids.index(clocking.game_id) if clocking.game_id in game_ids else len(game_ids))
         sheet = mapper.clocking_to_sheet(clocking)
         self.spreadsheet.values_update(
             range=self.__build_data_notation(ClockingSheet.SHEET, ClockingSheet.DATA_COL_INIT, row_idx,
