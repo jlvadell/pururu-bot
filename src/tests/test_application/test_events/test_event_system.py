@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 from hamcrest import assert_that, is_in, raises, calling, equal_to
 
@@ -50,6 +50,26 @@ def test_emit_event_ok():
     event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
     listener_mock.assert_called_once_with({"foo": "bar"})
 
+def test_emit_event_when_concurrent_events_should_delay():
+    event_system = EventSystem()
+    event = Event(EventType.MEMBER_JOINED_CHANNEL)
+    listener_mock = Mock()
+    event.listeners.append(listener_mock)
+    event_system.events[EventType.MEMBER_JOINED_CHANNEL] = event
+    event_system.concurrencyTime = 10
+
+    with patch('time.time') as mock_time, patch('threading.Timer') as mock_timer:
+        mock_time.return_value = 100
+        mock_timer_instance = MagicMock()
+        mock_timer.return_value = mock_timer_instance
+
+        event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
+        listener_mock.assert_called_once_with({"foo": "bar"})
+
+        mock_time.return_value = 100.5
+        event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
+
+        mock_timer.assert_called_once()
 
 def test_emit_event_ko():
     event_system = EventSystem()
