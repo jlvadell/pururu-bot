@@ -36,7 +36,7 @@ class EventSystem:
         self.events = {}
         self.lastEmitted = None
 
-    concurrencyTime = 1 #minimum amount of time in seconds allowed between events
+    concurrencyTime = 20 #minimum amount of time in seconds allowed between events
     delayTime = 20 #delay time
 
     def create_event(self, event_name: EventType) -> None:
