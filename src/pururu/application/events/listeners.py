@@ -45,12 +45,12 @@ class EventListeners:
     def on_new_game_intent(self, data: NewGameIntentEvent):
         self.logger.info(f"Handling event '{EventType.NEW_GAME_INTENT}' possible new game with players: {data.players}")
         self.pururu_service.register_bot_event(data.as_bot_event())
-        self.pururu_service.register_new_game()
+        self.pururu_service.register_new_game(data.start_time)
 
     def on_end_game_intent(self, data: EndGameIntentEvent):
         self.logger.info(f"Handling event '{EventType.END_GAME_INTENT}' game {data.game_id} players {data.players}")
         self.pururu_service.register_bot_event(data.as_bot_event())
-        self.pururu_service.end_game()
+        self.pururu_service.end_game(data.end_time)
 
     def on_game_started(self, data: GameStartedEvent):
         self.logger.info(f"Handling event '{EventType.GAME_STARTED}' new game started; "
