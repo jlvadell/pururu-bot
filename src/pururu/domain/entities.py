@@ -52,6 +52,26 @@ class Clocking:
         self.game_id = game_id
         self.playtimes = playtimes
 
+class MonthlyReport:
+    def __init__(self, month: int, total_events: int, games, members):
+        self.month = month
+        self.total_events = total_events
+        self.games = games
+        self.members = members
+        pass
+
+    def as_message(self) -> str:
+        text = f"Reporte del mes {self.month}:\n"
+        text += f"Ha habido un total de {self.total_events} eventos.\n\n"
+        text += f"-- Se ha jugado a los siguientes juegos:\n"
+        for key_game in self.games:
+            text += f"--- ID del juego: {key_game}, Veces: {self.games[key_game]}\n"
+        text += f"-- Estos han sido los miembros participantes:\n"
+        for key_member in self.members:
+            text += f"--- Nombre: {key_member}, Asistencias: {self.members[key_member]['attendance']}, " 
+            text += f"Justificaciones: {self.members[key_member]['justified']}\n"
+        text += "Fin del reporte."
+        return text
 
 class MemberStats:
     def __init__(self, member: str, total_events: int, absences: int, justifications: int, points: int, coins: int):

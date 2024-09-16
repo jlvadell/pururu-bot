@@ -45,6 +45,15 @@ class Application:
             member_stats = self.pururu_service.retrieve_player_stats(interaction.user.name)
             await interaction.followup.send(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
                                                     member_stats.as_message())
+        @self.dc_command_tree.command(
+            name='monthly-report',
+            description='Shows the report of the current month',
+        )
+        async def monthly_report_command(interaction: discord.Interaction):
+            await interaction.response.defer(ephemeral = True, thinking = True)
+            monthly_report = self.pururu_service.retrieve_montly_report(-1)
+            
+            await interaction.followup.send(monthly_report.as_message())            
         @self.dc_client.event
         async def on_ready():
             self.logger.info(f'Application Started and connected to {",".join([guild.name for guild in self.dc_client.guilds])}')
