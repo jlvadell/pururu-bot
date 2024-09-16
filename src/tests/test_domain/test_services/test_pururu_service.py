@@ -12,15 +12,16 @@ from pururu.domain.services.pururu_service import PururuService
 from tests.test_domain.test_entities import attendance, member_stats
 
 
+@patch('pururu.domain.services.discord_service.DiscordInterface')
 @patch('pururu.application.events.event_system.EventSystem')
 @patch('pururu.domain.services.database_service.DatabaseInterface')
 @patch('pururu.domain.current_session.CurrentSession')
-def set_up(db_mock, event_mock, current_session) -> PururuService:
+def set_up(current_session, db_mock, event_mock, dc_mock) -> PururuService:
     """
     Set-ups an instance of PururuService for testing
     :return: PururuService loaded with mocks
     """
-    service = PururuService(db_mock, event_mock)
+    service = PururuService(db_mock, event_mock, dc_mock)
     service.current_session = current_session
     return service
 

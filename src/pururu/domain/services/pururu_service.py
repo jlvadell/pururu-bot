@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pururu.config as config
 import pururu.utils as utils
+from pururu.domain.services.discord_service import DiscordInterface
 from pururu.application.events.entities import GameStartedEvent, GameEndedEvent, EndGameIntentEvent, \
     NewGameIntentEvent, MemberJoinedChannelEvent, MemberLeftChannelEvent
 from pururu.application.events.event_system import EventSystem, EventType
@@ -11,13 +12,15 @@ from pururu.domain.services.database_service import DatabaseInterface
 
 
 class PururuService:
-    def __init__(self, database_service: DatabaseInterface, event_system: EventSystem):
+    def __init__(self, database_service: DatabaseInterface, event_system: EventSystem,
+                 discord_service: DiscordInterface):
         self.database_service = database_service
         self.event_system = event_system
+        self.discord_service = discord_service
         self.logger = utils.get_logger(__name__)
         self.current_session = CurrentSession()
 
-    def handle_voice_state_update(self, member: str, before_channel: str, after_channel: str) -> None:
+    def handle_voice_state_update(self, member: str, before_channel: str|None, after_channel: str|None) -> None:
         """
         Handles the Discord voice state update event
         :param member: member name
