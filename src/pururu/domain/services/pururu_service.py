@@ -6,7 +6,7 @@ from pururu.application.events.entities import GameStartedEvent, GameEndedEvent,
     NewGameIntentEvent, MemberJoinedChannelEvent, MemberLeftChannelEvent
 from pururu.application.events.event_system import EventSystem, EventType
 from pururu.domain.current_session import CurrentSession
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, MonthlyReport
 from pururu.domain.services.database_service import DatabaseInterface
 
 
@@ -58,6 +58,44 @@ class PururuService:
                         member_stats.justifications += 1
                         member_stats.points += 1
         return member_stats
+    
+    def retrieve_montly_report(self, month_offset: int) -> MonthlyReport:
+        """
+        Retrieves the montly report
+        :param month_offset: month position relative to current month
+        :return: MonthlyReport
+        """
+        self.logger.debug(f"Retrieving stats for month offset {month_offset}")
+        attendances = self.database_service.get_all_attendances()
+        current_month = datetime.now().month
+        correct_month = current_month+month_offset
+        total_events = 0
+        membersDict = dict()
+        gamesDict = dict()
+        for attendance in attendances:
+            month = 0
+            if ":" not in attendance.date:
+                date = datetime.strptime(attendance.date, "%Y-%m-%d")
+                month = date.month
+            else:
+                date = datetime.strptime(attendance.date, "%Y-%m-%d %H:%M:%S")
+                month = date.month
+            if month != correct_month:
+                continue
+            for member in attendance.members:
+               if member.member not in membersDict:
+                   membersDict[member.member] = dict(attendance = 0, justified = 0)
+               if member.attendance:
+                   membersDict[member.member]["attendance"] += 1
+               if member.justified:
+                   membersDict[member.member]["justified"] += 1
+            if attendance.game_id not in gamesDict:
+                gamesDict[attendance.game_id] = 0
+            gamesDict[attendance.game_id] += 1
+            total_events += 1
+        return MonthlyReport(correct_month, total_events, gamesDict, membersDict)  
+
+
 
     def register_bot_event(self, event: BotEvent) -> None:
         """
