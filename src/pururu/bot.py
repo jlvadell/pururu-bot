@@ -31,7 +31,10 @@ class Application:
             description='Sends a ping to Pururu',
         )
         async def ping_command(interaction: discord.Interaction):
-            await interaction.response.send_message(f"Pong! Pururu v{__version__} is watching! :3")
+            message=f"Pong! Pururu v{__version__} is watching! :3"
+            if config.PING_MESSAGE != '':
+                message=message+"\n"+config.PING_MESSAGE
+            await interaction.response.send_message(message)
 
         @self.dc_command_tree.command(
             name='stats',
