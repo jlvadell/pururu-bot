@@ -23,6 +23,7 @@ ATTENDANCE_CHECK_DELAY = int(os.getenv('ATTENDANCE_CHECK_DELAY', 120))  # defaul
 MIN_ATTENDANCE_TIME = int(os.getenv('MIN_ATTENDANCE_TIME', 1800))  # defaults to 30 minutes
 PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
 MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
+PING_MESSAGE = os.getenv('PING_MESSAGE', '')
 
 # ----------------------------------------
 # -------------- Discord configs

@@ -10,20 +10,20 @@ class DiscordEventHandler:
         self.pururu_service = pururu_service
         self.dc_command_tree = discord.app_commands.CommandTree(self.dc_client)
         self.logger = utils.get_logger(__name__)
-        #------------------------------
+        # ------------------------------
         # Setup Discord Events
-        #------------------------------
+        # ------------------------------
         self.dc_client.event(self.on_ready)
         self.dc_client.event(self.on_voice_state_update)
-        #------------------------------
+        # ------------------------------
         # Setup Discord Slash Commands
-        #------------------------------
+        # ------------------------------
         self.dc_command_tree.add_command(self.ping_command)
         self.dc_command_tree.add_command(self.stats_command)
 
-    #------------------------------
+    # ------------------------------
     # EVENT HANDLER
-    #------------------------------
+    # ------------------------------
     async def on_ready(self):
         self.logger.info(
             f'Application Started and connected to {",".join([guild.name for guild in self.dc_client.guilds])}')
@@ -51,8 +51,9 @@ class DiscordEventHandler:
         description='Sends a ping to Pururu',
     )
     async def ping_command(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"Pong! Pururu v{config.APP_VERSION} is watching! :3")
-
+        await interaction.response.send_message(
+            f"Pong! Pururu v{config.APP_VERSION} is watching! :3{'\n' + config.PING_MESSAGE 
+            if config.PING_MESSAGE else ''}")
 
     @discord.app_commands.command(
         name='stats',
@@ -63,4 +64,3 @@ class DiscordEventHandler:
         member_stats = self.pururu_service.retrieve_player_stats(interaction.user.name)
         await interaction.followup.send(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
                                         member_stats.as_message())
-
