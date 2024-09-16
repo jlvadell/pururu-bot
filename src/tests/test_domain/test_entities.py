@@ -1,7 +1,8 @@
 import pytest
 from hamcrest import assert_that, equal_to
 
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
+    Message
 
 
 @pytest.fixture
@@ -72,6 +73,7 @@ def clocking():
         playtimes=[300, 0, 1800]
     )
 
+
 @pytest.fixture
 def member_stats():
     stats = MemberStats(
@@ -85,6 +87,13 @@ def member_stats():
     stats.absent_events = [1, 2]
     return stats
 
+
+@pytest.fixture
+def message():
+    return Message(content="content",
+                   channel_id=123456)
+
+
 def test_member_stats_as_message(member_stats: MemberStats):
     actual = member_stats.as_message()
     assert_that(actual, equal_to(f"Total de eventos: {member_stats.total_events}\n"
@@ -95,6 +104,7 @@ def test_member_stats_as_message(member_stats: MemberStats):
                                  f"Puntos: {member_stats.points}\n"
                                  f"Eventos ausentes (Ids): {', '.join(map(str, member_stats.absent_events))}\n"
                                  f"KeroCoins: {member_stats.coins}"))
+
 
 @pytest.mark.parametrize("event, expected", [
     ("Juegueo Oficial", AttendanceEventType.OFFICIAL_GAME),
