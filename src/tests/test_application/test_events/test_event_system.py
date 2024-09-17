@@ -50,26 +50,24 @@ def test_emit_event_ok():
     event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
     listener_mock.assert_called_once_with({"foo": "bar"})
 
-def test_emit_event_when_concurrent_events_should_delay():
+@patch('time.time', MagicMock(return_value=100))
+@patch('threading.Timer')
+def test_emit_event_when_concurrent_events_should_delay(timer_mock):
+    # Given
     event_system = EventSystem()
     event = Event(EventType.MEMBER_JOINED_CHANNEL)
     listener_mock = Mock()
     event.listeners.append(listener_mock)
     event_system.events[EventType.MEMBER_JOINED_CHANNEL] = event
-    event_system.concurrencyTime = 10
+    event_system.EVENT_CONCURRENCY_TIME = 10
 
-    with patch('time.time') as mock_time, patch('threading.Timer') as mock_timer:
-        mock_time.return_value = 100
-        mock_timer_instance = MagicMock()
-        mock_timer.return_value = mock_timer_instance
+    # When
+    event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo1": "bar1"})
+    event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo2": "bar2"})
 
-        event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
-        listener_mock.assert_called_once_with({"foo": "bar"})
-
-        mock_time.return_value = 100.5
-        event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo": "bar"})
-
-        mock_timer.assert_called_once()
+    # Then
+    listener_mock.assert_called_once_with({"foo1": "bar1"})
+    timer_mock.assert_called_once()
 
 def test_emit_event_ko():
     event_system = EventSystem()

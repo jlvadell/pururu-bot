@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 
@@ -34,10 +35,10 @@ class Event:
 class EventSystem:
     def __init__(self):
         self.events = {}
-        self.lastEmitted = None
+        self.last_emitted = None
 
-    concurrencyTime = 20 #minimum amount of time in seconds allowed between events
-    delayTime = 20 #delay time
+    EVENT_CONCURRENCY_TIME = os.getenv('EVENT_CONCURRENCY_TIME', 20) #minimum amount of time in seconds allowed between events
+    EVENT_DELAY_TIME = os.getenv('EVENT_DELAY_TIME', 20) #delay time
 
     def create_event(self, event_name: EventType) -> None:
         if event_name not in self.events:
@@ -57,12 +58,12 @@ class EventSystem:
 
     def emit_event(self, event_name: EventType, data) -> None:
         now :time = time.time()
-        if self.lastEmitted and self.lastEmitted > now - self.concurrencyTime:
-            self.emit_event_with_delay(event_name, data, self.delayTime)
-            self.lastEmitted = time.time()
+        if self.last_emitted and self.last_emitted > now - self.EVENT_CONCURRENCY_TIME:
+            self.emit_event_with_delay(event_name, data, self.EVENT_DELAY_TIME)
+            self.last_emitted = time.time()
         elif  event_name in self.events:
             self.events[event_name].notify_listeners(data)
-            self.lastEmitted = time.time()
+            self.last_emitted = time.time()
         else:
             raise ValueError(f"Event {event_name} does not exist.")
 
