@@ -4,6 +4,8 @@ import time
 
 from enum import Enum
 
+from pururu import config
+
 
 class EventType(Enum):
     MEMBER_JOINED_CHANNEL = "member_joined_channel"
@@ -37,9 +39,6 @@ class EventSystem:
         self.events = {}
         self.last_emitted = None
 
-    EVENT_CONCURRENCY_TIME = os.getenv('EVENT_CONCURRENCY_TIME', 20) #minimum amount of time in seconds allowed between events
-    EVENT_DELAY_TIME = os.getenv('EVENT_DELAY_TIME', 20) #delay time
-
     def create_event(self, event_name: EventType) -> None:
         if event_name not in self.events:
             self.events[event_name] = Event(event_name)
@@ -58,8 +57,8 @@ class EventSystem:
 
     def emit_event(self, event_name: EventType, data) -> None:
         now :time = time.time()
-        if self.last_emitted and self.last_emitted > now - self.EVENT_CONCURRENCY_TIME:
-            self.emit_event_with_delay(event_name, data, self.EVENT_DELAY_TIME)
+        if self.last_emitted and self.last_emitted > now - config.EVENT_CONCURRENCY_TIME:
+            self.emit_event_with_delay(event_name, data, config.EVENT_DELAY_TIME)
             self.last_emitted = time.time()
         elif  event_name in self.events:
             self.events[event_name].notify_listeners(data)

@@ -59,7 +59,6 @@ def test_emit_event_when_concurrent_events_should_delay(timer_mock):
     listener_mock = Mock()
     event.listeners.append(listener_mock)
     event_system.events[EventType.MEMBER_JOINED_CHANNEL] = event
-    event_system.EVENT_CONCURRENCY_TIME = 10
 
     # When
     event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo1": "bar1"})
