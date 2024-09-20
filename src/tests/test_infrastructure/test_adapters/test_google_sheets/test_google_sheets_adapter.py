@@ -43,8 +43,11 @@ def test_upsert_clocking_game_id_exists(mapper_mock, clocking: Clocking, clockin
     # Given
     adapter = set_up()
     adapter.spreadsheet.values_get.return_value = {
-        'values': [[clocking.game_id - 1], [clocking.game_id], [clocking.game_id + 1]]}
-    expected_idx = 2
+        'values': [
+            [clocking.game_id - 1], # Actual idx = idx + starting row = 0 + 3 = 3
+            [clocking.game_id], # Actual idx = idx + starting row = 1 + 3 = 4
+            [clocking.game_id + 1]]} # Actual idx = idx + starting row = 2 + 3 = 5
+    expected_idx = 1 + ClockingSheet.DATA_ROW_INIT
     mapper_mock.clocking_to_sheet.return_value = clocking_sheet
     # When
     adapter.upsert_clocking(clocking)
@@ -59,8 +62,11 @@ def test_upsert_clocking_game_id_not_found(mapper_mock, clocking: Clocking, cloc
     # Given
     adapter = set_up()
     adapter.spreadsheet.values_get.return_value = {
-        'values': [[clocking.game_id - 1], [clocking.game_id+1], [clocking.game_id + 2]]}
-    expected_idx = 3
+        'values': [
+            [clocking.game_id - 1], # Actual idx = idx + starting row = 0 + 3 = 3
+            [clocking.game_id+1], # Actual idx = idx + starting row = 1 + 3 = 4
+            [clocking.game_id + 2]]} # Actual idx = idx + starting row = 2 + 3 = 5
+    expected_idx = 6 # new row
     mapper_mock.clocking_to_sheet.return_value = clocking_sheet
     # When
     adapter.upsert_clocking(clocking)
