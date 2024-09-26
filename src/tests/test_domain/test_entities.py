@@ -2,7 +2,7 @@ import pytest
 from hamcrest import assert_that, equal_to
 
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
-    Message
+    Message, SessionInfo
 
 
 @pytest.fixture
@@ -92,6 +92,11 @@ def member_stats():
 def message():
     return Message(content="content",
                    channel_id=123456)
+
+
+@pytest.fixture
+def session_info():
+    return SessionInfo(game_id=1, players=["member1", "member2", "member3"])
 
 
 def test_member_stats_as_message(member_stats: MemberStats):

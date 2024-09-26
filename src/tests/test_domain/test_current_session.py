@@ -7,15 +7,15 @@ from hamcrest import assert_that, equal_to, has_items
 from pururu.domain.current_session import CurrentSession
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
-def test_clock_in_ok_use_default_time(utils_mock):
+@freeze_time("2023-08-10 10:00:00")
+def test_clock_in_ok_use_default_time():
     # Given
     current_session = CurrentSession()
     # When
     current_session.clock_in("member1")
     # Then
     assert_that(current_session.online_players, equal_to({"member1"}))
-    assert_that(current_session.players_clock_ins, equal_to({"member1": ["2023-08-10"]}))
+    assert_that(current_session.players_clock_ins, equal_to({"member1": ["2023-08-10 10:00:00"]}))
     assert_that(current_session.players_clock_outs, equal_to({"member1": []}))
 
 
@@ -23,15 +23,15 @@ def test_clock_in_ok_use_given_time():
     # Given
     current_session = CurrentSession()
     # When
-    current_session.clock_in("member1", "given_time")
+    current_session.clock_in("member1", datetime(2023, 8, 10, 9))
     # Then
     assert_that(current_session.online_players, equal_to({"member1"}))
-    assert_that(current_session.players_clock_ins, equal_to({"member1": ["given_time"]}))
+    assert_that(current_session.players_clock_ins, equal_to({"member1": ["2023-08-10 09:00:00"]}))
     assert_that(current_session.players_clock_outs, equal_to({"member1": []}))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
-def test_clock_in_second_clock_in(utils_mock):
+@freeze_time("2023-08-10 10:00:00")
+def test_clock_in_second_clock_in():
     # Given
     current_session = CurrentSession()
     current_session.players_clock_ins = {"member1": ["2023-08-10 09:00:00"]}
@@ -45,8 +45,8 @@ def test_clock_in_second_clock_in(utils_mock):
     assert_that(current_session.players_clock_outs, equal_to({"member1": ["2023-08-10 09:45:00"]}))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
-def test_clock_in_already_online(utils_mock):
+@freeze_time("2023-08-10 10:00:00")
+def test_clock_in_already_online():
     # Given
     current_session = CurrentSession()
     current_session.online_players = {"member1"}
@@ -60,8 +60,8 @@ def test_clock_in_already_online(utils_mock):
     assert_that(current_session.players_clock_outs, equal_to({"member1": []}))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
-def test_clock_out_ok_use_default_time(utils_mock):
+@freeze_time("2023-08-10 10:00:00")
+def test_clock_out_ok_use_default_time():
     # Given
     current_session = CurrentSession()
     current_session.online_players = {"member1"}
@@ -82,11 +82,11 @@ def test_clock_out_ok_use_given_time():
     current_session.players_clock_ins = {"member1": ["2023-08-10 09:00:00"]}
     current_session.players_clock_outs = {"member1": []}
     # When
-    current_session.clock_out("member1", "given_time")
+    current_session.clock_out("member1", datetime(2023, 8, 10, 9, 45))
     # Then
     assert_that(current_session.online_players, equal_to(set()))
     assert_that(current_session.players_clock_ins, equal_to({"member1": ["2023-08-10 09:00:00"]}))
-    assert_that(current_session.players_clock_outs, equal_to({"member1": ["given_time"]}))
+    assert_that(current_session.players_clock_outs, equal_to({"member1": ["2023-08-10 09:45:00"]}))
 
 
 def test_clock_out_player_not_online():

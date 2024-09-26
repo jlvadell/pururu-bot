@@ -3,9 +3,9 @@ from unittest.mock import patch, call
 
 import pytest
 
+from pururu.application.events.entities import EventType
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent
-from pururu.application.events.event_system import EventType
 from pururu.application.events.listeners import EventListeners
 from pururu.domain.entities import Attendance
 from tests.test_application.test_events.test_entities import member_joined_channel_event, member_left_channel_event, \
@@ -14,7 +14,7 @@ from tests.test_domain.test_entities import attendance
 
 
 @patch('pururu.application.events.event_system.EventSystem')
-@patch('pururu.domain.services.pururu_service.PururuService')
+@patch('pururu.application.services.pururu_handler.PururuHandler')
 def set_up(service_mock, event_mock) -> EventListeners:
     return EventListeners(service_mock, event_mock)
 
@@ -34,8 +34,17 @@ def test_on_member_joined_channel_ok(member_joined_channel_event: MemberJoinedCh
     # When
     listener.on_member_joined_channel(member_joined_channel_event)
     # Then
-    listener.pururu_service.register_bot_event.assert_called_once()
-    listener.pururu_service.register_new_player.assert_called_once_with(member_joined_channel_event.member)
+    listener.pururu_handler.handle_member_joined_channel_event.assert_called_once_with(member_joined_channel_event)
+
+
+def test_on_member_joined_channel_ko(member_joined_channel_event: MemberJoinedChannelEvent):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_member_joined_channel_event.side_effect = Exception("test exception")
+    # When
+    listener.on_member_joined_channel(member_joined_channel_event)
+    # Then
+    listener.pururu_handler.handle_member_joined_channel_event.assert_called_once_with(member_joined_channel_event)
 
 
 def test_on_member_left_channel_ok(member_left_channel_event: MemberLeftChannelEvent):
@@ -44,8 +53,17 @@ def test_on_member_left_channel_ok(member_left_channel_event: MemberLeftChannelE
     # When
     listener.on_member_left_channel(member_left_channel_event)
     # Then
-    listener.pururu_service.register_bot_event.assert_called_once()
-    listener.pururu_service.remove_player.assert_called_once_with(member_left_channel_event.member)
+    listener.pururu_handler.handle_member_left_channel_event.assert_called_once_with(member_left_channel_event)
+
+
+def test_on_member_left_channel_ko(member_left_channel_event: MemberLeftChannelEvent):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_member_left_channel_event.side_effect = Exception("test exception")
+    # When
+    listener.on_member_left_channel(member_left_channel_event)
+    # Then
+    listener.pururu_handler.handle_member_left_channel_event.assert_called_once_with(member_left_channel_event)
 
 
 def test_on_new_game_intent_ok(new_game_intent_event: NewGameIntentEvent):
@@ -54,8 +72,17 @@ def test_on_new_game_intent_ok(new_game_intent_event: NewGameIntentEvent):
     # When
     listener.on_new_game_intent(new_game_intent_event)
     # Then
-    listener.pururu_service.register_bot_event.assert_called_once()
-    listener.pururu_service.register_new_game.assert_called_once_with(new_game_intent_event.start_time)
+    listener.pururu_handler.handle_new_game_intent_event.assert_called_once_with(new_game_intent_event)
+
+
+def test_on_new_game_intent_ko(new_game_intent_event: NewGameIntentEvent):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_new_game_intent_event.side_effect = Exception("test exception")
+    # When
+    listener.on_new_game_intent(new_game_intent_event)
+    # Then
+    listener.pururu_handler.handle_new_game_intent_event.assert_called_once_with(new_game_intent_event)
 
 
 def test_on_end_game_intent_ok(end_game_intent_event: EndGameIntentEvent):
@@ -64,8 +91,17 @@ def test_on_end_game_intent_ok(end_game_intent_event: EndGameIntentEvent):
     # When
     listener.on_end_game_intent(end_game_intent_event)
     # Then
-    listener.pururu_service.register_bot_event.assert_called_once()
-    listener.pururu_service.end_game.assert_called_once_with(end_game_intent_event.end_time)
+    listener.pururu_handler.handle_end_game_intent_event.assert_called_once_with(end_game_intent_event)
+
+
+def test_on_end_game_intent_ko(end_game_intent_event: EndGameIntentEvent):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_end_game_intent_event.side_effect = Exception("test exception")
+    # When
+    listener.on_end_game_intent(end_game_intent_event)
+    # Then
+    listener.pururu_handler.handle_end_game_intent_event.assert_called_once_with(end_game_intent_event)
 
 
 def test_on_game_started_ok(game_started_event: GameStartedEvent):
@@ -74,7 +110,17 @@ def test_on_game_started_ok(game_started_event: GameStartedEvent):
     # When
     listener.on_game_started(game_started_event)
     # Then
-    listener.pururu_service.register_bot_event.assert_called_once()
+    listener.pururu_handler.handle_game_started_event.assert_called_once_with(game_started_event)
+
+
+def test_on_game_started_ko(game_started_event: GameStartedEvent):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_game_started_event.side_effect = Exception("test exception")
+    # When
+    listener.on_game_started(game_started_event)
+    # Then
+    listener.pururu_handler.handle_game_started_event.assert_called_once_with(game_started_event)
 
 
 def test_on_game_ended_ok(attendance: Attendance, game_ended_event: GameEndedEvent):
@@ -83,4 +129,14 @@ def test_on_game_ended_ok(attendance: Attendance, game_ended_event: GameEndedEve
     # When
     listener.on_game_ended(game_ended_event)
     # Then
-    listener.pururu_service.register_bot_event.assert_called_once()
+    listener.pururu_handler.handle_game_ended_event.assert_called_once_with(game_ended_event)
+
+
+def test_on_game_ended_ko(attendance: Attendance, game_ended_event: GameEndedEvent):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_game_ended_event.side_effect = Exception("test exception")
+    # When
+    listener.on_game_ended(game_ended_event)
+    # Then
+    listener.pururu_handler.handle_game_ended_event.assert_called_once_with(game_ended_event)

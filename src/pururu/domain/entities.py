@@ -79,3 +79,9 @@ class Message:
         self.message_id = None
         self.content = content
         self.channel_id = channel_id
+
+
+class SessionInfo:
+    def __init__(self, game_id: int, players: list[str]):
+        self.game_id = game_id
+        self.players = players

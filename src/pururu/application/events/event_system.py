@@ -1,15 +1,6 @@
 import threading
 
-from enum import Enum
-
-
-class EventType(Enum):
-    MEMBER_JOINED_CHANNEL = "member_joined_channel"
-    MEMBER_LEFT_CHANNEL = "member_left_channel"
-    NEW_GAME_INTENT = "new_game_intent"
-    END_GAME_INTENT = "end_game_intent"
-    GAME_STARTED = "game_started"
-    GAME_ENDED = "game_ended"
+from pururu.application.events.entities import PururuEvent, EventType
 
 
 class Event:
@@ -50,15 +41,15 @@ class EventSystem:
         else:
             raise ValueError(f"Event {event_name} does not exist.")
 
-    def emit_event(self, event_name: EventType, data) -> None:
-        if event_name in self.events:
-            self.events[event_name].notify_listeners(data)
+    def emit_event(self, event: PururuEvent) -> None:
+        if event.event_type in self.events:
+            self.events[event.event_type].notify_listeners(event)
         else:
-            raise ValueError(f"Event {event_name} does not exist.")
+            raise ValueError(f"Event {event.event_type} does not exist.")
 
-    def emit_event_with_delay(self, event_name, data, delay_seconds) -> None:
+    def emit_event_with_delay(self, event: PururuEvent, delay_seconds) -> None:
         def delayed_emit():
-            self.emit_event(event_name, data)
+            self.emit_event(event)
 
         timer = threading.Timer(delay_seconds, delayed_emit)
         timer.start()

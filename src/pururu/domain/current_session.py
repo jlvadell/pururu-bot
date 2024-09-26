@@ -1,6 +1,7 @@
-import pururu.utils as utils
-import pururu.config as config
 from datetime import datetime
+
+import pururu.config as config
+import pururu.utils as utils
 
 
 class CurrentSession:
@@ -11,7 +12,7 @@ class CurrentSession:
         self.game_id = None
         self.logger = self.logger = utils.get_logger(__name__)
 
-    def clock_in(self, player: str, time: str = None) -> None:
+    def clock_in(self, player: str, time: datetime = None) -> None:
         """
         Clocks in a player
         :param player: member.name
@@ -19,15 +20,15 @@ class CurrentSession:
         :return: None
         """
         if time is None:
-            time = utils.get_current_time_formatted()
+            time = datetime.now()
         self.online_players.add(player)
         if player not in self.players_clock_ins:
             self.players_clock_ins[player] = []
             self.players_clock_outs[player] = []
         if len(self.players_clock_ins[player]) == len(self.players_clock_outs[player]):
-            self.players_clock_ins[player].append(time)
+            self.players_clock_ins[player].append(utils.format_time(time))
 
-    def clock_out(self, player: str, time: str = None) -> None:
+    def clock_out(self, player: str, time: datetime = None) -> None:
         """
         Clocks out a player
         :param player: member.name
@@ -35,7 +36,7 @@ class CurrentSession:
         :return: None
         """
         if time is None:
-            time = utils.get_current_time_formatted()
+            time = datetime.now()
         if player not in self.online_players:
             self.logger.error(f"Player {player} not found in online_players")
             return
@@ -43,7 +44,7 @@ class CurrentSession:
         if player not in self.players_clock_outs:
             self.logger.error(f"Player {player} not found in clock_outs")
             return
-        self.players_clock_outs[player].append(time)
+        self.players_clock_outs[player].append(utils.format_time(time))
 
     def get_player_time(self, player: str) -> int:
         """
@@ -57,7 +58,7 @@ class CurrentSession:
         clock_outs = self.players_clock_outs[player]
         total_time = 0
         for i in range(len(clock_ins)):
-            clock_in = datetime.strptime(clock_ins[i], utils.FORMATTED_TIME_STR)
+            clock_in = utils.parse_time(clock_ins[i])
             clock_out = datetime.strptime(clock_outs[i], utils.FORMATTED_TIME_STR) if i < len(
                 clock_outs) else datetime.now()
             total_time += (clock_out - clock_in).total_seconds()
