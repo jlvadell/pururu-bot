@@ -11,10 +11,18 @@ from pururu.domain.services.discord_service import DiscordInterface
 
 
 class PururuService:
-    def __init__(self, database_service: DatabaseInterface, discord_service: DiscordInterface):
+    def __init__(self, database_service: DatabaseInterface):
         self.logger = utils.get_logger(__name__)
         self.current_session = CurrentSession()
         self.database_service = database_service
+        self.discord_service = None
+
+    def set_discord_service(self, discord_service: DiscordInterface) -> None:
+        """
+        Sets the discord service
+        :param discord_service: DiscordInterface
+        :return: None
+        """
         self.discord_service = discord_service
 
     def register_bot_event(self, event: BotEvent) -> None:

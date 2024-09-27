@@ -5,27 +5,15 @@ from hamcrest import assert_that, equal_to
 
 from pururu.domain.entities import Message
 from pururu.infrastructure.adapters.discord.discord_service_adapter import DiscordServiceAdapter
-
 from tests.test_domain.test_entities import message
 
 
 @patch('pururu.config.GUILD_ID', 123456)
-@patch('discord.Client')
-def set_up(dc_client_mock):
-    mock_client = AsyncMock(name='my_client_mock')
-    mock_client.guilds = [MagicMock(id=123456)]
-    dc_client_mock.return_value = mock_client
-    dc_service = DiscordServiceAdapter()
+def set_up():
+    mock_bot = AsyncMock(name='my_client_mock')
+    mock_bot.guilds = [MagicMock(id=123456)]
+    dc_service = DiscordServiceAdapter(mock_bot)
     return dc_service
-
-
-def test_get_client_ok():
-    # Given
-    dc_service = set_up()
-    # When
-    client = dc_service.get_client()
-    # Then
-    assert_that(client, equal_to(dc_service.client))
 
 
 @pytest.mark.asyncio

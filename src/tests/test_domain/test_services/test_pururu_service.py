@@ -18,7 +18,8 @@ def set_up(current_session, db_mock, dc_mock) -> PururuService:
     Set-ups an instance of PururuService for testing
     :return: PururuService loaded with mocks
     """
-    service = PururuService(db_mock, dc_mock)
+    service = PururuService(db_mock)
+    service.set_discord_service(dc_mock)
     service.current_session = current_session
     return service
 
