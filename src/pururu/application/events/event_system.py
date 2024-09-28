@@ -1,6 +1,10 @@
+import os
 import threading
+import time
 
 from enum import Enum
+
+from pururu import config
 
 
 class EventType(Enum):
@@ -33,6 +37,7 @@ class Event:
 class EventSystem:
     def __init__(self):
         self.events = {}
+        self.last_emitted = None
 
     def create_event(self, event_name: EventType) -> None:
         if event_name not in self.events:
@@ -51,8 +56,13 @@ class EventSystem:
             raise ValueError(f"Event {event_name} does not exist.")
 
     def emit_event(self, event_name: EventType, data) -> None:
-        if event_name in self.events:
+        now :time = time.time()
+        if self.last_emitted and self.last_emitted > now - config.EVENT_CONCURRENCY_TIME:
+            self.emit_event_with_delay(event_name, data, config.EVENT_DELAY_TIME)
+            self.last_emitted = time.time()
+        elif  event_name in self.events:
             self.events[event_name].notify_listeners(data)
+            self.last_emitted = time.time()
         else:
             raise ValueError(f"Event {event_name} does not exist.")
 
