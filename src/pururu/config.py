@@ -24,6 +24,8 @@ MIN_ATTENDANCE_TIME = int(os.getenv('MIN_ATTENDANCE_TIME', 1800))  # defaults to
 PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
 MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
 PING_MESSAGE = os.getenv('PING_MESSAGE', '')
+EVENT_CONCURRENCY_TIME = os.getenv('EVENT_CONCURRENCY_TIME', 20) #minimum amount of time in seconds allowed between events
+EVENT_DELAY_TIME = os.getenv('EVENT_DELAY_TIME', 20) #delay time
 
 # ----------------------------------------
 # -------------- Discord configs
