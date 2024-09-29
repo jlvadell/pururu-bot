@@ -65,6 +65,7 @@ def test_emit_event_ok():
     # Then
     listener_mock.assert_called_once_with(pururu_event)
 
+
 @patch('time.time', MagicMock(return_value=100))
 @patch('threading.Timer')
 def test_emit_event_when_concurrent_events_should_delay(timer_mock):
@@ -74,14 +75,15 @@ def test_emit_event_when_concurrent_events_should_delay(timer_mock):
     listener_mock = Mock()
     event.listeners.append(listener_mock)
     event_system.events[EventType.MEMBER_JOINED_CHANNEL] = event
-
+    pururu_event_1 = Mock(event_type=EventType.MEMBER_JOINED_CHANNEL)
+    pururu_event_2 = Mock(event_type=EventType.MEMBER_LEFT_CHANNEL)
     # When
-    event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo1": "bar1"})
-    event_system.emit_event(EventType.MEMBER_JOINED_CHANNEL, {"foo2": "bar2"})
-
+    event_system.emit_event(pururu_event_1)
+    event_system.emit_event(pururu_event_2)
     # Then
-    listener_mock.assert_called_once_with({"foo1": "bar1"})
+    listener_mock.assert_called_once_with(pururu_event_1)
     timer_mock.assert_called_once()
+
 
 def test_emit_event_ko():
     # Given

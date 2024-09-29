@@ -1,10 +1,9 @@
-import os
 import threading
 import time
 
+import pururu.config as config
 from pururu.application.events.entities import PururuEvent, EventType
 
-from pururu import config
 
 class Event:
     def __init__(self, name: EventType):
@@ -45,13 +44,13 @@ class EventSystem:
         else:
             raise ValueError(f"Event {event_name} does not exist.")
 
-    def emit_event(self, event_name: EventType, data) -> None:
-        now :time = time.time()
+    def emit_event(self, event: PururuEvent) -> None:
+        now: time = time.time()
         if self.last_emitted and self.last_emitted > now - config.EVENT_CONCURRENCY_TIME:
-            self.emit_event_with_delay(event_name, data, config.EVENT_DELAY_TIME)
+            self.emit_event_with_delay(event, config.EVENT_DELAY_TIME)
             self.last_emitted = time.time()
-        elif  event_name in self.events:
-            self.events[event_name].notify_listeners(data)
+        elif event.event_type in self.events:
+            self.events[event.event_type].notify_listeners(event)
             self.last_emitted = time.time()
         else:
             raise ValueError(f"Event {event.event_type} does not exist.")
