@@ -26,3 +26,21 @@ def get_current_time_formatted():
     :return: str
     """
     return datetime.now().strftime(FORMATTED_TIME_STR)
+
+
+def format_time(time: datetime):
+    """
+    Formats a datetime object into a string
+    :param time: datetime
+    :return: str
+    """
+    return time.strftime(FORMATTED_TIME_STR)
+
+
+def parse_time(time: str):
+    """
+    Parses a string into a datetime object
+    :param time: str
+    :return: datetime
+    """
+    return datetime.strptime(time, FORMATTED_TIME_STR)

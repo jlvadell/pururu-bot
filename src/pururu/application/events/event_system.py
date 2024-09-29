@@ -1,19 +1,8 @@
-import os
 import threading
 import time
 
-from enum import Enum
-
-from pururu import config
-
-
-class EventType(Enum):
-    MEMBER_JOINED_CHANNEL = "member_joined_channel"
-    MEMBER_LEFT_CHANNEL = "member_left_channel"
-    NEW_GAME_INTENT = "new_game_intent"
-    END_GAME_INTENT = "end_game_intent"
-    GAME_STARTED = "game_started"
-    GAME_ENDED = "game_ended"
+import pururu.config as config
+from pururu.application.events.entities import PururuEvent, EventType
 
 
 class Event:
@@ -55,20 +44,20 @@ class EventSystem:
         else:
             raise ValueError(f"Event {event_name} does not exist.")
 
-    def emit_event(self, event_name: EventType, data) -> None:
-        now :time = time.time()
+    def emit_event(self, event: PururuEvent) -> None:
+        now: time = time.time()
         if self.last_emitted and self.last_emitted > now - config.EVENT_CONCURRENCY_TIME:
-            self.emit_event_with_delay(event_name, data, config.EVENT_DELAY_TIME)
+            self.emit_event_with_delay(event, config.EVENT_DELAY_TIME)
             self.last_emitted = time.time()
-        elif  event_name in self.events:
-            self.events[event_name].notify_listeners(data)
+        elif event.event_type in self.events:
+            self.events[event.event_type].notify_listeners(event)
             self.last_emitted = time.time()
         else:
-            raise ValueError(f"Event {event_name} does not exist.")
+            raise ValueError(f"Event {event.event_type} does not exist.")
 
-    def emit_event_with_delay(self, event_name, data, delay_seconds) -> None:
+    def emit_event_with_delay(self, event: PururuEvent, delay_seconds) -> None:
         def delayed_emit():
-            self.emit_event(event_name, data)
+            self.emit_event(event)
 
         timer = threading.Timer(delay_seconds, delayed_emit)
         timer.start()

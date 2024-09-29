@@ -1,15 +1,14 @@
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
-    EndGameIntentEvent, GameStartedEvent, GameEndedEvent
-
-from pururu.application.events.event_system import EventSystem, EventType
-from pururu.domain.services.pururu_service import PururuService
+    EndGameIntentEvent, GameStartedEvent, GameEndedEvent, EventType
+from pururu.application.events.event_system import EventSystem
+from pururu.application.services.pururu_handler import PururuHandler
 from pururu.utils import get_logger
 
 
 class EventListeners:
-    def __init__(self, event_system: EventSystem, pururu_service: PururuService):
+    def __init__(self, event_system: EventSystem, pururu_handler: PururuHandler):
         self.event_system = event_system
-        self.pururu_service = pururu_service
+        self.pururu_handler = pururu_handler
         self.logger = get_logger(__name__)
 
         event_system.create_event(EventType.MEMBER_JOINED_CHANNEL)
@@ -31,32 +30,37 @@ class EventListeners:
         event_system.register_listener(EventType.GAME_STARTED, self.on_game_started)
 
     def on_member_joined_channel(self, data: MemberJoinedChannelEvent):
-        self.logger.info(
-            f"Handling event '{EventType.MEMBER_JOINED_CHANNEL}' member {data.member} joined {data.channel} Channel")
-        self.pururu_service.register_bot_event(data.as_bot_event())
-        self.pururu_service.register_new_player(data.member)
+        try:
+            self.pururu_handler.handle_member_joined_channel_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
 
     def on_member_left_channel(self, data: MemberLeftChannelEvent):
-        self.logger.info(
-            f"Handling event '{EventType.MEMBER_LEFT_CHANNEL}' member {data.member} left {data.channel} Channel")
-        self.pururu_service.register_bot_event(data.as_bot_event())
-        self.pururu_service.remove_player(data.member)
+        try:
+            self.pururu_handler.handle_member_left_channel_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
 
     def on_new_game_intent(self, data: NewGameIntentEvent):
-        self.logger.info(f"Handling event '{EventType.NEW_GAME_INTENT}' possible new game with players: {data.players}")
-        self.pururu_service.register_bot_event(data.as_bot_event())
-        self.pururu_service.register_new_game(data.start_time)
+        try:
+            self.pururu_handler.handle_new_game_intent_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
 
     def on_end_game_intent(self, data: EndGameIntentEvent):
-        self.logger.info(f"Handling event '{EventType.END_GAME_INTENT}' game {data.game_id} players {data.players}")
-        self.pururu_service.register_bot_event(data.as_bot_event())
-        self.pururu_service.end_game(data.end_time)
+        try:
+            self.pururu_handler.handle_end_game_intent_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
 
     def on_game_started(self, data: GameStartedEvent):
-        self.logger.info(f"Handling event '{EventType.GAME_STARTED}' new game started; "
-                         f"id {data.game_id}, players {data.players}")
-        self.pururu_service.register_bot_event(data.as_bot_event())
+        try:
+            self.pururu_handler.handle_game_started_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
 
     def on_game_ended(self, data: GameEndedEvent):
-        self.logger.info(f"Handling event '{EventType.GAME_ENDED}' game {data.attendance.game_id} ended")
-        self.pururu_service.register_bot_event(data.as_bot_event())
+        try:
+            self.pururu_handler.handle_game_ended_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")

@@ -2,6 +2,7 @@ import json
 import os
 
 from dotenv import load_dotenv
+import pururu.__version__ as version
 
 # ----------------------------------------
 # -------------- Load env files
@@ -39,3 +40,8 @@ GOOGLE_SHEETS_CREDENTIALS = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 GS_ATTENDANCE_PLAYER_MAPPING = json.loads(os.getenv('GS_ATTENDANCE_PLAYER_MAPPING')) \
     if os.getenv('GS_ATTENDANCE_PLAYER_MAPPING') else {}
+
+# ----------------------------------------
+# -------------- APP Metadata
+# ----------------------------------------
+APP_VERSION = version.__version__

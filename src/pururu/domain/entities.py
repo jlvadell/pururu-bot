@@ -72,3 +72,16 @@ class MemberStats:
                f"Puntos: {self.points}\n" \
                f"Eventos ausentes (Ids): {', '.join(map(str, self.absent_events))}\n" \
                f"KeroCoins: {self.coins}"
+
+
+class Message:
+    def __init__(self, content: str, channel_id: int):
+        self.message_id = None
+        self.content = content
+        self.channel_id = channel_id
+
+
+class SessionInfo:
+    def __init__(self, game_id: int, players: list[str]):
+        self.game_id = game_id
+        self.players = players

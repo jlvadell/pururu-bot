@@ -57,7 +57,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
         return all_attendances
 
     def get_player_coins(self, player):
-        self.logger.debug("Getting kerocoins of player", player)
+        self.logger.debug(f"Getting kerocoins of player: {player}")
 
         attendance_value_range = self.spreadsheet.values_get(
             self.__build_data_notation(CoinsSheet.SHEET, CoinsSheet.DATA_COL_INIT,
