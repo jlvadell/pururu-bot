@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pururu.config as config
 import pururu.utils as utils
+from pururu.domain.entities import Poll
 
 
 class CurrentSession:
@@ -10,6 +11,7 @@ class CurrentSession:
         self.players_clock_ins = {}
         self.players_clock_outs = {}
         self.game_id = None
+        self.polls = {}
         self.logger = self.logger = utils.get_logger(__name__)
 
     def clock_in(self, player: str, time: datetime = None) -> None:
@@ -94,7 +96,10 @@ class CurrentSession:
         Resets the current game to initial state
         :return: None
         """
-        self.__init__()
+        self.online_players = set()
+        self.players_clock_ins = {}
+        self.players_clock_outs = {}
+        self.game_id = None
 
     def adjust_players_clocking_start_time(self, start_time: datetime) -> None:
         """
@@ -151,3 +156,36 @@ class CurrentSession:
 
             self.players_clock_ins[player] = adjusted_clock_ins
             self.players_clock_outs[player] = adjusted_clock_outs
+
+    def add_new_poll(self, poll: Poll) -> None:
+        """
+        Unpacks the poll data and stores it in the polls attribute
+        :param poll: the poll object
+        :return: None
+        """
+        self.logger.debug(f"Adding new poll: {poll.message_id}")
+        self.polls[poll.message_id] = {'channel_id': poll.channel_id, "expires_at": poll.expires_at,
+                                       "resolution": poll.resolution_type}
+
+    def remove_poll(self, poll_id: int) -> None:
+        """
+        Removes a poll from the polls attribute
+        :param poll_id: the message_id of the poll
+        :return: None
+        """
+        self.logger.debug(f"Removing poll: {poll_id}")
+        self.polls.pop(poll_id, None)
+
+    def get_expired_polls(self) -> list[Poll]:
+        """
+        Returns the list of expired polls
+        :return: list of Poll objects
+        """
+        expired_polls = []
+        for poll_id, poll_data in self.polls.items():
+            if poll_data["expires_at"] < datetime.now():
+                poll = Poll("", poll_data['channel_id'], [], 0)
+                poll.message_id = poll_id
+                poll.resolution_type = poll_data['resolution']
+                expired_polls.append(poll)
+        return expired_polls

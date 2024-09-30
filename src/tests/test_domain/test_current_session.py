@@ -2,9 +2,11 @@ from datetime import datetime
 from unittest.mock import patch
 
 from freezegun import freeze_time
-from hamcrest import assert_that, equal_to, has_items
+from hamcrest import assert_that, equal_to, has_items, has_length
 
 from pururu.domain.current_session import CurrentSession
+from pururu.domain.entities import Poll
+from tests.test_domain.test_entities import poll
 
 
 @freeze_time("2023-08-10 10:00:00")
@@ -256,6 +258,7 @@ def test_reset():
     current_session.online_players = {"member1"}
     current_session.players_clock_ins = {"member1": ["2023-08-10 09:00:00"]}
     current_session.players_clock_outs = {"member1": ["2023-08-10 09:45:00"]}
+    current_session.polls = {1: {"foo": "bar"}}
     # When
     current_session.reset()
     # Then
@@ -263,6 +266,7 @@ def test_reset():
     assert_that(current_session.online_players, equal_to(set()))
     assert_that(current_session.players_clock_ins, equal_to({}))
     assert_that(current_session.players_clock_outs, equal_to({}))
+    assert_that(current_session.polls, equal_to({1: {"foo": "bar"}}))
 
 
 def test_adjust_players_clocking_start_time_period_fully_in_the_past():
@@ -338,3 +342,46 @@ def test_adjust_players_clocking_end_time_period_in_range():
                 equal_to({"member1": ["2023-08-10 08:00:00", "2023-08-10 08:50:00"]}))
     assert_that(current_session.players_clock_outs,
                 equal_to({"member1": ["2023-08-10 08:45:00", "2023-08-10 09:00:00"]}))
+
+
+def test_add_new_poll_ok(poll: Poll):
+    # Given
+    current_session = CurrentSession()
+    # When
+    current_session.add_new_poll(poll)
+    # Then
+    assert_that(current_session.polls, has_length(1))
+    assert_that(current_session.polls[poll.message_id],
+                equal_to({'channel_id': poll.channel_id, "expires_at": poll.expires_at,
+                          "resolution": poll.resolution_type}))
+
+
+def test_remove_poll_ok(poll: Poll):
+    # Given
+    current_session = CurrentSession()
+    current_session.polls[poll.message_id] = {'channel_id': poll.channel_id, "expires_at": poll.expires_at,
+                                              "resolution": poll.resolution_type}
+    current_session.polls[poll.message_id + 1] = {'channel_id': poll.channel_id, "expires_at": poll.expires_at,
+                                                  "resolution": poll.resolution_type}
+    # When
+    current_session.remove_poll(poll.message_id)
+    # Then
+    assert_that(current_session.polls, has_length(1))
+
+
+@freeze_time("2023-08-10 10:00:00")
+def test_get_expired_polls_ok(poll: Poll):
+    # Given
+    current_session = CurrentSession()
+    current_session.polls[poll.message_id] = {'channel_id': poll.channel_id, "expires_at": datetime(2023, 8, 10, 9),
+                                              "resolution": poll.resolution_type}
+    current_session.polls[poll.message_id + 1] = {'channel_id': poll.channel_id,
+                                                  "expires_at": datetime(2023, 8, 10, 11),
+                                                  "resolution": poll.resolution_type}
+    # When
+    expired_polls = current_session.get_expired_polls()
+    # Then
+    assert_that(expired_polls, has_length(1))
+    assert_that(expired_polls[0].message_id, equal_to(poll.message_id))
+    assert_that(expired_polls[0].channel_id, equal_to(poll.channel_id))
+    assert_that(expired_polls[0].resolution_type, equal_to(poll.resolution_type))
