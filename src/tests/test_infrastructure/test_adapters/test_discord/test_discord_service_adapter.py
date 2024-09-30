@@ -6,7 +6,7 @@ from hamcrest import assert_that, equal_to
 
 from pururu.domain.entities import Message, Poll
 from pururu.infrastructure.adapters.discord.discord_service_adapter import DiscordServiceAdapter
-from pururu.infrastructure.exceptions import DiscordServiceException
+from pururu.domain.exceptions import DiscordServiceException
 from tests.test_domain.test_entities import message, poll
 
 

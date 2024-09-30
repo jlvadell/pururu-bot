@@ -4,8 +4,8 @@ import discord
 
 import pururu.config as config
 import pururu.utils as utils
-from pururu.infrastructure.exceptions import DiscordServiceException
 from pururu.domain.entities import Message, Poll
+from pururu.domain.exceptions import DiscordServiceException
 from pururu.domain.services.discord_service import DiscordInterface
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
 
