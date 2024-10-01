@@ -1,3 +1,6 @@
+import asyncio
+
+from application.events.entities import CheckExpiredPollsEvent
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
     EndGameIntentEvent, GameStartedEvent, GameEndedEvent, EventType
 from pururu.application.events.event_system import EventSystem
@@ -28,6 +31,12 @@ class EventListeners:
 
         event_system.create_event(EventType.GAME_STARTED)
         event_system.register_listener(EventType.GAME_STARTED, self.on_game_started)
+
+        event_system.create_event(EventType.CHECK_EXPIRED_POLLS)
+        event_system.register_listener(EventType.CHECK_EXPIRED_POLLS, self.on_check_expired_polls)
+
+        event_system.create_event(EventType.FINALIZE_POLL)
+        event_system.register_listener(EventType.FINALIZE_POLL, self.on_finalize_poll)
 
     def on_member_joined_channel(self, data: MemberJoinedChannelEvent):
         try:
@@ -62,5 +71,17 @@ class EventListeners:
     def on_game_ended(self, data: GameEndedEvent):
         try:
             self.pururu_handler.handle_game_ended_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
+
+    async def on_check_expired_polls(self, data: CheckExpiredPollsEvent):
+        try:
+            await self.pururu_handler.handle_check_expired_polls_event(data)
+        except Exception as e:
+            self.logger.error(f"Error handling event '{data}': {e}")
+
+    async def on_finalize_poll(self, data):
+        try:
+            await self.pururu_handler.handle_finalize_poll_event(data)
         except Exception as e:
             self.logger.error(f"Error handling event '{data}': {e}")
