@@ -1,3 +1,5 @@
+import asyncio
+import inspect
 import threading
 import time
 
@@ -20,7 +22,13 @@ class Event:
 
     def notify_listeners(self, data) -> None:
         for listener in self.listeners:
-            listener(data)
+            if inspect.iscoroutinefunction(listener):
+                if asyncio.get_event_loop().is_running():
+                    asyncio.create_task(listener(data))
+                else:
+                    asyncio.run(listener(data))
+            else:
+                listener(data)
 
 
 class EventSystem:

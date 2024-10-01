@@ -1,5 +1,7 @@
-from unittest.mock import Mock, patch, MagicMock
+import asyncio
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 
+import pytest
 from hamcrest import assert_that, is_in, raises, calling, equal_to
 
 from pururu.application.events.entities import EventType
@@ -103,3 +105,32 @@ def test_emit_event_with_delay_ok():
         event_system.events[EventType.MEMBER_JOINED_CHANNEL] = Event(EventType.MEMBER_JOINED_CHANNEL)
         event_system.emit_event_with_delay(pururu_event, 0)
         mock_emit_event.assert_called_once_with(pururu_event)
+
+
+def test_emit_event_with_async_listener_ok():
+    # Given
+    event_system = EventSystem()
+    event = Event(EventType.MEMBER_JOINED_CHANNEL)
+    listener_mock = AsyncMock()
+    event.listeners.append(listener_mock)
+    event_system.events[EventType.MEMBER_JOINED_CHANNEL] = event
+    pururu_event = Mock(event_type=EventType.MEMBER_JOINED_CHANNEL)
+    # When
+    event_system.emit_event(pururu_event)
+    # Then
+    listener_mock.assert_called_once_with(pururu_event)
+
+@pytest.mark.asyncio
+async def test_emit_event_with_async_listener_asyncio_loop_running():
+    # Given
+    event_system = EventSystem()
+    event = Event(EventType.MEMBER_JOINED_CHANNEL)
+    listener_mock = AsyncMock()
+    event.listeners.append(listener_mock)
+    event_system.events[EventType.MEMBER_JOINED_CHANNEL] = event
+    pururu_event = Mock(event_type=EventType.MEMBER_JOINED_CHANNEL)
+    await asyncio.sleep(1)
+    # When
+    event_system.emit_event(pururu_event)
+    # Then
+    listener_mock.assert_called_once_with(pururu_event)
