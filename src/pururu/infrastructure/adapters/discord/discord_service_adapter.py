@@ -13,7 +13,6 @@ from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
 class DiscordServiceAdapter(DiscordInterface):
     def __init__(self, bot: PururuDiscordBot):
         self.bot = bot
-        self.guild: discord.Guild = next(filter(lambda guild: guild.id == config.GUILD_ID, self.bot.guilds), None)
         self.logger = utils.get_logger(__name__)
 
     async def send_message(self, message: Message) -> Message | None:
@@ -25,7 +24,7 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel is not found
         """
         self.logger.debug(f"Sending message: {message.content}")
-        channel = self.guild.get_channel(message.channel_id)
+        channel = self.bot.get_channel(message.channel_id)
         if not channel:
             raise DiscordServiceException(f"Unable to send message, channel {message.channel_id} not found")
         sent_message: discord.Message = await channel.send(message.content)
@@ -42,7 +41,7 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel is not found
         """
         self.logger.debug(f"Sending poll: {poll.question}")
-        channel = self.guild.get_channel(poll.channel_id)
+        channel = self.bot.get_channel(poll.channel_id)
         if not channel:
             raise DiscordServiceException(f"Unable to send poll, channel {poll.channel_id} not found")
         dc_poll: discord.Poll = discord.Poll(poll.question, timedelta(hours=poll.duration_hours),
@@ -65,18 +64,19 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel or Message is not found
         """
         self.logger.debug(f"Fetching poll: {poll_id} from channel {channel_id}")
-        channel = self.guild.get_channel(channel_id)
+        channel = await self.bot.fetch_channel(channel_id)
         if not channel:
             raise DiscordServiceException(f"Channel with id {channel_id} not found")
+        self.logger.debug(f"Channel {channel.id} fetched; fetching message {poll_id}")
         message: discord.Message = await channel.fetch_message(poll_id)
         if not message:
             raise DiscordServiceException(f"Poll with id {poll_id} not found in channel {channel_id}")
         self.logger.debug(f"Poll {message.id} fetched")
         dc_poll = message.poll
-        poll = Poll(dc_poll.question, channel_id, [], dc_poll.duration.hours, dc_poll.multiple)
+        poll = Poll(dc_poll.question, channel_id, [], dc_poll.duration.total_seconds()/3600, dc_poll.multiple)
         poll.expires_at = dc_poll.expires_at
         poll.message_id = message.id
         for answer in dc_poll.answers:
             poll.answers.append(answer.text)
-            poll.results[answer.text] = answer.count
+            poll.results[answer.text] = answer.vote_count
         return poll
