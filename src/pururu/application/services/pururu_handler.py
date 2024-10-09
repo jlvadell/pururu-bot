@@ -155,6 +155,15 @@ class PururuHandler:
         await self.domain_service.finalize_poll(event.poll)
         self.logger.debug(f"Ended poll {event.poll.message_id} with winners {event.poll.get_winners()}")
 
+
+    # ---------------------------
+    # TIMED JOBS
+    # ---------------------------
+
+    def trigger_check_expired_polls_flow(self):
+        self.logger.info("Emitting CheckExpiredPollsEvent")
+        self.__emit_event(CheckExpiredPollsEvent())
+
     # ---------------------------
     # PRIVATE METHODS
     # ---------------------------
