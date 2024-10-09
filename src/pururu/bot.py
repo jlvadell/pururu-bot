@@ -1,6 +1,7 @@
 import pururu.config as config
 import pururu.utils as utils
-from application.events.listeners import EventListeners
+from pururu.application.events.listeners import EventListeners
+from pururu.application.scheluders.timed_jobs import ScheduledJobs
 from pururu.application.events.event_system import EventSystem
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.domain.services.pururu_service import PururuService
@@ -18,6 +19,7 @@ class Application:
         self.pururu_handler = None
         self.discord_service = None
         self.discord_bot = None
+        self.scheduler = None
         self.logger = utils.get_logger(__name__)
 
     def init(self):
@@ -33,6 +35,9 @@ class Application:
         # Application service
         self.pururu_handler = PururuHandler(self.pururu_service, self.event_system)
 
+        # Scheduled Jobs
+        self.scheduler = ScheduledJobs(self.pururu_handler)
+
         # Event Listeners
         self.event_system_listeners = EventListeners(self.event_system, self.pururu_handler)
 
@@ -44,6 +49,7 @@ class Application:
 
         # Additional wiring
         self.pururu_service.set_discord_service(self.discord_service)
+        self.scheduler.start()
 
         # Run Application
         self.discord_bot.run(config.DISCORD_TOKEN)
