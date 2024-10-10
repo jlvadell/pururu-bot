@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 import pururu.config as config
 import pururu.utils as utils
@@ -17,7 +18,7 @@ class PururuService:
         self.logger = utils.get_logger(__name__)
         self.current_session = CurrentSession()
         self.database_service = database_service
-        self.poll_resolution_factory = None
+        self.poll_resolution_factory: Optional[PollResolutionFactory] = None
         self.discord_service = None
 
     def set_discord_service(self, discord_service: DiscordInterface) -> None:
@@ -175,7 +176,7 @@ class PururuService:
         :param poll: Poll
         :return: None
         """
-        await self.poll_resolution_factory.resolve_poll(poll)
+        await self.poll_resolution_factory.get_strategy(poll.resolution_type).resolve(poll)
         self.current_session.remove_poll(poll.message_id)
         self.logger.debug(f"Poll {poll.message_id} has been resolved")
 

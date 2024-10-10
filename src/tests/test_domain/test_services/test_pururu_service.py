@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import patch, AsyncMock, Mock
+from unittest.mock import patch, AsyncMock, Mock, MagicMock
 
 import pytest
 from hamcrest import assert_that, equal_to, calling, raises, has_length
@@ -20,9 +20,9 @@ def set_up(current_session, db_mock) -> PururuService:
     :return: PururuService loaded with mocks
     """
     service = PururuService(db_mock)
-    service.set_discord_service(AsyncMock())
+    service.set_discord_service(AsyncMock(name="discord_adapter_mock"))
     service.current_session = current_session
-    service.poll_resolution_factory = AsyncMock()
+    service.poll_resolution_factory = MagicMock(name="poll_resolution_factory_mock")
     return service
 
 
@@ -289,10 +289,13 @@ async def test_get_expired_polls_ko_unable_to_fetch_poll():
 async def test_finalize_poll_ok(poll: Poll):
     # Given
     service = set_up()
+    strategy_mock = AsyncMock(name="strategy_mock")
+    service.poll_resolution_factory.get_strategy.return_value = strategy_mock
     # When
     await service.finalize_poll(poll)
     # Then
-    service.poll_resolution_factory.resolve_poll.assert_called_once_with(poll)
+    service.poll_resolution_factory.get_strategy.assert_called_once_with(poll.resolution_type)
+    strategy_mock.resolve.assert_called_once_with(poll)
     service.current_session.remove_poll.assert_called_once_with(poll.message_id)
 
 
