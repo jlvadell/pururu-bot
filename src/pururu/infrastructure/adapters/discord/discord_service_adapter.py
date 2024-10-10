@@ -2,7 +2,6 @@ from datetime import timedelta
 
 import discord
 
-import pururu.config as config
 import pururu.utils as utils
 from pururu.domain.entities import Message, Poll
 from pururu.domain.exceptions import DiscordServiceException
@@ -64,7 +63,7 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel or Message is not found
         """
         self.logger.debug(f"Fetching poll: {poll_id} from channel {channel_id}")
-        channel = await self.bot.fetch_channel(channel_id)
+        channel = self.bot.get_channel(channel_id)
         if not channel:
             raise DiscordServiceException(f"Channel with id {channel_id} not found")
         self.logger.debug(f"Channel {channel.id} fetched; fetching message {poll_id}")
@@ -73,7 +72,7 @@ class DiscordServiceAdapter(DiscordInterface):
             raise DiscordServiceException(f"Poll with id {poll_id} not found in channel {channel_id}")
         self.logger.debug(f"Poll {message.id} fetched")
         dc_poll = message.poll
-        poll = Poll(dc_poll.question, channel_id, [], dc_poll.duration.total_seconds()/3600, dc_poll.multiple)
+        poll = Poll(dc_poll.question, channel_id, [], dc_poll.duration.total_seconds() / 3600, dc_poll.multiple)
         poll.expires_at = dc_poll.expires_at
         poll.message_id = message.id
         for answer in dc_poll.answers:
