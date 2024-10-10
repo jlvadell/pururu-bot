@@ -19,3 +19,8 @@ class CannotEndGame(PururuException):
 class GameEndedWithoutPrecondition(PururuException):
     """Raised when a game ends before the minimum playtime or has less than the minimum players."""
     pass
+
+
+class DiscordServiceException(PururuException):
+    """Raised when an error related to Discord service occurs."""
+    pass

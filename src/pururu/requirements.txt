@@ -9,3 +9,4 @@ coverage
 pyhamcrest
 freezegun
 pytest-asyncio
+APScheduler

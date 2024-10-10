@@ -1,26 +1,28 @@
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock, Mock, MagicMock
 
-from hamcrest import assert_that, equal_to, calling, raises
+import pytest
+from hamcrest import assert_that, equal_to, calling, raises, has_length
 
+from pururu.domain.exceptions import DiscordServiceException
 from pururu.domain.entities import BotEvent, Attendance, MemberStats, AttendanceEventType, MemberAttendance, Clocking, \
-    SessionInfo
+    SessionInfo, Poll
 from pururu.domain.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
 from pururu.domain.services.pururu_service import PururuService
-from tests.test_domain.test_entities import attendance, member_stats
+from tests.test_domain.test_entities import attendance, member_stats, poll
 
 
-@patch('pururu.domain.services.discord_service.DiscordInterface')
 @patch('pururu.domain.services.database_service.DatabaseInterface')
 @patch('pururu.domain.current_session.CurrentSession')
-def set_up(current_session, db_mock, dc_mock) -> PururuService:
+def set_up(current_session, db_mock) -> PururuService:
     """
     Set-ups an instance of PururuService for testing
     :return: PururuService loaded with mocks
     """
     service = PururuService(db_mock)
-    service.set_discord_service(dc_mock)
+    service.set_discord_service(AsyncMock(name="discord_adapter_mock"))
     service.current_session = current_session
+    service.poll_resolution_factory = MagicMock(name="poll_resolution_factory_mock")
     return service
 
 
@@ -221,6 +223,80 @@ def test_end_game_ok(utils_mock):
     service.database_service.upsert_clocking.assert_called_once()
     service.database_service.upsert_attendance.assert_called_once()
     service.current_session.reset.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_poll_ok():
+    # Given
+    service = set_up()
+    poll = AsyncMock()
+    service.discord_service.send_poll.return_value = poll
+    # When
+    result = await service.create_poll(poll)
+    # Then
+    service.discord_service.send_poll.assert_called_once_with(poll)
+    service.current_session.add_new_poll.assert_called_once_with(poll)
+    assert_that(result, equal_to(poll))
+
+
+@pytest.mark.asyncio
+async def test_get_expired_polls_ok_no_polls():
+    # Given
+    service = set_up()
+    service.current_session.polls = []
+    # When
+    result = await service.get_expired_polls()
+    # Then
+    service.discord_service.assert_not_called()
+    service.current_session.get_expired_polls.assert_called_once()
+    assert_that(result, equal_to([]))
+
+
+@pytest.mark.asyncio
+async def test_get_expired_polls_ok():
+    # Given
+    service = set_up()
+    expired_poll = Mock(message_id=1, channel_id=2, resolution_type="resolution_type", spec=Poll)
+    dc_poll = AsyncMock(spec=Poll)
+    service.current_session.get_expired_polls.return_value = [expired_poll]
+    service.discord_service.fetch_poll.return_value = dc_poll
+    # When
+    result = await service.get_expired_polls()
+    # Then
+    service.discord_service.fetch_poll.assert_called_once_with(expired_poll.channel_id, expired_poll.message_id)
+    service.current_session.get_expired_polls.assert_called_once()
+    assert_that(result, has_length(1))
+    assert_that(result[0].resolution_type, equal_to(expired_poll.resolution_type))
+
+
+@pytest.mark.asyncio
+async def test_get_expired_polls_ko_unable_to_fetch_poll():
+    # Given
+    service = set_up()
+    expired_poll = Mock(message_id=1, channel_id=2, resolution_type="resolution_type", spec=Poll)
+    service.current_session.get_expired_polls.return_value = [expired_poll]
+    service.discord_service.fetch_poll.side_effect = DiscordServiceException("Unable to fetch poll")
+    # When
+    result = await service.get_expired_polls()
+    # Then
+    service.discord_service.fetch_poll.assert_called_once_with(expired_poll.channel_id, expired_poll.message_id)
+    service.current_session.get_expired_polls.assert_called_once()
+    service.current_session.remove_poll.assert_called_once_with(expired_poll.message_id)
+    assert_that(result, equal_to([]))
+
+
+@pytest.mark.asyncio
+async def test_finalize_poll_ok(poll: Poll):
+    # Given
+    service = set_up()
+    strategy_mock = AsyncMock(name="strategy_mock")
+    service.poll_resolution_factory.get_strategy.return_value = strategy_mock
+    # When
+    await service.finalize_poll(poll)
+    # Then
+    service.poll_resolution_factory.get_strategy.assert_called_once_with(poll.resolution_type)
+    strategy_mock.resolve.assert_called_once_with(poll)
+    service.current_session.remove_poll.assert_called_once_with(poll.message_id)
 
 
 def __verify_attendance(actual: Attendance, expected: Attendance):

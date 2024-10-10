@@ -29,8 +29,7 @@ class PururuDiscordBot(commands.Bot):
                                                                after_state.channel.name if after_state.channel else None)
 
     async def on_ready(self):
-        self.logger.info(
-            f'Application Started and connected to {",".join([guild.name for guild in self.guilds])}')
+        self.pururu_handler.handle_on_ready_dc_event()
 
     def setup_commands(self):
         @self.tree.command(
