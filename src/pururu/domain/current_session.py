@@ -183,7 +183,8 @@ class CurrentSession:
         """
         expired_polls = []
         for poll_id, poll_data in self.polls.items():
-            if poll_data["expires_at"] < datetime.now():
+            expiration_time = poll_data["expires_at"]
+            if expiration_time <= datetime.now(expiration_time.tzinfo):
                 poll = Poll("", poll_data['channel_id'], [], 0)
                 poll.message_id = poll_id
                 poll.resolution_type = poll_data['resolution']
