@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 from hamcrest import assert_that, instance_of, equal_to
 
-from domain.exceptions import PururuException
+from pururu.domain.exceptions import PururuException
 from pururu.domain.entities import PollResolutionType
 from pururu.domain.poll_system.poll_resolution_factory import PollResolutionFactory
 from pururu.domain.poll_system.poll_resolution_strategy import SendMessagePollResolution

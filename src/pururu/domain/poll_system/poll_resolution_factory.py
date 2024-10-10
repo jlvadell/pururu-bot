@@ -1,4 +1,4 @@
-from domain.exceptions import PururuException
+from pururu.domain.exceptions import PururuException
 from pururu.domain.entities import PollResolutionType
 from pururu.domain.poll_system.poll_resolution_strategy import SendMessagePollResolution, PollResolutionStrategy
 

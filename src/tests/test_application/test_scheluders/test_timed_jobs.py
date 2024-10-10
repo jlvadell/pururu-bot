@@ -11,7 +11,7 @@ def test_scheduler_initialization(mock_add_job):
     mock_add_job.assert_called_once_with(
         scheduled_jobs.check_expired_polls_task,
         'interval',
-        minute=1
+        hours=2
     )
 
 

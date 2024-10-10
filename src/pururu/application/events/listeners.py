@@ -1,8 +1,5 @@
-import asyncio
-
-from application.events.entities import CheckExpiredPollsEvent
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
-    EndGameIntentEvent, GameStartedEvent, GameEndedEvent, EventType
+    EndGameIntentEvent, GameStartedEvent, GameEndedEvent, CheckExpiredPollsEvent, EventType
 from pururu.application.events.event_system import EventSystem
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.utils import get_logger
