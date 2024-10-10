@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import pururu.config as config
@@ -41,6 +42,14 @@ class PururuHandler:
             event = MemberLeftChannelEvent(member, before_channel, datetime.now())
         if event:
             self.__emit_event(event)
+
+    def handle_on_ready_dc_event(self) -> None:
+        """
+        Handles the Discord on_ready event
+        :return: None
+        """
+        self.logger.info("Application Started and connected to Discord")
+        asyncio.create_task(self.event_system.start_event_processing())
 
     # ---------------------------
     # DISCORD COMMAND HANDLERS
@@ -154,7 +163,6 @@ class PururuHandler:
         self.logger.info(f"Consuming: {event}")
         await self.domain_service.finalize_poll(event.poll)
         self.logger.debug(f"Ended poll {event.poll.message_id} with winners {event.poll.get_winners()}")
-
 
     # ---------------------------
     # TIMED JOBS

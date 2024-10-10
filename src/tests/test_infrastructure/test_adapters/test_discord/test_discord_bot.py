@@ -49,7 +49,7 @@ async def test_on_ready_ok():
     # When
     await discord_bot.on_ready()
     # Then
-    discord_bot.logger.info.assert_called_once()
+    discord_bot.pururu_handler.handle_on_ready_dc_event.assert_called_once()
 
 
 @pytest.mark.asyncio
