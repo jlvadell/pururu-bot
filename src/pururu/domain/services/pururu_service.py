@@ -1,11 +1,14 @@
 from datetime import datetime
+from typing import Optional
 
 import pururu.config as config
 import pururu.utils as utils
 from pururu.domain.current_session import CurrentSession
-from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats
-from pururu.domain.entities import SessionInfo
-from pururu.domain.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
+from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
+    Poll, SessionInfo
+from pururu.domain.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
+                                      DiscordServiceException)
+from pururu.domain.poll_system.poll_resolution_factory import PollResolutionFactory
 from pururu.domain.services.database_service import DatabaseInterface
 from pururu.domain.services.discord_service import DiscordInterface
 
@@ -15,6 +18,7 @@ class PururuService:
         self.logger = utils.get_logger(__name__)
         self.current_session = CurrentSession()
         self.database_service = database_service
+        self.poll_resolution_factory: Optional[PollResolutionFactory] = None
         self.discord_service = None
 
     def set_discord_service(self, discord_service: DiscordInterface) -> None:
@@ -24,6 +28,7 @@ class PururuService:
         :return: None
         """
         self.discord_service = discord_service
+        self.poll_resolution_factory = PollResolutionFactory(discord_service)
 
     def register_bot_event(self, event: BotEvent) -> None:
         """
@@ -135,6 +140,45 @@ class PururuService:
         self.database_service.upsert_attendance(attendance)
         self.database_service.upsert_clocking(clocking)
         return attendance
+
+    async def create_poll(self, poll: Poll) -> Poll:
+        """
+        Creates a new poll
+        :param poll: Poll
+        :return: poll, created poll
+        """
+        self.logger.info(f"Creating poll: {poll.question}")
+        poll = await self.discord_service.send_poll(poll)
+        self.current_session.add_new_poll(poll)
+        return poll
+
+    async def get_expired_polls(self) -> list[Poll]:
+        """
+        Checks if any polls have expired and ends them
+        :return: list of expired polls
+        """
+        expired_polls = []
+        polls: list[Poll] = self.current_session.get_expired_polls()
+        for poll in polls:
+            self.logger.debug(f"Poll {poll.message_id} has expired")
+            try:
+                resulting_poll = await self.discord_service.fetch_poll(poll.channel_id, poll.message_id)
+                resulting_poll.resolution_type = poll.resolution_type
+                expired_polls.append(resulting_poll)
+            except DiscordServiceException as e:
+                self.logger.warn(f"Unable to fetch poll {poll.message_id}; {e}")
+                self.current_session.remove_poll(poll.message_id)
+        return expired_polls
+
+    async def finalize_poll(self, poll: Poll) -> None:
+        """
+        Handles the poll resolution
+        :param poll: Poll
+        :return: None
+        """
+        await self.poll_resolution_factory.get_strategy(poll.resolution_type).resolve(poll)
+        self.current_session.remove_poll(poll.message_id)
+        self.logger.debug(f"Poll {poll.message_id} has been resolved")
 
     def __has_player_attended(self, player) -> bool:
         """

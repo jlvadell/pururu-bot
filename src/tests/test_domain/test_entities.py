@@ -2,7 +2,7 @@ import pytest
 from hamcrest import assert_that, equal_to
 
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
-    Message, SessionInfo
+    Message, SessionInfo, Poll
 
 
 @pytest.fixture
@@ -97,6 +97,18 @@ def message():
 @pytest.fixture
 def session_info():
     return SessionInfo(game_id=1, players=["member1", "member2", "member3"])
+
+
+@pytest.fixture
+def poll():
+    poll = Poll(question="poll question?",
+                channel_id=123456,
+                answers=["yes", "no"],
+                duration_hours=1,
+                allow_multiple=False)
+    poll.message_id = 1234
+    poll.results = {"yes": 1, "no": 2}
+    return poll
 
 
 def test_member_stats_as_message(member_stats: MemberStats):

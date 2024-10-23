@@ -4,13 +4,15 @@ from unittest.mock import patch, call
 import pytest
 
 from pururu.application.events.entities import EventType
-from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
-    EndGameIntentEvent, GameStartedEvent, GameEndedEvent
+from pururu.application.events.entities import (MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent,
+                                                EndGameIntentEvent, GameStartedEvent, GameEndedEvent)
 from pururu.application.events.listeners import EventListeners
 from pururu.domain.entities import Attendance
-from tests.test_application.test_events.test_entities import member_joined_channel_event, member_left_channel_event, \
-    new_game_intent_event, end_game_intent_event, game_started_event, game_ended_event
-from tests.test_domain.test_entities import attendance
+from tests.test_application.test_events.test_entities import (member_joined_channel_event, member_left_channel_event,
+                                                              new_game_intent_event, end_game_intent_event,
+                                                              game_started_event, game_ended_event,
+                                                              check_expired_polls_event, finalize_poll_event)
+from tests.test_domain.test_entities import attendance, poll
 
 
 @patch('pururu.application.events.event_system.EventSystem')
@@ -140,3 +142,47 @@ def test_on_game_ended_ko(attendance: Attendance, game_ended_event: GameEndedEve
     listener.on_game_ended(game_ended_event)
     # Then
     listener.pururu_handler.handle_game_ended_event.assert_called_once_with(game_ended_event)
+
+
+@pytest.mark.asyncio
+async def test_on_check_expired_polls_ok(check_expired_polls_event):
+    # Given
+    listener = set_up()
+    # When
+    await listener.on_check_expired_polls(check_expired_polls_event)
+    # Then
+    listener.pururu_handler.handle_check_expired_polls_event.assert_called_once_with(check_expired_polls_event)
+
+
+@pytest.mark.asyncio
+async def test_on_check_expired_polls_ko(check_expired_polls_event):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_check_expired_polls_event.side_effect = Exception("test exception")
+    # When
+    await listener.on_check_expired_polls(check_expired_polls_event)
+    # Then
+    listener.pururu_handler.handle_check_expired_polls_event.assert_called_once_with(check_expired_polls_event)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("poll")
+async def test_on_finalize_poll_ok(finalize_poll_event):
+    # Given
+    listener = set_up()
+    # When
+    await listener.on_finalize_poll(finalize_poll_event)
+    # Then
+    listener.pururu_handler.handle_finalize_poll_event.assert_called_once_with(finalize_poll_event)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("poll")
+async def test_on_finalize_poll_ko(finalize_poll_event):
+    # Given
+    listener = set_up()
+    listener.pururu_handler.handle_finalize_poll_event.side_effect = Exception("test exception")
+    # When
+    await listener.on_finalize_poll(finalize_poll_event)
+    # Then
+    listener.pururu_handler.handle_finalize_poll_event.assert_called_once_with(finalize_poll_event)

@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 
 import pururu.utils as utils
-from pururu.domain.entities import BotEvent, Attendance
+from pururu.domain.entities import BotEvent, Attendance, Poll
 
 
 class EventType(Enum):
@@ -12,6 +12,8 @@ class EventType(Enum):
     END_GAME_INTENT = "end_game_intent"
     GAME_STARTED = "game_started"
     GAME_ENDED = "game_ended"
+    CHECK_EXPIRED_POLLS = "check_expired_polls"
+    FINALIZE_POLL = "finalize_poll"
 
 
 class PururuEvent:
@@ -24,7 +26,7 @@ class PururuEvent:
         return BotEvent(self.event_type.value, self.created_at, self.description)
 
     def __str__(self):
-        return f"{self.event_type}: {self.description}"
+        return f"{self.event_type}-{self.created_at}: {self.description}"
 
 
 class MemberJoinedChannelEvent(PururuEvent):
@@ -75,3 +77,14 @@ class GameEndedEvent(PururuEvent):
                                                f'attended: {[member.member for member in attendance.members if member.attendance]}, '
                                                f'absences: {[member.member for member in attendance.members if not member.attendance]}')
         self.attendance = attendance
+
+
+class CheckExpiredPollsEvent(PururuEvent):
+    def __init__(self):
+        super().__init__(EventType.CHECK_EXPIRED_POLLS, 'checking expired polls')
+
+
+class FinalizePollEvent(PururuEvent):
+    def __init__(self, poll: Poll):
+        super().__init__(EventType.FINALIZE_POLL, f'finalizing poll {poll.question}, winners: {poll.get_winners()}')
+        self.poll = poll

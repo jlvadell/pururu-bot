@@ -85,3 +85,27 @@ class SessionInfo:
     def __init__(self, game_id: int, players: list[str]):
         self.game_id = game_id
         self.players = players
+
+
+class PollResolutionType(Enum):
+    SEND_MESSAGE = "SEND_MESSAGE"
+
+
+class Poll:
+    def __init__(self, question: str, channel_id: int, answers: list[str], duration_hours: int = 24,
+                 allow_multiple: bool = False, resolution_type: PollResolutionType = PollResolutionType.SEND_MESSAGE):
+        self.message_id = None
+        self.question = question
+        self.channel_id = channel_id
+        self.answers = answers
+        self.duration_hours = duration_hours
+        self.expires_at = None
+        self.allow_multiple = allow_multiple
+        self.results = {}
+        self.resolution_type = resolution_type
+
+    def get_winners(self) -> str:
+        # Get the answer with the most votes (can be more than 1)
+        max_votes = max(self.results.values())
+        winners = [answer for answer, votes in self.results.items() if votes == max_votes]
+        return ', '.join(winners)

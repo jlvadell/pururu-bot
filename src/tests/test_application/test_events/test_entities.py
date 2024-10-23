@@ -5,9 +5,9 @@ import pytest
 from hamcrest import assert_that, equal_to
 
 from pururu.application.events.entities import MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent, \
-    EndGameIntentEvent, GameStartedEvent, GameEndedEvent, EventType
-from pururu.domain.entities import Attendance
-from tests.test_domain.test_entities import attendance
+    EndGameIntentEvent, GameStartedEvent, GameEndedEvent, EventType, FinalizePollEvent, CheckExpiredPollsEvent
+from pururu.domain.entities import Attendance, Poll
+from tests.test_domain.test_entities import attendance, poll
 
 
 @pytest.fixture
@@ -59,6 +59,17 @@ def game_ended_event(attendance: Attendance):
     return GameEndedEvent(
         attendance=attendance,
     )
+
+
+@pytest.fixture
+def check_expired_polls_event():
+    return CheckExpiredPollsEvent()
+
+
+@pytest.fixture
+@pytest.mark.usefixtures("poll")
+def finalize_poll_event(poll: Poll):
+    return FinalizePollEvent(poll=poll)
 
 
 @patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
