@@ -132,6 +132,8 @@ def test_get_all_attendances_ok(mapper_mock, attendance_sheet: AttendanceSheet):
     # Then
     assert_that(result, has_length(2))
     assert_that(mapper_mock.gs_to_attendance_sheet.call_count, equal_to(2))
+    assert_that(result[0].game_id, 4)
+    assert_that(result[1].game_id, 5)
     adapter.spreadsheet.values_get.assert_called_with(
         f"{AttendanceSheet.SHEET}!{AttendanceSheet.DATA_COL_INIT}{AttendanceSheet.DATA_ROW_INIT}"
         f":{AttendanceSheet.DATA_COL_END}2")

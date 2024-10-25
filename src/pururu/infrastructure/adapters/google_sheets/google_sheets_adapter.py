@@ -51,8 +51,9 @@ class GoogleSheetsAdapter(DatabaseInterface):
             self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
                                        AttendanceSheet.DATA_ROW_INIT,
                                        AttendanceSheet.DATA_COL_END, last_row))
-        for row in attendance_value_range['values']:
-            attendance = mapper.gs_to_attendance_sheet(AttendanceSheet.DATA_ROW_INIT, row)
+        for idx, row in enumerate(attendance_value_range['values']):
+            attendance_id = idx + AttendanceSheet.DATA_ROW_INIT
+            attendance = mapper.gs_to_attendance_sheet(attendance_id, row)
             all_attendances.append(mapper.sheet_to_attendance(attendance))
         return all_attendances
 
