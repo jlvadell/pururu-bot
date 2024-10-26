@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import pururu.config as config
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.domain.current_session import CurrentSession
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
     Poll, SessionInfo

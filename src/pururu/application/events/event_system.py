@@ -2,7 +2,7 @@ import asyncio
 import threading
 
 import pururu.config as config
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.application.events.entities import PururuEvent, EventType
 
 

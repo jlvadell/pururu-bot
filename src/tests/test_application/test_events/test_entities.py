@@ -72,7 +72,7 @@ def finalize_poll_event(poll: Poll):
     return FinalizePollEvent(poll=poll)
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_member_joined_channel_event_as_bot_event(utils_mock):
     # Given
     member_joined_channel_event = MemberJoinedChannelEvent(member="member1", channel="channel",
@@ -85,7 +85,7 @@ def test_member_joined_channel_event_as_bot_event(utils_mock):
     assert_that(actual.description, equal_to("member member1 has joined channel channel at 2023-08-10 10:00:00"))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_member_left_channel_event_as_bot_event(utils_mock):
     # Given
     member_left_channel_event = MemberLeftChannelEvent(member="member1", channel="channel",
@@ -98,7 +98,7 @@ def test_member_left_channel_event_as_bot_event(utils_mock):
     assert_that(actual.description, equal_to("member member1 has left channel channel at 2023-08-10 11:00:00"))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_new_game_intent_event_as_bot_event(utils_mock):
     # Given
     new_game_intent_event = NewGameIntentEvent(players=["member1"], start_time=datetime(2023, 8, 10, 10))
@@ -110,7 +110,7 @@ def test_new_game_intent_event_as_bot_event(utils_mock):
     assert_that(actual.description, equal_to("players: ['member1'], start_time 2023-08-10 10:00:00"))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_end_game_intent_event_as_bot_event(utils_mock):
     # Given
     end_game_intent_event = EndGameIntentEvent(game_id=1, players=["member1"], end_time=datetime(2023, 8, 10, 11))
@@ -122,7 +122,7 @@ def test_end_game_intent_event_as_bot_event(utils_mock):
     assert_that(actual.description, equal_to("game_id: 1, players: ['member1'], end_time 2023-08-10 11:00:00"))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_game_started_event_as_bot_event(utils_mock):
     # Given
     game_started_event = GameStartedEvent(game_id=1, players=["member1"])
@@ -134,7 +134,7 @@ def test_game_started_event_as_bot_event(utils_mock):
     assert_that(actual.description, equal_to("game_id: 1, players: ['member1']"))
 
 
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_game_ended_event_as_bot_event(utils_mock, attendance: Attendance):
     # Given
     game_ended_event = GameEndedEvent(attendance=attendance)

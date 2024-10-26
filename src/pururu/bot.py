@@ -1,5 +1,5 @@
 import pururu.config as config
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.application.events.event_system import EventSystem
 from pururu.application.events.listeners import EventListeners
 from pururu.application.scheluders.timed_jobs import ScheduledJobs

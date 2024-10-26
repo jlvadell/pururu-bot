@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 import pururu.config as config
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.application.events.entities import (EndGameIntentEvent, GameStartedEvent, PururuEvent, GameEndedEvent,
                                                 MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent,
                                                 CheckExpiredPollsEvent, FinalizePollEvent)

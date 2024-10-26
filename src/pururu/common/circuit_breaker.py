@@ -1,7 +1,7 @@
 import time
 from enum import Enum
 
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.common.exceptions import CircuitBreakerException
 
 

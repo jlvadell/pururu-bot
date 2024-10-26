@@ -174,7 +174,7 @@ def test_end_game_conditions_not_met():
 @patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
 @patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
 @patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
 def test_end_game_not_enough_player_attendance(utils_mock):
     # Given
     service = set_up()
@@ -190,7 +190,7 @@ def test_end_game_not_enough_player_attendance(utils_mock):
 @patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
 @patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
 @patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
-@patch("pururu.utils.get_current_time_formatted", return_value="2023-08-10")
+@patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_end_game_ok(utils_mock):
     # Given
     service = set_up()

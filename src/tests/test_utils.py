@@ -5,7 +5,7 @@ from unittest.mock import patch
 from freezegun import freeze_time
 from hamcrest import assert_that, equal_to
 
-import pururu.utils as utils
+from pururu.common import utils
 
 
 @patch("pururu.config.LOG_LEVEL", "DEBUG")

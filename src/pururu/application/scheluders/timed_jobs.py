@@ -1,6 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.application.services.pururu_handler import PururuHandler
 
 

@@ -2,7 +2,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 import pururu.infrastructure.adapters.google_sheets.mapper as mapper
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.domain.entities import BotEvent, Attendance, Clocking
 from pururu.domain.services.database_service import DatabaseInterface
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet, \

@@ -3,7 +3,7 @@ import inspect
 from pururu.application.events.entities import (PururuEvent, EventType)
 from pururu.application.events.event_system import EventSystem
 from pururu.application.services.pururu_handler import PururuHandler
-from pururu.utils import get_logger
+from common.utils import get_logger
 
 
 class EventListeners:

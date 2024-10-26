@@ -1,5 +1,5 @@
 import pururu.config as config
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking, AttendanceEventType
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
