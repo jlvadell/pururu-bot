@@ -10,7 +10,7 @@ from pururu.application.events.entities import (EventType, MemberJoinedChannelEv
                                                 GameEndedEvent, CheckExpiredPollsEvent, FinalizePollEvent)
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.domain.entities import SessionInfo, Attendance
-from pururu.domain.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
+from pururu.common.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
 from pururu.domain.services.pururu_service import PururuService
 from tests.test_application.test_events.test_entities import (member_joined_channel_event, member_left_channel_event,
                                                               new_game_intent_event, end_game_intent_event,

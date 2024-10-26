@@ -6,7 +6,7 @@ from pururu.common import utils
 from pururu.domain.current_session import CurrentSession
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
     Poll, SessionInfo
-from pururu.domain.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
+from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
                                       DiscordServiceException)
 from pururu.domain.poll_system.poll_resolution_factory import PollResolutionFactory
 from pururu.domain.services.database_service import DatabaseInterface

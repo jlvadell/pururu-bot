@@ -8,7 +8,7 @@ from pururu.application.events.entities import (EndGameIntentEvent, GameStartedE
                                                 CheckExpiredPollsEvent, FinalizePollEvent)
 from pururu.application.events.event_system import EventSystem
 from pururu.domain.entities import MemberStats
-from pururu.domain.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
+from pururu.common.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
 from pururu.domain.services.pururu_service import PururuService
 
 

@@ -4,10 +4,10 @@ from unittest.mock import patch, AsyncMock, Mock, MagicMock
 import pytest
 from hamcrest import assert_that, equal_to, calling, raises, has_length
 
-from pururu.domain.exceptions import DiscordServiceException
+from pururu.common.exceptions import DiscordServiceException
 from pururu.domain.entities import BotEvent, Attendance, MemberStats, AttendanceEventType, MemberAttendance, Clocking, \
     SessionInfo, Poll
-from pururu.domain.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
+from pururu.common.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
 from pururu.domain.services.pururu_service import PururuService
 from tests.test_domain.test_entities import attendance, member_stats, poll
 
