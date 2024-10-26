@@ -150,3 +150,23 @@ async def test_events_processing_concurrency():
     event_system.stop_event_processing()
     # Then
     assert_that(call_count, equal_to(1))
+
+
+@pytest.mark.asyncio
+@patch("pururu.config.EVENT_BACKOFF_BASE", 0.1)
+@patch("pururu.config.EVENT_MAX_RETRIES", 2)
+@patch("pururu.config.EVENT_BACKOFF_MAX", 0.1)
+async def test_events_processing_retries():
+    # Given
+    listener = AsyncMock(side_effect=lambda _: False)
+    event_system = EventSystem()
+    event_system.events[EventType.MEMBER_JOINED_CHANNEL] = Event(EventType.MEMBER_JOINED_CHANNEL)
+    event_system.events[EventType.MEMBER_JOINED_CHANNEL].listeners.append(listener)
+    event = Mock(event_type=EventType.MEMBER_JOINED_CHANNEL)
+    await event_system.event_queue.put(event)
+    # When
+    asyncio.create_task(event_system.start_event_processing())
+    await asyncio.sleep(1)
+    event_system.stop_event_processing()
+    # Then
+    assert_that(listener.call_count, equal_to(3)) # Initial call + 2 retries

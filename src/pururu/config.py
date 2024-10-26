@@ -24,8 +24,9 @@ MIN_ATTENDANCE_TIME = int(os.getenv('MIN_ATTENDANCE_TIME', 1800))  # defaults to
 PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
 MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
 PING_MESSAGE = os.getenv('PING_MESSAGE', '')
-EVENT_CONCURRENCY_TIME = os.getenv('EVENT_CONCURRENCY_TIME', 20) #minimum amount of time in seconds allowed between events
-EVENT_DELAY_TIME = os.getenv('EVENT_DELAY_TIME', 20) #delay time
+EVENT_BACKOFF_BASE = os.getenv('EVENT_BACKOFF_BASE', 5) # backoff base in seconds
+EVENT_BACKOFF_MAX = os.getenv('EVENT_BACKOFF_MAX', 300) # backoff max in seconds; 5 minutes
+EVENT_MAX_RETRIES = os.getenv('EVENT_MAX_RETRIES', 10) # max retries
 
 # ----------------------------------------
 # -------------- Discord configs

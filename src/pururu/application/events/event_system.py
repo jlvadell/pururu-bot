@@ -1,6 +1,7 @@
 import asyncio
 import threading
 
+import pururu.config as config
 import pururu.utils as utils
 from pururu.application.events.entities import PururuEvent, EventType
 
@@ -46,6 +47,9 @@ class EventSystem:
         self.event_queue = asyncio.Queue()
         self.running = False
         self.logger = utils.get_logger(__name__)
+        self.backoff_base = config.EVENT_BACKOFF_BASE
+        self.max_retries = config.EVENT_MAX_RETRIES
+        self.backoff_max = config.EVENT_BACKOFF_MAX
 
     def create_event(self, event_name: EventType) -> None:
         """
@@ -109,9 +113,20 @@ class EventSystem:
         self.logger.debug("Event processing started")
         self.running = True
         while self.running:
+            retry_count = 0
             try:
                 event = await self.event_queue.get()  # Wait for event from async queue
-                await self._process_event(event)  # Process the event
+                ack = await self._process_event(event)  # Process the event
+                while not ack and retry_count < self.max_retries:
+                    retry_count += 1
+                    wait = min(self.backoff_base * 2 ** retry_count, self.backoff_max)
+                    self.logger.debug(
+                        f"Event processing failed to process {event.event_type} retrying in {wait} seconds; retry count {retry_count}")
+                    await asyncio.sleep(wait)
+                    ack = await self._process_event(event)
+                if retry_count >= self.max_retries:
+                    self.logger.critical(
+                        f"Event processing failed to process {event.event_type} after {retry_count} retries")
             except Exception as e:
                 self.logger.error(f"Error processing event: {e}")
 
@@ -123,14 +138,14 @@ class EventSystem:
         self.logger.debug("Event processing stopped")
         self.running = False
 
-    async def _process_event(self, event: PururuEvent) -> None:
+    async def _process_event(self, event: PururuEvent) -> bool:
         """
         Process an event from the queue
         :param event: PururuEvent
-        :return: None
+        :return: bool: T
         :raises ValueError: if the event_type is not registered; call create_event
         """
         if event.event_type in self.events:
-            await self.events[event.event_type].notify_listeners(event)
+            return await self.events[event.event_type].notify_listeners(event)
         else:
             raise ValueError(f"Event {event.event_type} does not exist.")
