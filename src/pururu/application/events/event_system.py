@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import threading
 
 import pururu.utils as utils
@@ -29,17 +28,16 @@ class Event:
         if listener in self.listeners:
             self.listeners.remove(listener)
 
-    async def notify_listeners(self, data: PururuEvent) -> None:
+    async def notify_listeners(self, data: PururuEvent) -> bool:
         """
         Notify all listeners for the event
         :param data: PururuEvent
-        :return: None
+        :return: bool: True if all listeners Ack, False otherwise
         """
+        result = True
         for listener in self.listeners:
-            if inspect.iscoroutinefunction(listener):
-                await listener(data)
-            else:
-                listener(data)
+            result = result and await listener(data)
+        return result
 
 
 class EventSystem:
