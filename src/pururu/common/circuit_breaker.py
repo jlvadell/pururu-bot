@@ -45,8 +45,20 @@ class CircuitBreaker:
             self._handle_failure(e)
             raise e
 
+    def force_check(self):
+        if self.state == CircuitBreakerState.OPEN:
+            if time.time() - self.last_failure_time >= self.recovery_timeout:
+                self.state = CircuitBreakerState.HALF_OPEN
+                if self.on_half_open:
+                    try:
+                        self.on_half_open()
+                        self._reset_on_success()
+                    except Exception as recovery_error:
+                        self._handle_failure(recovery_error)
+
     def _reset_on_success(self):
         self.failure_count = 0
+        self.last_failure_time = 0
         if self.state == CircuitBreakerState.HALF_OPEN:
             self.state = CircuitBreakerState.CLOSED
 

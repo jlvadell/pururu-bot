@@ -2,7 +2,7 @@ import time
 from unittest.mock import Mock
 
 import pytest
-from hamcrest import assert_that, equal_to, calling, raises
+from hamcrest import assert_that, equal_to, calling, raises, greater_than
 
 from pururu.common.circuit_breaker import CircuitBreaker, CircuitBreakerState
 from pururu.common.exceptions import CircuitBreakerException
@@ -86,3 +86,51 @@ def test_half_open_failure_reopens_circuit():
         breaker.call(lambda: "ok")
     # Then
     assert_that(breaker.state, equal_to(CircuitBreakerState.OPEN))
+
+def test_force_check_when_closed():
+    # Given
+    breaker = set_up()
+    # When
+    breaker.force_check()
+    # Then
+    assert_that(breaker.state, equal_to(CircuitBreakerState.CLOSED))
+    assert_that(breaker.failure_count, equal_to(0))
+    assert_that(breaker.last_failure_time, equal_to(0))
+    assert_that(breaker.state, equal_to(CircuitBreakerState.CLOSED))
+
+def test_force_check_open_but_no_fallback():
+    # Given
+    breaker = set_up()
+    breaker.state = CircuitBreakerState.OPEN
+    breaker.last_failure_time = time.time()-5000
+    # When
+    breaker.force_check()
+    # Then
+    assert_that(breaker.state, equal_to(CircuitBreakerState.HALF_OPEN))
+
+def test_force_check_fallback_ok():
+    # Given
+    breaker = set_up()
+    breaker.state = CircuitBreakerState.OPEN
+    breaker.last_failure_time = time.time()-5000
+    fallback_function = Mock(return_value="fallback result")
+    breaker.on_half_open = fallback_function
+    # When
+    breaker.force_check()
+    # Then
+    assert_that(breaker.state, equal_to(CircuitBreakerState.CLOSED))
+    assert_that(breaker.failure_count, equal_to(0))
+    assert_that(breaker.last_failure_time, equal_to(0))
+
+def test_force_check_fallback_ko():
+    # Given
+    breaker = set_up()
+    breaker.state = CircuitBreakerState.OPEN
+    breaker.last_failure_time = 5000
+    fallback_function = Mock(side_effect=Exception("Fallback failed"))
+    breaker.on_half_open = fallback_function
+    # When
+    breaker.force_check()
+    # Then
+    assert_that(breaker.state, equal_to(CircuitBreakerState.OPEN))
+    assert_that(breaker.last_failure_time, greater_than(5000))
