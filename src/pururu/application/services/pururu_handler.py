@@ -108,7 +108,7 @@ class PururuHandler:
             event = GameStartedEvent(session.game_id, session.players)
             self.__emit_event(event)
         except CannotStartNewGame as e:
-            self.logger.warn(f"Cannot start new game: {e}")
+            self.logger.warning(f"Cannot start new game: {e}")
 
     def handle_end_game_intent_event(self, event: EndGameIntentEvent) -> None:
         """
@@ -123,9 +123,9 @@ class PururuHandler:
             event = GameEndedEvent(attendance)
             self.__emit_event(event)
         except CannotEndGame as e:
-            self.logger.warn(f"Cannot end game: {e}")
+            self.logger.warning(f"Cannot end game: {e}")
         except GameEndedWithoutPrecondition as e:
-            self.logger.warn(f"Game ended without precondition: {e}")
+            self.logger.warning(f"Game ended without precondition: {e}")
 
     def handle_game_started_event(self, event: GameStartedEvent) -> None:
         """

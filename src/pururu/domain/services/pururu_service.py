@@ -166,7 +166,7 @@ class PururuService:
                 resulting_poll.resolution_type = poll.resolution_type
                 expired_polls.append(resulting_poll)
             except DiscordServiceException as e:
-                self.logger.warn(f"Unable to fetch poll {poll.message_id}; {e}")
+                self.logger.warning(f"Unable to fetch poll {poll.message_id}; {e}")
                 self.current_session.remove_poll(poll.message_id)
         return expired_polls
 
