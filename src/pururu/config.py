@@ -24,9 +24,16 @@ MIN_ATTENDANCE_TIME = int(os.getenv('MIN_ATTENDANCE_TIME', 1800))  # defaults to
 PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
 MIN_ATTENDANCE_MEMBERS = int(os.getenv('MIN_ATTENDANCE_MEMBERS', 3))
 PING_MESSAGE = os.getenv('PING_MESSAGE', '')
+
+# ----------------------------------------
+# -------------- Event System configs
+# ----------------------------------------
 EVENT_BACKOFF_BASE = os.getenv('EVENT_BACKOFF_BASE', 5) # backoff base in seconds
 EVENT_BACKOFF_MAX = os.getenv('EVENT_BACKOFF_MAX', 300) # backoff max in seconds; 5 minutes
 EVENT_MAX_RETRIES = os.getenv('EVENT_MAX_RETRIES', 10) # max retries
+GAME_EVENTS_QUEUE_URL = os.getenv('GAME_EVENTS_QUEUE_URL', 'http://localhost:4576/queue/pururu-game-events') # SQS
+POLL_EVENTS_QUEUE_URL = os.getenv('POLL_EVENTS_QUEUE_URL', 'http://localhost:4576/queue/pururu-poll-events') # SQS
+EVENTS_POLLING_INTERVAL = os.getenv('EVENTS_POLLING_INTERVAL', 20)  # in seconds
 
 # ----------------------------------------
 # -------------- Discord configs

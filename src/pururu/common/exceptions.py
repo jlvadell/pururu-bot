@@ -17,6 +17,10 @@ class GameEndedWithoutPrecondition(PururuException):
 
 # Application Exceptions
 
+class EventDeserializationException(PururuException):
+    """Raised when an event cannot be deserialized."""
+    pass
+
 # Infrastructure Exceptions
 
 class DiscordServiceException(PururuException):
