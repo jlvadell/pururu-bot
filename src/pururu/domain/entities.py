@@ -3,9 +3,10 @@ from dataclasses import dataclass
 
 @dataclass()
 class BotEvent:
-    def __init__(self, event_type: str, created_at: str, payload: dict):
+    def __init__(self, event_type: str, created_at: str, description: str, payload: dict):
         self.event_type = event_type
         self.created_at = created_at
+        self.description = description
         self.payload = payload
 
 

@@ -74,11 +74,13 @@ def finalize_poll_event(poll: Poll):
 def test_as_bot_event(utils_mock):
     # Given
     event = MemberJoinedChannelEvent(member="member1", channel="channel", joined_at=datetime(2023, 8, 10, 10))
+    event.description = "description"
     # When
     actual = event.as_bot_event()
     # Then
     assert_that(actual.event_type, equal_to(EventType.MEMBER_JOINED_CHANNEL.value))
     assert_that(actual.created_at, equal_to("2023-08-10"))
+    assert_that(actual.description, equal_to("description"))
     assert_that(actual.payload, equal_to(event.__dict__))
 
 

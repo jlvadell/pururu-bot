@@ -26,6 +26,7 @@ class PururuEvent(ABC):
         return BotEvent(
             event_type=self.event_type.value,
             created_at=self.created_at,
+            description=self.description,
             payload=self.__dict__.copy()
         )
 
