@@ -40,6 +40,8 @@ EVENTS_POLLING_INTERVAL = os.getenv('EVENTS_POLLING_INTERVAL', 20)  # in seconds
 # ----------------------------------------
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD_ID = int(os.getenv('GUILD_ID', 0))
+DISCORD_EVENT_LOG_CHANNEL_ID = int(os.getenv('DISCORD_EVENT_LOG_CHANNEL_ID', 0))
+DISCORD_EVENT_LOG_ENABLED = os.getenv('DISCORD_EVENT_LOG_ENABLED', False)
 
 # ----------------------------------------
 # -------------- GS Adapter configs

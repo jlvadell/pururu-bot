@@ -5,7 +5,7 @@ import pururu.config as config
 from pururu.common import utils
 from pururu.domain.current_session import CurrentSession
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
-    Poll, SessionInfo
+    Poll, SessionInfo, Message
 from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
                                       DiscordServiceException)
 from pururu.domain.poll_system.poll_resolution_factory import PollResolutionFactory
@@ -36,8 +36,12 @@ class PururuService:
         :param event: BotEvent
         :return: None
         """
+        if not config.DISCORD_EVENT_LOG_ENABLED:
+            self.logger.debug(f"Ignoring bot event: {event}, logging disabled")
+            return
         self.logger.debug(f"Registering bot event: {event}")
-        self.database_service.insert_bot_event(event)
+        message = Message(event.description, config.DISCORD_EVENT_LOG_CHANNEL_ID)
+        self.discord_service.send_message(message)
 
     def get_session_info(self) -> SessionInfo:
         """
