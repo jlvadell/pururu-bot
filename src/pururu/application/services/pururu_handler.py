@@ -65,7 +65,7 @@ class PururuHandler:
         return self.domain_service.calculate_player_stats(player)
 
     # ---------------------------
-    # PURURU EVENT HANDLERS
+    # PURURU EVENT HANDLERS - GAME EVENTS
     # ---------------------------
 
     def handle_member_joined_channel_event(self, event: MemberJoinedChannelEvent) -> None:
@@ -120,7 +120,7 @@ class PururuHandler:
                          f"for players {event.players}")
         try:
             attendance = self.domain_service.end_game(event.end_time)
-            event = GameEndedEvent(attendance)
+            event = GameEndedEvent.from_attendance(attendance)
             self.__emit_event(event)
         except CannotEndGame as e:
             self.logger.warning(f"Cannot end game: {e}")
@@ -141,7 +141,12 @@ class PururuHandler:
         :param event: GameEndedEvent
         :return: None
         """
-        self.logger.info(f"Game {event.attendance.game_id} has ended with attendance {event.attendance}")
+        attendance = event.to_attendance()
+        self.logger.info(f"Game {attendance.game_id} has ended with attendance {attendance}")
+
+    # ---------------------------
+    # PURURU EVENT HANDLERS - POLL EVENTS
+    # ---------------------------
 
     async def handle_check_expired_polls_event(self, event: CheckExpiredPollsEvent) -> None:
         """
@@ -152,7 +157,7 @@ class PururuHandler:
         self.logger.info(f"Consuming: {event}")
         expired_polls = await self.domain_service.get_expired_polls()
         for poll in expired_polls:
-            self.__emit_event(FinalizePollEvent(poll))
+            self.__emit_event(FinalizePollEvent.from_poll(poll))
 
     async def handle_finalize_poll_event(self, event: FinalizePollEvent) -> None:
         """
@@ -161,8 +166,9 @@ class PururuHandler:
         :return: None
         """
         self.logger.info(f"Consuming: {event}")
-        await self.domain_service.finalize_poll(event.poll)
-        self.logger.debug(f"Ended poll {event.poll.message_id} with winners {event.poll.get_winners()}")
+        poll = event.to_poll()
+        await self.domain_service.finalize_poll(poll)
+        self.logger.debug(f"Ended poll {poll.message_id} with winners {poll.get_winners()}")
 
     # ---------------------------
     # TIMED JOBS
