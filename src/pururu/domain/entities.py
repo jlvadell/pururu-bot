@@ -1,13 +1,15 @@
 from enum import Enum
+from dataclasses import dataclass
 
-
+@dataclass()
 class BotEvent:
-    def __init__(self, event_type: str, date: str, description: str):
+    def __init__(self, event_type: str, created_at: str, payload: dict):
         self.event_type = event_type
-        self.date = date
-        self.description = description
+        self.created_at = created_at
+        self.payload = payload
 
 
+@dataclass()
 class MemberAttendance:
     def __init__(self, member: str, attendance: bool, justified: bool, motive: str):
         self.member = member
@@ -16,6 +18,7 @@ class MemberAttendance:
         self.motive = motive
 
 
+@dataclass()
 class AttendanceEventType(Enum):
     OFFICIAL_GAME = "Juegueo Oficial"
     ADDITIONAL_OFFICIAL_GAME = "Juegueo Adicional Oficial"
@@ -39,6 +42,7 @@ class AttendanceEventType(Enum):
         return AttendanceEventType.UNKNOWN
 
 
+@dataclass()
 class Attendance:
     def __init__(self, game_id: int, members: list[MemberAttendance], date: str, event_type: AttendanceEventType):
         self.game_id = game_id
@@ -47,12 +51,14 @@ class Attendance:
         self.event_type = event_type
 
 
+@dataclass()
 class Clocking:
     def __init__(self, game_id: int, playtimes: list[int]):
         self.game_id = game_id
         self.playtimes = playtimes
 
 
+@dataclass()
 class MemberStats:
     def __init__(self, member: str, total_events: int, absences: int, justifications: int, points: int, coins: int):
         self.member = member
@@ -74,6 +80,7 @@ class MemberStats:
                f"KeroCoins: {self.coins}"
 
 
+@dataclass()
 class Message:
     def __init__(self, content: str, channel_id: int):
         self.message_id = None
@@ -81,16 +88,19 @@ class Message:
         self.channel_id = channel_id
 
 
+@dataclass()
 class SessionInfo:
     def __init__(self, game_id: int, players: list[str]):
         self.game_id = game_id
         self.players = players
 
 
+@dataclass()
 class PollResolutionType(Enum):
     SEND_MESSAGE = "SEND_MESSAGE"
 
 
+@dataclass()
 class Poll:
     def __init__(self, question: str, channel_id: int, answers: list[str], duration_hours: int = 24,
                  allow_multiple: bool = False, resolution_type: PollResolutionType = PollResolutionType.SEND_MESSAGE):
