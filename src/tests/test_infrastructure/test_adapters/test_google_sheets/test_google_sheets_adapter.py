@@ -84,34 +84,17 @@ def test_upsert_clocking_game_id_not_found(mapper_mock, clocking: Clocking, cloc
 
 
 @patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
-def test_cache_ok(mapper_mock, bot_event: BotEvent, bot_event_sheet: BotEventSheet):
+def test_cache_ok(mapper_mock, attendance: Attendance, attendance_sheet: AttendanceSheet):
     # Given
     adapter = set_up()
-    adapter.cache[f'{BotEventSheet.SHEET}_last_row'] = 2
+    adapter.cache[f'{AttendanceSheet.SHEET}_last_row'] = 2
     adapter.spreadsheet.values_get.return_value = {'values': [[], [], []]}
-    mapper_mock.bot_event_to_sheet.return_value = bot_event_sheet
+    mapper_mock.gs_to_attendance_sheet.return_value = attendance_sheet
+    mapper_mock.sheet_to_attendance.return_value = attendance
     # When
-    adapter.insert_bot_event(bot_event)
+    adapter.get_last_attendance()
     # Then
-    adapter.spreadsheet.values_get.assert_called_with(
-        f"{BotEventSheet.SHEET}!{BotEventSheet.DATA_COL_INIT}2:{BotEventSheet.DATA_COL_INIT}", )
-    assert_that(adapter.cache[f'{BotEventSheet.SHEET}_last_row'], equal_to(4))
-
-
-@patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')
-@pytest.mark.usefixtures("bot_event", "bot_event_sheet")
-def test_insert_bot_event_ok(mapper_mock, bot_event: BotEvent, bot_event_sheet: BotEventSheet):
-    # Given
-    adapter = set_up()
-    mapper_mock.bot_event_to_sheet.return_value = bot_event_sheet
-    adapter.spreadsheet.values_get.return_value = {'values': []}
-    # When
-    adapter.insert_bot_event(bot_event)
-    # Then
-    adapter.spreadsheet.values_update.assert_called_with(
-        range=f"{BotEventSheet.SHEET}!{BotEventSheet.DATA_COL_INIT}1",
-        params=adapter.DEFAULT_PARAMS, body={"values": [bot_event_sheet.to_row_values()]})
-    adapter.circuit_breaker.call.assert_called()
+    assert_that(adapter.cache[f'{AttendanceSheet.SHEET}_last_row'], equal_to(4))
 
 
 @patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.mapper')

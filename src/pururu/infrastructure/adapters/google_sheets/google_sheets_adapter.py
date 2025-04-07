@@ -127,6 +127,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
     def insert_bot_event(self, bot_event: BotEvent) -> None:
         """
+        DEPRECATED
         Register a bot event in the Google sheet
         :param bot_event: the event
         :return: None

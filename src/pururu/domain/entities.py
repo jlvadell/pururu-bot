@@ -1,3 +1,5 @@
+import hashlib
+import json
 from enum import Enum
 from dataclasses import dataclass
 
@@ -8,6 +10,23 @@ class BotEvent:
         self.created_at = created_at
         self.description = description
         self.payload = payload
+
+    def get_idempotency_key(self) -> str:
+        """
+        Generates a deduplication id for the event.
+        :return: string containing the deduplication id
+        """
+        key_data = {
+            "event_type": self.event_type,
+            "created_at": self.created_at,
+            "payload": self.payload
+        }
+
+        # Sort keys to guarantee consistent hashing
+        json_string = json.dumps(key_data, sort_keys=True)
+        hash_object = hashlib.sha256(json_string.encode("utf-8"))
+
+        return hash_object.hexdigest()
 
 
 @dataclass()
@@ -116,7 +135,11 @@ class Poll:
         self.resolution_type = resolution_type
 
     def get_winners(self) -> str:
-        # Get the answer with the most votes (can be more than 1)
+        """
+        Returns the answer with the most votes, or multiple answers if there is a tie.
+        Multiple answers are returned as a comma-separated string.
+        :return: answer with the most votes; string
+        """
         max_votes = max(self.results.values())
         winners = [answer for answer, votes in self.results.items() if votes == max_votes]
         return ', '.join(winners)

@@ -9,8 +9,12 @@ from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clock
 def bot_event():
     return BotEvent(
         event_type="event_type",
-        date="2023-08-10",
-        description="Bot event description"
+        created_at="2023-08-10",
+        description="Bot event description",
+        payload={
+            "key1": "value1",
+            "key2": "value2"
+        }
     )
 
 
@@ -134,3 +138,7 @@ def test_member_stats_as_message(member_stats: MemberStats):
 def test_attendance_event_type_of_test_cases(event: str, expected: AttendanceEventType):
     actual = AttendanceEventType.of(event)
     assert_that(actual, equal_to(expected))
+
+def test_bot_event_idempotency_key(bot_event: BotEvent):
+    key = bot_event.get_idempotency_key()
+    assert_that(key, equal_to('5384e2ecb32a0637bbb2280a4e751d397888a01a3a96a5e9160f6d08b5900944'))
