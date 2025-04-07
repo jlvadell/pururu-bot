@@ -11,13 +11,15 @@ from pururu.application.services.pururu_handler import PururuHandler
 from pururu.common.exceptions import EventDeserializationException
 
 
-def set_up_game_consumer():
+@patch('pururu.application.events.event_consumers.boto3.client')
+def set_up_game_consumer(boto_client_mock):
     mock_pururu_handler = MagicMock(spec=PururuHandler)
     consumer = GameEventConsumer(mock_pururu_handler)
     return consumer
 
+@patch('pururu.application.events.event_consumers.boto3.client')
+def set_up_poll_consumer(boto_client_mock):
 
-def set_up_poll_consumer():
     mock_pururu_handler = MagicMock(spec=PururuHandler)
     consumer = PollEventConsumer(mock_pururu_handler)
     return consumer
@@ -173,7 +175,8 @@ async def test_start_generic_polling(mock_utils, mock_boto3_client):
     mock_utils.get_logger.return_value = mock_logger
 
     # Set up the consumer
-    consumer = set_up_game_consumer()
+    mock_pururu_handler = MagicMock(spec=PururuHandler)
+    consumer = GameEventConsumer(mock_pururu_handler)
     consumer._deserialize_event = MagicMock(
         return_value=MemberJoinedChannelEvent(
             member="test",
