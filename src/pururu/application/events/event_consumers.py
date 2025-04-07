@@ -5,7 +5,7 @@ import boto3
 import json
 
 import pururu.config as config
-from common.exceptions import EventDeserializationException
+from pururu.common.exceptions import EventDeserializationException
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.common import utils
 from pururu.application.events.entities import PururuEvent, EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \

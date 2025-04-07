@@ -12,7 +12,7 @@ from pururu.application.services.pururu_handler import PururuHandler
 from pururu.application.events.entities import EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
     NewGameIntentEvent, EndGameIntentEvent, GameEndedEvent, GameStartedEvent, CheckExpiredPollsEvent, FinalizePollEvent, \
     PururuEvent
-from common.exceptions import EventDeserializationException
+from pururu.common.exceptions import EventDeserializationException
 
 
 def set_up_game_consumer():
