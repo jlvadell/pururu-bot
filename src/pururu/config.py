@@ -34,6 +34,7 @@ EVENT_MAX_RETRIES = os.getenv('EVENT_MAX_RETRIES', 10) # max retries
 GAME_EVENTS_QUEUE_URL = os.getenv('GAME_EVENTS_QUEUE_URL', 'http://localhost:4576/queue/pururu-game-events') # SQS
 POLL_EVENTS_QUEUE_URL = os.getenv('POLL_EVENTS_QUEUE_URL', 'http://localhost:4576/queue/pururu-poll-events') # SQS
 EVENTS_POLLING_INTERVAL = os.getenv('EVENTS_POLLING_INTERVAL', 20)  # in seconds
+SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN', 'http://localhost:4575/publish/pururu-game-events')  # SNS
 
 # ----------------------------------------
 # -------------- Discord configs
