@@ -278,5 +278,5 @@ async def test_handle_finalize_poll_event_ok(finalize_poll_event: FinalizePollEv
     # When
     await pururu_handler.handle_finalize_poll_event(finalize_poll_event)
     # Then
-    pururu_handler.domain_service.finalize_poll.assert_called_once_with(finalize_poll_event.poll)
+    pururu_handler.domain_service.finalize_poll.assert_called_once_with(finalize_poll_event.to_poll())
     pururu_handler.event_system.assert_not_called()

@@ -4,10 +4,10 @@ from unittest.mock import patch, AsyncMock, Mock, MagicMock
 import pytest
 from hamcrest import assert_that, equal_to, calling, raises, has_length
 
-from pururu.common.exceptions import DiscordServiceException
+from pururu.common.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition, \
+    DiscordServiceException
 from pururu.domain.entities import BotEvent, Attendance, MemberStats, AttendanceEventType, MemberAttendance, Clocking, \
-    SessionInfo, Poll
-from pururu.common.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
+    SessionInfo, Poll, Message
 from pururu.domain.services.pururu_service import PururuService
 from tests.test_domain.test_entities import attendance, member_stats, poll
 
@@ -68,19 +68,40 @@ def test_calculate_player_stats_ok(member_stats: MemberStats):
     service.current_session.assert_not_called()
 
 
-def test_register_bot_event():
+@patch("pururu.config.DISCORD_EVENT_LOG_ENABLED", True)
+@patch("pururu.config.DISCORD_EVENT_LOG_CHANNEL_ID", 123456)
+def test_register_bot_event_when_log_enabled():
     # Given
     service = set_up()
     event = BotEvent(
         event_type="event_type",
-        date="2023-08-10",
-        description="Bot event description"
-    )
+        description="description",
+        created_at="",
+        payload={})
+    expected_message = Message(event.description, 123456)
     # When
     service.register_bot_event(event)
     # Then
-    service.database_service.insert_bot_event.assert_called_once_with(event)
+    service.discord_service.send_message.assert_called_once_with(expected_message)
     service.current_session.assert_not_called()
+    service.database_service.assert_not_called()
+
+
+@patch("pururu.config.DISCORD_EVENT_LOG_ENABLED", False)
+def test_register_bot_event_when_log_enabled():
+    # Given
+    service = set_up()
+    event = BotEvent(
+        event_type="event_type",
+        description="description",
+        created_at="",
+        payload={})
+    # When
+    service.register_bot_event(event)
+    # Then
+    service.discord_service.assert_not_called()
+    service.current_session.assert_not_called()
+    service.database_service.assert_not_called()
 
 
 def test_radd_player_start_new_game_true():

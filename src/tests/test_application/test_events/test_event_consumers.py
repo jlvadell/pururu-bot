@@ -1,17 +1,13 @@
 import datetime
 import json
-
-import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from hamcrest import assert_that, instance_of
 
-from pururu.application.events.event_consumers import GameEventConsumer, PollEventConsumer, BaseEventConsumer
+from pururu.application.events.entities import EventType, MemberJoinedChannelEvent, PururuEvent
+from pururu.application.events.event_consumers import GameEventConsumer, PollEventConsumer
 from pururu.application.services.pururu_handler import PururuHandler
-from pururu.application.events.entities import EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
-    NewGameIntentEvent, EndGameIntentEvent, GameEndedEvent, GameStartedEvent, CheckExpiredPollsEvent, FinalizePollEvent, \
-    PururuEvent
 from pururu.common.exceptions import EventDeserializationException
 
 
