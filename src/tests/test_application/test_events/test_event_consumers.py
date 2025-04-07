@@ -163,8 +163,8 @@ async def test_base_event_consumer_deserialize_event_exception():
 
 
 @patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
-@patch('src.pururu.application.events.event_consumers.boto3.client')
-@patch('src.pururu.application.events.event_consumers.utils')
+@patch('pururu.application.events.event_consumers.boto3.client')
+@patch('pururu.application.events.event_consumers.utils')
 @pytest.mark.asyncio
 async def test_start_generic_polling(mock_utils, mock_boto3_client):
     # Given

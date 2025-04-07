@@ -5,7 +5,7 @@ from pururu.infrastructure.adapters.google_sheets.entities import AttendanceShee
 
 
 def bot_event_to_sheet(domain_entity: BotEvent) -> BotEventSheet:
-    return BotEventSheet(domain_entity.event_type, domain_entity.date, domain_entity.description)
+    return BotEventSheet(domain_entity.event_type, domain_entity.created_at, domain_entity.description)
 
 
 def attendance_to_sheet(domain_entity: Attendance) -> AttendanceSheet:
