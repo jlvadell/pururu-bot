@@ -70,7 +70,7 @@ def __index_to_column(idx: int) -> str:
 def __map_attendance_event_type(description: str) -> AttendanceEventType:
     event_type = AttendanceEventType.of(description)
     if event_type == AttendanceEventType.UNKNOWN:
-        __get_logger().warn(f"Unknown event type: {description}")
+        __get_logger().warning(f"Unknown event type: {description}")
     return event_type
 
 
