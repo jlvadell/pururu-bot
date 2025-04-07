@@ -154,7 +154,7 @@ async def test_base_event_consumer_deserialize_event():
 
 @pytest.mark.asyncio
 async def test_base_event_consumer_deserialize_event_exception():
-    consumer = GameEventConsumer(MagicMock(spec=PururuHandler))
+    consumer = set_up_game_consumer()
     message = {
         "Body": "invalid json",
         "MessageAttributes": {"event_type": {"StringValue": EventType.MEMBER_JOINED_CHANNEL}}
