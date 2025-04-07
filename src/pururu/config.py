@@ -16,6 +16,12 @@ if env in ['production', 'development']:
     load_dotenv(dotenv_file, override=True, verbose=True)
 
 # ----------------------------------------
+# -------------- Helpers
+# ----------------------------------------
+def str_to_bool(value: str) -> bool:
+    return value.strip().lower() in ("true", "1", "yes", "y")
+
+# ----------------------------------------
 # -------------- Application configs
 # ----------------------------------------
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
@@ -42,7 +48,7 @@ SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN', 'http://localhost:4575/publish/pururu
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD_ID = int(os.getenv('GUILD_ID', 0))
 DISCORD_EVENT_LOG_CHANNEL_ID = int(os.getenv('DISCORD_EVENT_LOG_CHANNEL_ID', 0))
-DISCORD_EVENT_LOG_ENABLED = os.getenv('DISCORD_EVENT_LOG_ENABLED', False)
+DISCORD_EVENT_LOG_ENABLED = str_to_bool(os.getenv('DISCORD_EVENT_LOG_ENABLED', 'false'))
 
 # ----------------------------------------
 # -------------- GS Adapter configs
