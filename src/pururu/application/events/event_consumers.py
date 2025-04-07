@@ -11,9 +11,6 @@ from pururu.common import utils
 from pururu.application.events.entities import PururuEvent, EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
     NewGameIntentEvent, EndGameIntentEvent, GameEndedEvent, GameStartedEvent, CheckExpiredPollsEvent, FinalizePollEvent
 
-sqs = boto3.client("sqs")
-
-
 class BaseEventConsumer(ABC):
     EVENT_CLASS_MAP = {
         EventType.MEMBER_JOINED_CHANNEL: MemberJoinedChannelEvent,
@@ -28,6 +25,8 @@ class BaseEventConsumer(ABC):
 
     def __init__(self, name):
         self.logger = utils.get_logger(name)
+        self.sqs = boto3.client("sqs")
+        self.run_polling = False
 
     def _deserialize_event(self, message: dict) -> PururuEvent:
         """
@@ -47,17 +46,25 @@ class BaseEventConsumer(ABC):
     def _handle_event(self, event: PururuEvent):
         pass
 
-    async def start_generic_polling(self, queue_url: str, polling_time: int):
+    def stop_polling(self):
+        self.run_polling = False
+        self.logger.info("Polling stopped")
+
+    async def _start_generic_polling(self, queue_url: str, polling_time: int):
         """
         Starts a generic polling process for the given queue_url and polling_time
         :param queue_url: the URL of the SQS queue to poll
         :param polling_time: the time to wait between polls
         :return: None
         """
+        if self.run_polling:
+            self.logger.warning("Polling already running.")
+            return
         self.logger.info("polling started")
-        while True:
+        self.run_polling = True
+        while self.run_polling:
             try:
-                response = sqs.receive_message(
+                response = self.sqs.receive_message(
                     QueueUrl=queue_url,
                     MaxNumberOfMessages=1,
                     WaitTimeSeconds=polling_time,
@@ -74,11 +81,10 @@ class BaseEventConsumer(ABC):
                         f"Event Polled, Event type {event.event_type}, Event age: {event_age.total_seconds()}s")
                     await self._handle_event(event)
 
-                    sqs.delete_message(
+                    self.sqs.delete_message(
                         QueueUrl=queue_url,
                         ReceiptHandle=message["ReceiptHandle"]
                     )
-
             except Exception as e:
                 self.logger.error(f"Failed to poll or process message: {e}")
 
@@ -91,7 +97,7 @@ class GameEventConsumer(BaseEventConsumer):
         self.pururu_handler = pururu_handler
 
     async def start_polling(self):
-        await super().start_generic_polling(self.queue_url, self.polling_time)
+        await super()._start_generic_polling(self.queue_url, self.polling_time)
 
     async def _handle_event(self, event: PururuEvent):
         self.logger.info(f"Handling event: {event.event_type}")
@@ -119,7 +125,7 @@ class PollEventConsumer(BaseEventConsumer):
         self.pururu_handler = pururu_handler
 
     async def start_polling(self):
-        await super().start_generic_polling(self.queue_url, self.polling_time)
+        await super()._start_generic_polling(self.queue_url, self.polling_time)
 
     async def _handle_event(self, event: PururuEvent):
         self.logger.info(f"Handling event: {event.event_type}")
