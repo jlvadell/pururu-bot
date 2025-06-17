@@ -65,28 +65,3 @@ def test_publish_should_throw_exception_on_error():
         MessageGroupId=event.event_type,
         MessageDeduplicationId=event.get_idempotency_key()
     )
-
-
-@pytest.mark.asyncio
-async def test_publish_with_delay_should_call_publish_after_delay():
-    # Given
-    adapter = set_up()
-    event = Mock()
-    event.payload = {"a": 1, "b": 2}
-    event.event_type = "test_event"
-    event.get_idempotency_key.return_value = "test_idempotency_key"
-    # When
-    await adapter.publish_with_delay(event, 1)
-    # Then
-    adapter.sns.publish.assert_called_once_with(
-        TopicArn='arn:test:id:topic',
-        Message=json.dumps(event.payload),
-        MessageAttributes={
-            "event_type": {
-                "DataType": "String",
-                "StringValue": event.event_type
-            }
-        },
-        MessageGroupId=event.event_type,
-        MessageDeduplicationId=event.get_idempotency_key()
-    )

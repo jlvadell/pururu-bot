@@ -39,6 +39,7 @@ EVENT_BACKOFF_MAX = os.getenv('EVENT_BACKOFF_MAX', 300) # backoff max in seconds
 EVENT_MAX_RETRIES = os.getenv('EVENT_MAX_RETRIES', 10) # max retries
 GAME_EVENTS_QUEUE_URL = os.getenv('GAME_EVENTS_QUEUE_URL', 'http://localhost:4576/queue/pururu-game-events') # SQS
 POLL_EVENTS_QUEUE_URL = os.getenv('POLL_EVENTS_QUEUE_URL', 'http://localhost:4576/queue/pururu-poll-events') # SQS
+SQS_EVENT_VISIBILITY_TIMEOUT = os.getenv('SQS_EVENT_VISIBILITY_TIMEOUT', 120)  # in seconds; 2 minutes
 EVENTS_POLLING_INTERVAL = os.getenv('EVENTS_POLLING_INTERVAL', 20)  # in seconds
 SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN', 'http://localhost:4575/publish/pururu-game-events')  # SNS
 

@@ -104,54 +104,63 @@ def test_register_bot_event_when_log_enabled():
     service.database_service.assert_not_called()
 
 
-def test_radd_player_start_new_game_true():
+def test_radd_player_start_new_game_ok():
     # Given
     service = set_up()
-    service.current_session.should_start_new_game.return_value = True
     service.current_session.get_players.return_value = {"member1"}
     # When
     result = service.add_player("member1", datetime(2023, 8, 10, 10))
     # Then
-    assert_that(result, equal_to(True))
     service.current_session.clock_in.assert_called_once_with("member1", datetime(2023, 8, 10, 10))
     service.database_service.assert_not_called()
 
 
-def test_add_player_start_new_game_false():
+def test_remove_player_end_game_ok():
     # Given
     service = set_up()
-    service.current_session.should_start_new_game.return_value = False
     # When
-    result = service.add_player("member1", datetime(2023, 8, 10, 10))
+    service.remove_player("member1", datetime(2023, 8, 10, 10))
     # Then
-    assert_that(result, equal_to(False))
-    service.current_session.clock_in.assert_called_once_with("member1", datetime(2023, 8, 10, 10))
+    service.current_session.clock_out.assert_called_once_with("member1", datetime(2023, 8, 10, 10))
     service.database_service.assert_not_called()
 
 
-def test_remove_player_end_game_true():
+def test_should_end_new_game_session_true():
     # Given
     service = set_up()
     service.current_session.should_end_game.return_value = True
     # When
-    result = service.remove_player("member1", datetime(2023, 8, 10, 10))
+    result = service.should_end_game_session()
     # Then
     assert_that(result, equal_to(True))
-    service.current_session.clock_out.assert_called_once_with("member1", datetime(2023, 8, 10, 10))
-    service.database_service.assert_not_called()
 
 
-def test_remove_player_end_game_false():
+def test_should_end_new_game_session_false():
     # Given
     service = set_up()
     service.current_session.should_end_game.return_value = False
     # When
-    result = service.remove_player("member1", datetime(2023, 8, 10, 10))
+    result = service.should_end_game_session()
     # Then
     assert_that(result, equal_to(False))
-    service.current_session.clock_out.assert_called_once_with("member1", datetime(2023, 8, 10, 10))
-    service.database_service.assert_not_called()
 
+def test_should_start_new_game_session_true():
+    # Given
+    service = set_up()
+    service.current_session.should_start_new_game.return_value = True
+    # When
+    result = service.should_start_new_game_session()
+    # Then
+    assert_that(result, equal_to(True))
+
+def test_should_start_new_game_session_false():
+    # Given
+    service = set_up()
+    service.current_session.should_start_new_game.return_value = False
+    # When
+    result = service.should_start_new_game_session()
+    # Then
+    assert_that(result, equal_to(False))
 
 def test_start_new_game_conditions_not_met():
     # Given

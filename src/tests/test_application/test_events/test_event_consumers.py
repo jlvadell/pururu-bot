@@ -8,7 +8,7 @@ from hamcrest import assert_that, instance_of
 from pururu.application.events.entities import EventType, MemberJoinedChannelEvent, PururuEvent
 from pururu.application.events.event_consumers import GameEventConsumer, PollEventConsumer
 from pururu.application.services.pururu_handler import PururuHandler
-from pururu.common.exceptions import EventDeserializationException
+from pururu.common.exceptions import EventDeserializationException, EventTooEarlyException
 
 
 @patch('pururu.application.events.event_consumers.boto3.client')
@@ -223,3 +223,67 @@ async def test_start_generic_polling(mock_utils, mock_boto3_client):
         QueueUrl="test_queue_url",  # Replace with your config if needed
         ReceiptHandle=dummy_receipt_handle
     )
+
+@patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
+@patch('pururu.config.SQS_EVENT_VISIBILITY_TIMEOUT', 30)
+@patch('pururu.application.events.event_consumers.boto3.client')
+@patch('pururu.application.events.event_consumers.utils')
+@pytest.mark.asyncio
+async def test_handle_event_too_early_exception(mock_utils, mock_boto3_client):
+    # Given
+    mock_sqs = mock_boto3_client.return_value
+    mock_logger = MagicMock()
+    mock_utils.get_logger.return_value = mock_logger
+
+    # Set up the consumer
+    mock_pururu_handler = MagicMock(spec=PururuHandler)
+    consumer = GameEventConsumer(mock_pururu_handler)
+    consumer._deserialize_event = MagicMock(
+        return_value=MemberJoinedChannelEvent(
+            member="test",
+            channel="test",
+            joined_at=datetime.datetime(2023, 3, 3, 12, 0, 0)
+        )
+    )
+    consumer._handle_event = AsyncMock(side_effect=EventTooEarlyException())
+
+    # Inject dummy receipt handle
+    dummy_receipt_handle = "test_receipt_handle"
+
+    def fake_receive_message(**kwargs):
+        consumer.stop_polling()  # stop after first poll
+        return {
+            "Messages": [{
+                "Body": json.dumps({
+                    "payload": {
+                        "member": "test",
+                        "channel": "test",
+                        "joined_at": "2023-03-03T12:00:00",
+                        "created_at": "2023-03-03T12:00:00"
+                    }
+                }),
+                "MessageAttributes": {
+                    "event_type": {"StringValue": EventType.MEMBER_JOINED_CHANNEL}
+                },
+                "ReceiptHandle": dummy_receipt_handle
+            }]
+        }
+
+    mock_sqs.receive_message.side_effect = fake_receive_message
+
+    # Dummy delete
+    mock_sqs.delete_message = MagicMock()
+
+    # When
+    await consumer.start_polling()
+
+    # Then
+    consumer._deserialize_event.assert_called_once()
+    consumer._handle_event.assert_awaited_once()
+    mock_sqs.change_message_visibility.assert_called_once_with(
+        QueueUrl="test_queue_url",
+        ReceiptHandle=dummy_receipt_handle,
+        VisibilityTimeout=30
+    )
+    mock_sqs.delete_message.assert_not_called()
+

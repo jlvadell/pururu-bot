@@ -26,6 +26,10 @@ class EventDeserializationException(PururuException):
     """Raised when an event cannot be deserialized."""
     pass
 
+class EventTooEarlyException(PururuException):
+    """Raised when an event is received before the minimum delay."""
+    pass
+
 
 # --------------------------------
 # Infrastructure Exceptions

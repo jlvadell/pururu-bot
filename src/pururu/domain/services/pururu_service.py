@@ -50,28 +50,38 @@ class PururuService:
         """
         return SessionInfo(self.current_session.game_id, self.current_session.get_players())
 
-    def add_player(self, player: str, time: datetime) -> bool:
+    def add_player(self, player: str, time: datetime) -> None:
         """
-        Adds a new player to the current game and returns a check to see if the conditions are met to start a new game
+        Registers a clock in for a player in the current game
         :param player: player name
         :param time: time of clock in
-        :return: bool True if a new game should be started; False otherwise
+        :return: None
         """
         self.logger.debug(f"Player {player} clock in {time}")
         self.current_session.clock_in(player, time)
 
+    def should_start_new_game_session(self) -> bool:
+        """
+        Checks if the current game should start based on the current session state
+        :return: bool True if the game should start; False otherwise
+        """
         return self.current_session.should_start_new_game()
 
-    def remove_player(self, player: str, time: datetime) -> bool:
+    def remove_player(self, player: str, time: datetime) -> None:
         """
-        Removes a player from the current game and returns a check to see if the conditions are met to end the game
+        Registers a clock out for a player in the current game
         :param player: player string
         :param time: time of clock out
-        :return: bool True if the game should end; False otherwise
+        :return: None
         """
         self.logger.debug(f"Player {player} clock out {time}")
         self.current_session.clock_out(player, time)
 
+    def should_end_game_session(self) -> bool:
+        """
+        Checks if the current game should end based on the current session state
+        :return: bool True if the game should end; False otherwise
+        """
         return self.current_session.should_end_game()
 
     def calculate_player_stats(self, player: str) -> MemberStats:

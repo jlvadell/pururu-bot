@@ -1,13 +1,12 @@
-import asyncio
+import json
 
 import boto3
-import json
 
 import pururu.config as config
 from pururu.common import utils
+from pururu.common.exceptions import SNSPublishException
 from pururu.domain.entities import BotEvent
 from pururu.domain.services.event_service import EventService
-from pururu.common.exceptions import SNSPublishException
 
 
 class SNSEventServiceAdapter(EventService):
@@ -40,15 +39,3 @@ class SNSEventServiceAdapter(EventService):
         except Exception as e:
             self.logger.error(f"Failed to publish event: {event.event_type}, error: {e}")
             raise SNSPublishException(f"Error Publishing BotEvent: {event}") from e
-
-    async def publish_with_delay(self, event: BotEvent, delay_seconds: int) -> None:
-        """
-        Publishes a message to SNS after a delay.
-        This is simulated at the application level since SNS doesn't support delayed delivery.
-        :param event: BotEvent
-        :param delay_seconds: int
-        :return: None
-        """
-        self.logger.debug(f"Delaying event publish: {event.event_type} for {delay_seconds} seconds")
-        await asyncio.sleep(delay_seconds)
-        self.publish(event)

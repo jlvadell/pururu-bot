@@ -1,21 +1,21 @@
-import asyncio
 from datetime import datetime
 
 import pururu.config as config
-from pururu.common import utils
 from pururu.application.events.entities import (EndGameIntentEvent, GameStartedEvent, PururuEvent, GameEndedEvent,
                                                 MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent,
                                                 CheckExpiredPollsEvent, FinalizePollEvent)
-from pururu.application.events.event_system import EventSystem
+from pururu.common import utils
+from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
+                                      EventTooEarlyException)
 from pururu.domain.entities import MemberStats
-from pururu.common.exceptions import CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition
+from pururu.domain.services.event_service import EventService
 from pururu.domain.services.pururu_service import PururuService
 
 
 class PururuHandler:
-    def __init__(self, domain_service: PururuService, event_system: EventSystem):
+    def __init__(self, domain_service: PururuService, event_service: EventService):
         self.domain_service = domain_service
-        self.event_system = event_system
+        self.event_service = event_service
         self.logger = utils.get_logger(__name__)
 
     # ---------------------------
@@ -49,7 +49,7 @@ class PururuHandler:
         :return: None
         """
         self.logger.info("Application Started and connected to Discord")
-        asyncio.create_task(self.event_system.start_event_processing())
+        # asyncio.create_task(self.event_system.start_event_processing())
 
     # ---------------------------
     # DISCORD COMMAND HANDLERS
@@ -75,12 +75,12 @@ class PururuHandler:
         :return: None
         """
         self.logger.info(f"Member {event.member} joined channel {event.channel} at {event.joined_at}")
-        should_start_new_game: bool = self.domain_service.add_player(event.member, event.joined_at)
-        if should_start_new_game:
+        self.domain_service.add_player(event.member, event.joined_at)
+        if self.domain_service.should_start_new_game_session():
             session_info = self.domain_service.get_session_info()
             self.logger.debug(f"Emitting new game intent, {session_info.players}")
             event = NewGameIntentEvent(session_info.players, datetime.now())
-            self.__emit_event(event, config.ATTENDANCE_CHECK_DELAY)
+            self.__emit_event(event)
 
     def handle_member_left_channel_event(self, event: MemberLeftChannelEvent) -> None:
         """
@@ -89,12 +89,12 @@ class PururuHandler:
         :return: None
         """
         self.logger.info(f"Member {event.member} left channel {event.channel} at {event.left_at}")
-        should_end_game: bool = self.domain_service.remove_player(event.member, event.left_at)
-        if should_end_game:
+        self.domain_service.remove_player(event.member, event.left_at)
+        if self.domain_service.should_end_game_session():
             session_info = self.domain_service.get_session_info()
             self.logger.debug(f"Emitting end game intent for game_id {session_info.game_id}, {session_info.players}")
             event = EndGameIntentEvent(session_info.game_id, session_info.players, datetime.now())
-            self.__emit_event(event, config.ATTENDANCE_CHECK_DELAY)
+            self.__emit_event(event)
 
     def handle_new_game_intent_event(self, event: NewGameIntentEvent) -> None:
         """
@@ -103,6 +103,9 @@ class PururuHandler:
         :return: None
         """
         self.logger.info(f"Handling New game intent with start time at {event.start_time} for players {event.players}")
+        if event.get_age() < config.ATTENDANCE_CHECK_DELAY:
+            self.logger.debug(f"Ignoring new game intent (Too Early): {event}")
+            raise EventTooEarlyException(f"New game intent is too early: {event}")
         try:
             session = self.domain_service.start_new_game(event.start_time)
             event = GameStartedEvent(session.game_id, session.players)
@@ -118,6 +121,9 @@ class PururuHandler:
         """
         self.logger.info(f"Handling End game intent for game_id {event.game_id} with end time at {event.end_time} "
                          f"for players {event.players}")
+        if event.get_age() < config.ATTENDANCE_CHECK_DELAY:
+            self.logger.debug(f"Ignoring end game intent (Too Early): {event}")
+            raise EventTooEarlyException(f"End game intent is too early: {event}")
         try:
             attendance = self.domain_service.end_game(event.end_time)
             event = GameEndedEvent.from_attendance(attendance)
@@ -174,16 +180,18 @@ class PururuHandler:
     # TIMED JOBS
     # ---------------------------
 
-    def trigger_check_expired_polls_flow(self):
+    def trigger_check_expired_polls_flow(self) -> None:
+        """
+        Triggers the flow to check for expired polls
+        :return: None
+        """
         self.logger.info("Emitting CheckExpiredPollsEvent")
         self.__emit_event(CheckExpiredPollsEvent())
+
 
     # ---------------------------
     # PRIVATE METHODS
     # ---------------------------
-    def __emit_event(self, event: PururuEvent, delay: int = None) -> None:
-        if delay:
-            self.event_system.emit_event_with_delay(event, delay)
-        else:
-            self.event_system.emit_event(event)
+    def __emit_event(self, event: PururuEvent) -> None:
+        self.event_service.publish(event.as_bot_event())
         self.domain_service.register_bot_event(event.as_bot_event())

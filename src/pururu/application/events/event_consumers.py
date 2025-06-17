@@ -1,15 +1,15 @@
+import json
 from abc import ABC, abstractmethod
-from datetime import datetime
 
 import boto3
-import json
 
 import pururu.config as config
-from pururu.common.exceptions import EventDeserializationException
-from pururu.application.services.pururu_handler import PururuHandler
-from pururu.common import utils
 from pururu.application.events.entities import PururuEvent, EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
     NewGameIntentEvent, EndGameIntentEvent, GameEndedEvent, GameStartedEvent, CheckExpiredPollsEvent, FinalizePollEvent
+from pururu.application.services.pururu_handler import PururuHandler
+from pururu.common import utils
+from pururu.common.exceptions import EventDeserializationException, EventTooEarlyException
+
 
 class BaseEventConsumer(ABC):
     EVENT_CLASS_MAP = {
@@ -62,6 +62,7 @@ class BaseEventConsumer(ABC):
             return
         self.logger.info("polling started")
         self.run_polling = True
+        last_receipt_handle = None
         while self.run_polling:
             try:
                 response = self.sqs.receive_message(
@@ -76,15 +77,22 @@ class BaseEventConsumer(ABC):
 
                 for message in messages:
                     event = self._deserialize_event(message)
-                    event_age = datetime.now() - utils.parse_time(event.created_at)
+                    last_receipt_handle = message["ReceiptHandle"]
                     self.logger.debug(
-                        f"Event Polled, Event type {event.event_type}, Event age: {event_age.total_seconds()}s")
+                        f"Event Polled, Event type {event.event_type}, Event age: {event.get_age()}s")
                     await self._handle_event(event)
 
                     self.sqs.delete_message(
                         QueueUrl=queue_url,
                         ReceiptHandle=message["ReceiptHandle"]
                     )
+            except EventTooEarlyException as ex:
+                self.logger.warning(f"Delaying event event due to {ex}")
+                self.sqs.change_message_visibility(
+                    QueueUrl=queue_url,
+                    ReceiptHandle=last_receipt_handle,
+                    VisibilityTimeout=config.SQS_EVENT_VISIBILITY_TIMEOUT
+                )
             except Exception as e:
                 self.logger.error(f"Failed to poll or process message: {e}")
 

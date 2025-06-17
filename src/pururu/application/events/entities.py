@@ -44,6 +44,13 @@ class PururuEvent(ABC):
     def __str__(self):
         return f"{self.event_type}-{self.created_at}: {self.description}"
 
+    def get_age(self) -> float:
+        """
+        Returns the age of the event in seconds
+        :return: float - age of the event in seconds
+        """
+        return (datetime.now() - utils.parse_time(self.created_at)).total_seconds()
+
 
 class MemberJoinedChannelEvent(PururuEvent):
     def __init__(self, member: str, channel: str, joined_at: datetime):
