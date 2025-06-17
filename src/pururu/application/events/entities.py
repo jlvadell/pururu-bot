@@ -7,6 +7,10 @@ from pururu.domain.entities import BotEvent, Attendance, Poll, AttendanceEventTy
 
 
 class EventType(Enum):
+    """
+    Enum representing different types of events in the Pururu application.
+    NOTE: AWS QUEUE HAVE FILTERS; REMEMBER TO ADD NEW EVENTS THERE.
+    """
     MEMBER_JOINED_CHANNEL = "member_joined_channel"
     MEMBER_LEFT_CHANNEL = "member_left_channel"
     NEW_GAME_INTENT = "new_game_intent"

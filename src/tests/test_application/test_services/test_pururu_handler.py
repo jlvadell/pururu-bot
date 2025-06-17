@@ -1,4 +1,3 @@
-from datetime import datetime
 from unittest.mock import patch, AsyncMock
 
 import pytest
@@ -93,7 +92,7 @@ def test_handle_member_joined_channel_event_start_new_game_true(session_info: Se
     event = pururu_handler.event_service.publish.call_args[0][0]
     assert_that(event.event_type, equal_to(EventType.NEW_GAME_INTENT.value))
     assert_that(event.payload["players"], equal_to(session_info.players))
-    assert_that(event.payload["start_time"], equal_to(datetime(2023, 8, 10, 10)))
+    assert_that(event.payload["start_time"], equal_to("2023-08-10T10:00:00"))
 
 
 def test_handle_member_joined_channel_event_start_new_game_false(session_info: SessionInfo,
@@ -127,7 +126,7 @@ def test_handle_member_left_channel_event_end_game_true(session_info: SessionInf
     event = pururu_handler.event_service.publish.call_args[0][0]
     assert_that(event.event_type, equal_to(EventType.END_GAME_INTENT.value))
     assert_that(event.payload["players"], equal_to(session_info.players))
-    assert_that(event.payload["end_time"], equal_to(datetime(2023, 8, 10, 10)))
+    assert_that(event.payload["end_time"], equal_to("2023-08-10T10:00:00"))
 
 
 def test_handle_member_left_channel_event_end_game_false(session_info: SessionInfo,

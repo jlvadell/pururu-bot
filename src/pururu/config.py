@@ -58,7 +58,7 @@ GOOGLE_SHEETS_CREDENTIALS = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 GS_ATTENDANCE_PLAYER_MAPPING = json.loads(os.getenv('GS_ATTENDANCE_PLAYER_MAPPING')) \
     if os.getenv('GS_ATTENDANCE_PLAYER_MAPPING') else {}
-GS_FAILURE_THRESHOLD = int(os.getenv('GS_FAILURE_THRESHOLD', 3))
+GS_FAILURE_THRESHOLD = int(os.getenv('GS_FAILURE_THRESHOLD', 300))
 GS_RECOVERY_TIMEOUT = int(os.getenv('GS_RECOVERY_TIMEOUT', 300))  # defaults to 5 minutes
 
 # ----------------------------------------
