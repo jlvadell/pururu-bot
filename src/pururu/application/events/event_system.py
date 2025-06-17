@@ -42,6 +42,9 @@ class Event:
 
 
 class EventSystem:
+    """
+    DEPRECATED: Use EventService instead.
+    """
     def __init__(self):
         self.events = {}
         self.event_queue = asyncio.Queue()

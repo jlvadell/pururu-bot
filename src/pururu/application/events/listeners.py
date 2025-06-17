@@ -7,6 +7,9 @@ from pururu.common.utils import get_logger
 
 
 class EventListeners:
+    """
+    DEPRECATED: Use EventService instead.
+    """
     def __init__(self, event_system: EventSystem, pururu_handler: PururuHandler):
         self.event_system = event_system
         self.pururu_handler = pururu_handler
