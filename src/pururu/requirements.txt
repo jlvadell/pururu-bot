@@ -1,18 +1,18 @@
 # Core depencencies
 discord.py~=2.5.2
 python-dotenv~=1.1.0
-google-auth~=2.38.0
-gspread~=6.2.0
+google-auth~=2.34.0
+gspread~=6.2.1
 APScheduler~=3.11.0
 boto3~=1.37.3
 aioboto3~=14.3.0
 
 # Testing dependencies
-pytest~=8.3.5
-pytest-cov~=6.1.0
-tox~=4.25.0
-coverage~=7.8.0
+pytest~=8.4.0
+pytest-cov~=6.2.1
+tox~=4.27.0
+coverage~=7.9.1
 pyhamcrest~=2.1.0
-freezegun~=1.5.1
-pytest-asyncio~=0.26.0
-moto~=5.1.2
+freezegun~=1.5.2
+pytest-asyncio~=1.0.0
+moto~=5.1.6
