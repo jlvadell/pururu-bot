@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 
-import boto3
+import aioboto3
 
 import pururu.config as config
 from pururu.application.events.entities import PururuEvent, EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
@@ -13,19 +13,20 @@ from pururu.common.exceptions import EventDeserializationException, EventTooEarl
 
 class BaseEventConsumer(ABC):
     EVENT_CLASS_MAP = {
-        EventType.MEMBER_JOINED_CHANNEL: MemberJoinedChannelEvent,
-        EventType.MEMBER_LEFT_CHANNEL: MemberLeftChannelEvent,
-        EventType.NEW_GAME_INTENT: NewGameIntentEvent,
-        EventType.END_GAME_INTENT: EndGameIntentEvent,
-        EventType.GAME_ENDED: GameEndedEvent,
-        EventType.GAME_STARTED: GameStartedEvent,
-        EventType.CHECK_EXPIRED_POLLS: CheckExpiredPollsEvent,
-        EventType.FINALIZE_POLL: FinalizePollEvent
+        EventType.MEMBER_JOINED_CHANNEL.value: MemberJoinedChannelEvent,
+        EventType.MEMBER_LEFT_CHANNEL.value: MemberLeftChannelEvent,
+        EventType.NEW_GAME_INTENT.value: NewGameIntentEvent,
+        EventType.END_GAME_INTENT.value: EndGameIntentEvent,
+        EventType.GAME_ENDED.value: GameEndedEvent,
+        EventType.GAME_STARTED.value: GameStartedEvent,
+        EventType.CHECK_EXPIRED_POLLS.value: CheckExpiredPollsEvent,
+        EventType.FINALIZE_POLL.value: FinalizePollEvent
     }
 
     def __init__(self, name):
         self.logger = utils.get_logger(name)
-        self.sqs = boto3.client("sqs")
+        self.aws_session = aioboto3.Session()
+        self.sqs = self.aws_session.client("sqs")
         self.run_polling = False
 
     def _deserialize_event(self, message: dict) -> PururuEvent:
@@ -35,10 +36,18 @@ class BaseEventConsumer(ABC):
         :return: Deserialized PururuEvent
         """
         try:
-            body = json.loads(message["Body"])
-            event_type = message["MessageAttributes"]["event_type"]["StringValue"]
+            # parse SNS envelope
+            sns_envelope = json.loads(message["Body"])
+            # get and parse inner event
+            inner_event_str = sns_envelope["Message"]
+            inner_event = json.loads(inner_event_str)
+
+            # identify event and process payload
+            event_type = inner_event["event_type"]
             cls = self.EVENT_CLASS_MAP[event_type]
-            return cls.process_payload(body.get("payload", {}))
+
+            # process the payload into the specific event class
+            return cls.process_payload(inner_event)
         except Exception as e:
             raise EventDeserializationException(f"Failed to deserialize message, raw: {message}") from e
 
@@ -63,38 +72,39 @@ class BaseEventConsumer(ABC):
         self.logger.info("polling started")
         self.run_polling = True
         last_receipt_handle = None
-        while self.run_polling:
-            try:
-                response = self.sqs.receive_message(
-                    QueueUrl=queue_url,
-                    MaxNumberOfMessages=1,
-                    WaitTimeSeconds=polling_time,
-                    MessageAttributeNames=["All"]
-                )
-                messages = response.get("Messages", [])
-                if not messages:
-                    continue
-
-                for message in messages:
-                    event = self._deserialize_event(message)
-                    last_receipt_handle = message["ReceiptHandle"]
-                    self.logger.debug(
-                        f"Event Polled, Event type {event.event_type}, Event age: {event.get_age()}s")
-                    await self._handle_event(event)
-
-                    self.sqs.delete_message(
+        async with self.sqs as sqs_client:
+            while self.run_polling:
+                try:
+                    response = await sqs_client.receive_message(
                         QueueUrl=queue_url,
-                        ReceiptHandle=message["ReceiptHandle"]
+                        MaxNumberOfMessages=1,
+                        WaitTimeSeconds=polling_time,
+                        MessageAttributeNames=["All"]
                     )
-            except EventTooEarlyException as ex:
-                self.logger.warning(f"Delaying event event due to {ex}")
-                self.sqs.change_message_visibility(
-                    QueueUrl=queue_url,
-                    ReceiptHandle=last_receipt_handle,
-                    VisibilityTimeout=config.SQS_EVENT_VISIBILITY_TIMEOUT
-                )
-            except Exception as e:
-                self.logger.error(f"Failed to poll or process message: {e}")
+                    messages = response.get("Messages", [])
+                    if not messages:
+                        continue
+
+                    for message in messages:
+                        event = self._deserialize_event(message)
+                        last_receipt_handle = message["ReceiptHandle"]
+                        self.logger.info(
+                            f"Event Polled, Event type {event.event_type}, Event age: {event.get_age()}s")
+                        await self._handle_event(event)
+
+                        await sqs_client.delete_message(
+                            QueueUrl=queue_url,
+                            ReceiptHandle=message["ReceiptHandle"]
+                        )
+                except EventTooEarlyException as ex:
+                    self.logger.warning(f"Delaying event event due to {ex}")
+                    await sqs_client.change_message_visibility(
+                        QueueUrl=queue_url,
+                        ReceiptHandle=last_receipt_handle,
+                        VisibilityTimeout=config.SQS_EVENT_VISIBILITY_TIMEOUT
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to poll or process message: {e}")
 
 
 class GameEventConsumer(BaseEventConsumer):

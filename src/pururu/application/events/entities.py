@@ -31,8 +31,27 @@ class PururuEvent(ABC):
             event_type=self.event_type.value,
             created_at=self.created_at,
             description=self.description,
-            payload=self.__dict__.copy()
+            payload=self._serialize()
         )
+
+    def _serialize(self) -> dict:
+        """
+        Converts the event instance into a JSON-serializable dictionary.
+        Handles datetime and Enum fields.
+        """
+        def convert(value):
+            if isinstance(value, dict):
+                return {k: convert(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [convert(v) for v in value]
+            elif isinstance(value, datetime):
+                return value.isoformat()
+            elif isinstance(value, Enum):
+                return value.value
+            else:
+                return value
+
+        return {k: convert(v) for k, v in self.__dict__.items()}
 
     @staticmethod
     @abstractmethod

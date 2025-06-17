@@ -81,7 +81,7 @@ def test_as_bot_event(utils_mock):
     assert_that(actual.event_type, equal_to(EventType.MEMBER_JOINED_CHANNEL.value))
     assert_that(actual.created_at, equal_to("2023-08-10"))
     assert_that(actual.description, equal_to("description"))
-    assert_that(actual.payload, equal_to(event.__dict__))
+    assert_that(actual.payload, equal_to(event._serialize()))
 
 
 def test_member_joined_channel_event_process_payload():
