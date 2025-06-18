@@ -2,12 +2,12 @@ from datetime import datetime
 from typing import Optional
 
 import pururu.config as config
-from pururu.common import utils
+from pururu.common import utils, logger
+from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
+                                      DiscordServiceException)
 from pururu.domain.current_session import CurrentSession
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
     Poll, SessionInfo, Message
-from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
-                                      DiscordServiceException)
 from pururu.domain.poll_system.poll_resolution_factory import PollResolutionFactory
 from pururu.domain.services.database_service import DatabaseInterface
 from pururu.domain.services.discord_service import DiscordInterface
@@ -15,11 +15,11 @@ from pururu.domain.services.discord_service import DiscordInterface
 
 class PururuService:
     def __init__(self, database_service: DatabaseInterface):
-        self.logger = utils.get_logger(__name__)
+        self.logger = logger.get_logger(__name__)
         self.current_session = CurrentSession()
         self.database_service = database_service
         self.poll_resolution_factory: Optional[PollResolutionFactory] = None
-        self.discord_service = None
+        self.discord_service: Optional[DiscordInterface] = None
 
     def set_discord_service(self, discord_service: DiscordInterface) -> None:
         """
@@ -37,10 +37,12 @@ class PururuService:
         :return: None
         """
         if not config.DISCORD_EVENT_LOG_ENABLED:
-            self.logger.debug(f"Ignoring bot event: {event}, logging disabled")
+            self.logger.debug("Ignoring bot event, logging disabled",
+                              extra={"event_type": event.event_type, "event_data": event.payload})
             return
-        self.logger.debug(f"Registering bot event: {event}")
+        self.logger.debug("Registering bot event", extra={"event_type": event.event_type, "event_data": event.payload})
         message = Message(event.description, config.DISCORD_EVENT_LOG_CHANNEL_ID)
+        # TODO: this should be async
         self.discord_service.send_message(message)
 
     def get_session_info(self) -> SessionInfo:
@@ -57,7 +59,7 @@ class PururuService:
         :param time: time of clock in
         :return: None
         """
-        self.logger.debug(f"Player {player} clock in {time}")
+        self.logger.debug("Player clocked in", extra={"player": player, "time": utils.format_time(time)})
         self.current_session.clock_in(player, time)
 
     def should_start_new_game_session(self) -> bool:
@@ -74,7 +76,7 @@ class PururuService:
         :param time: time of clock out
         :return: None
         """
-        self.logger.debug(f"Player {player} clock out {time}")
+        self.logger.debug("Player clock out", extra={"player": player, "time": utils.format_time(time)})
         self.current_session.clock_out(player, time)
 
     def should_end_game_session(self) -> bool:
@@ -114,10 +116,14 @@ class PururuService:
         :raises CannotStartNewGame: if the conditions to start a new game are not met
         """
         if not self.current_session.should_start_new_game():
+            self.logger.warning("Cannot start new game, conditions not met", extra={
+                "current_players": self.current_session.get_players(),
+                "game_id": self.current_session.game_id
+            })
             raise CannotStartNewGame(
                 f"Start game condition not met, current players: {self.current_session.get_players()}, game_id: {self.current_session.game_id}")
         game_id = self.__get_new_game_id()
-        self.logger.debug(f"Starting new game, {game_id}")
+        self.logger.debug("Starting new game", extra={"game_id": game_id})
         self.current_session.adjust_players_clocking_start_time(start_time)
         self.current_session.game_id = game_id
         return SessionInfo(self.current_session.game_id, self.current_session.get_players())
@@ -131,6 +137,12 @@ class PururuService:
         :raises GameEndedWithoutPrecondition: if the attendance is not enough to end the game
         """
         if not self.current_session.should_end_game():
+            self.logger.warning("Cannot end game, conditions not met", extra={
+                "current_players": self.current_session.get_players(),
+                "total_players": len(self.current_session.get_players()),
+                "required_players": config.MIN_ATTENDANCE_MEMBERS,
+                "game_id": self.current_session.game_id
+            })
             raise CannotEndGame(f"End game condition not met, current players: {self.current_session.get_players()}, "
                                 f"current game info {self.current_session}")
         members = []
@@ -149,6 +161,10 @@ class PururuService:
                                 AttendanceEventType.OFFICIAL_GAME)
         self.current_session.reset()
         if player_attendance_count < config.MIN_ATTENDANCE_MEMBERS:
+            self.logger.warning("Game ended without enough attendance", extra={
+                "attendance_count": player_attendance_count,
+                "min_required": config.MIN_ATTENDANCE_MEMBERS
+            })
             raise GameEndedWithoutPrecondition(
                 f"Attendance not enough, attendance count: {player_attendance_count}; min required: {config.MIN_ATTENDANCE_MEMBERS}")
         self.database_service.upsert_attendance(attendance)
@@ -161,7 +177,7 @@ class PururuService:
         :param poll: Poll
         :return: poll, created poll
         """
-        self.logger.info(f"Creating poll: {poll.question}")
+        self.logger.debug("Creating poll", extra={"question": poll.question, "channel_id": poll.channel_id})
         poll = await self.discord_service.send_poll(poll)
         self.current_session.add_new_poll(poll)
         return poll
@@ -174,13 +190,13 @@ class PururuService:
         expired_polls = []
         polls: list[Poll] = self.current_session.get_expired_polls()
         for poll in polls:
-            self.logger.debug(f"Poll {poll.message_id} has expired")
+            self.logger.debug("Poll expired", extra={"poll_id": poll.message_id})
             try:
                 resulting_poll = await self.discord_service.fetch_poll(poll.channel_id, poll.message_id)
                 resulting_poll.resolution_type = poll.resolution_type
                 expired_polls.append(resulting_poll)
             except DiscordServiceException as e:
-                self.logger.warning(f"Unable to fetch poll {poll.message_id}; {e}")
+                self.logger.warning("Unable to fetch poll", extra={"poll_id": poll.message_id, "error": str(e)})
                 self.current_session.remove_poll(poll.message_id)
         return expired_polls
 
@@ -190,9 +206,10 @@ class PururuService:
         :param poll: Poll
         :return: None
         """
-        await self.poll_resolution_factory.get_strategy(poll.resolution_type).resolve(poll)
+        strategy = self.poll_resolution_factory.get_strategy(poll.resolution_type)
+        await strategy.resolve(poll)
         self.current_session.remove_poll(poll.message_id)
-        self.logger.debug(f"Poll {poll.message_id} has been resolved")
+        self.logger.debug("Poll has been resolved", extra={"poll_id": poll.message_id})
 
     def __has_player_attended(self, player) -> bool:
         """
