@@ -1,12 +1,30 @@
 import gspread
 from google.oauth2.service_account import Credentials
 
+import pururu.config as config
 import pururu.infrastructure.adapters.google_sheets.mapper as mapper
-import pururu.utils as utils
+from pururu.common import utils
+from pururu.common.circuit_breaker import CircuitBreaker
 from pururu.domain.entities import BotEvent, Attendance, Clocking
 from pururu.domain.services.database_service import DatabaseInterface
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet, \
     CoinsSheet
+
+
+class FallBackInMemoryStorage:
+    def __init__(self):
+        self.data = []
+
+    def add(self, function, *args, **kwargs):
+        return self.data.append({"function": function, "args": args, "kwargs": kwargs})
+
+    def return_item(self, item):
+        self.data.insert(0, item)
+
+    def get_and_clear(self):
+        while self.data:
+            yield self.data.pop(0)
+
 
 
 class GoogleSheetsAdapter(DatabaseInterface):
@@ -25,6 +43,10 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.spreadsheet = self.client.open_by_key(spreadsheet_id)
         self.logger = utils.get_logger(__name__)
         self.cache = {}
+        self.in_memory_fallback = FallBackInMemoryStorage()
+        self.circuit_breaker = CircuitBreaker(failure_threshold=config.GS_FAILURE_THRESHOLD,
+                                              recovery_timeout=config.GS_RECOVERY_TIMEOUT,
+                                              open_fallback=self._use_fallback, on_half_open=self._fallback_recovery)
 
     def upsert_attendance(self, attendance: Attendance) -> None:
         """
@@ -32,8 +54,12 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :param attendance: Attendance; the attendance to be upserted
         :return: None
         """
+        self.circuit_breaker.call(self._upsert_attendance, attendance)
+
+    def _upsert_attendance(self, attendance: Attendance) -> None:
         self.logger.debug(f"Upsertting attendance with id: {attendance.game_id}")
         sheet = mapper.attendance_to_sheet(attendance)
+
         self.spreadsheet.values_update(
             range=self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, sheet.game_id,
                                              AttendanceSheet.DATA_COL_END, sheet.game_id),
@@ -45,19 +71,27 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :return: list[Attendance]; all attendances
         """
         self.logger.debug("Getting all attendances")
+        self.circuit_breaker.force_check()
         all_attendances = []
         last_row = self.__get_last_row(AttendanceSheet.SHEET)
         attendance_value_range = self.spreadsheet.values_get(
             self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
                                        AttendanceSheet.DATA_ROW_INIT,
                                        AttendanceSheet.DATA_COL_END, last_row))
-        for row in attendance_value_range['values']:
-            attendance = mapper.gs_to_attendance_sheet(AttendanceSheet.DATA_ROW_INIT, row)
+        for idx, row in enumerate(attendance_value_range['values']):
+            attendance_id = idx + AttendanceSheet.DATA_ROW_INIT
+            attendance = mapper.gs_to_attendance_sheet(attendance_id, row)
             all_attendances.append(mapper.sheet_to_attendance(attendance))
         return all_attendances
 
-    def get_player_coins(self, player):
+    def get_player_coins(self, player) -> int:
+        """
+        Get the coins of a player from the Google sheet
+        :param player: player name
+        :return: int: coins of the player
+        """
         self.logger.debug(f"Getting kerocoins of player: {player}")
+        self.circuit_breaker.force_check()
 
         attendance_value_range = self.spreadsheet.values_get(
             self.__build_data_notation(CoinsSheet.SHEET, CoinsSheet.DATA_COL_INIT,
@@ -75,6 +109,9 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :param clocking: The clocking to be upserted
         :return: None
         """
+        self.circuit_breaker.call(self._upsert_clocking, clocking)
+
+    def _upsert_clocking(self, clocking: Clocking) -> None:
         self.logger.debug(f"Upsertting clocking for game_id: {clocking.game_id}")
         game_id_rows = self.spreadsheet.values_get(
             self.__build_data_notation(sheet=ClockingSheet.SHEET, col_start=ClockingSheet.DATA_COL_INIT,
@@ -90,10 +127,14 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
     def insert_bot_event(self, bot_event: BotEvent) -> None:
         """
+        DEPRECATED
         Register a bot event in the Google sheet
         :param bot_event: the event
         :return: None
         """
+        self.circuit_breaker.call(self._insert_bot_event, bot_event)
+
+    def _insert_bot_event(self, bot_event: BotEvent) -> None:
         sheet = mapper.bot_event_to_sheet(bot_event)
         row_idx = self.__get_last_row(BotEventSheet.SHEET) + 1
         self.spreadsheet.values_update(
@@ -106,6 +147,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :return: Attendance; last attendance row
         """
         self.logger.debug("Getting last attendance")
+        self.circuit_breaker.force_check()
         attendance_idx = self.__get_last_row(AttendanceSheet.SHEET)
         attendance_value_range = self.spreadsheet.values_get(
             self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, attendance_idx,
@@ -152,3 +194,15 @@ class GoogleSheetsAdapter(DatabaseInterface):
         elif row_start:
             return f'{sheet}!{col_start}{row_start}'
         return f'{sheet}!{col_start}:{col_start}'
+
+    def _use_fallback(self, function, *args, **kwargs):
+        self.in_memory_fallback.add(function, *args, **kwargs)
+
+    def _fallback_recovery(self):
+        self.logger.debug("Recovering from fallback")
+        for fallback_item in self.in_memory_fallback.get_and_clear():
+            try:
+                fallback_item["function"](*fallback_item["args"], **fallback_item["kwargs"])
+            except Exception as e:
+                self.in_memory_fallback.return_item(fallback_item)
+                raise e

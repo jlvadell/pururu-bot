@@ -2,9 +2,9 @@ from datetime import timedelta
 
 import discord
 
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.domain.entities import Message, Poll
-from pururu.domain.exceptions import DiscordServiceException
+from pururu.common.exceptions import DiscordServiceException
 from pururu.domain.services.discord_service import DiscordInterface
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
 

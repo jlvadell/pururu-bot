@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 import pururu.config as config
-import pururu.utils as utils
+from pururu.common import utils
 from pururu.application.services.pururu_handler import PururuHandler
 
 

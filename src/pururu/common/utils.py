@@ -6,7 +6,7 @@ import pururu.config as config
 FORMATTED_TIME_STR = '%Y-%m-%d %H:%M:%S'
 
 
-def get_logger(name: str):
+def get_logger(name: str) -> logging.Logger:
     """
     Creates a custom logger instance
     :param name: __name__ of the module
@@ -20,7 +20,7 @@ def get_logger(name: str):
     return logger
 
 
-def get_current_time_formatted():
+def get_current_time_formatted() -> str:
     """
     Returns the current time in a formatted string, e.g. 2021-09-01 12:00:00
     :return: str
@@ -28,7 +28,7 @@ def get_current_time_formatted():
     return datetime.now().strftime(FORMATTED_TIME_STR)
 
 
-def format_time(time: datetime):
+def format_time(time: datetime) -> str:
     """
     Formats a datetime object into a string
     :param time: datetime
@@ -37,7 +37,7 @@ def format_time(time: datetime):
     return time.strftime(FORMATTED_TIME_STR)
 
 
-def parse_time(time: str):
+def parse_time(time: str) -> datetime:
     """
     Parses a string into a datetime object
     :param time: str
