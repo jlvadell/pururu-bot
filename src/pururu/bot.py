@@ -54,14 +54,10 @@ class Application:
         # Additional wiring
         self.pururu_service.set_discord_service(self.discord_service)
         self.scheduler.start()
-        #self.game_event_consumer.start_polling()
-        #self.poll_event_consumer.start_polling()
-
-        # Run Application
-        #self.discord_bot.run(config.DISCORD_TOKEN)
-
         asyncio.create_task(self.game_event_consumer.start_polling())
         asyncio.create_task(self.poll_event_consumer.start_polling())
+
+        # Run Application
         await self.discord_bot.start(config.DISCORD_TOKEN)
 
 
