@@ -24,7 +24,8 @@ def str_to_bool(value: str) -> bool:
 # ----------------------------------------
 # -------------- Application configs
 # ----------------------------------------
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+THIRD_PARTY_DEFAULT_LOG_LEVEL = os.getenv('THIRD_PARTY_DEFAULT_LOG_LEVEL', 'WARNING')
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
 ATTENDANCE_CHECK_DELAY = int(os.getenv('ATTENDANCE_CHECK_DELAY', 120))  # defaults to 2 minutes
 MIN_ATTENDANCE_TIME = int(os.getenv('MIN_ATTENDANCE_TIME', 1800))  # defaults to 30 minutes
 PLAYERS = os.getenv('PLAYERS').split(',') if os.getenv('PLAYERS') else []
