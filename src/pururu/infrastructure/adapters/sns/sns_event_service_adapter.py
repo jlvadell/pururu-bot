@@ -3,7 +3,7 @@ import json
 import boto3
 
 import pururu.config as config
-from pururu.common import utils
+from pururu.common import logger
 from pururu.common.exceptions import SNSPublishException
 from pururu.domain.entities import BotEvent
 from pururu.domain.services.event_service import EventService
@@ -11,7 +11,7 @@ from pururu.domain.services.event_service import EventService
 
 class SNSEventServiceAdapter(EventService):
     def __init__(self):
-        self.logger = utils.get_logger(__name__)
+        self.logger = logger.get_logger(__name__)
         self.sns = boto3.client("sns")
         self.topic_arn = config.SNS_TOPIC_ARN
 
@@ -35,7 +35,15 @@ class SNSEventServiceAdapter(EventService):
                 MessageGroupId=event.event_type,
                 MessageDeduplicationId=event.get_idempotency_key()
             )
-            self.logger.debug(f"Event published to SNS: {event.event_type}, response: {response}")
+            self.logger.debug("Event successfully published to SNS", extra={
+                "event_type": event.event_type,
+                "message_id": response.get("MessageId"),
+                "idempotency_key": event.get_idempotency_key()
+            })
         except Exception as e:
-            self.logger.error(f"Failed to publish event: {event.event_type}, error: {e}")
+            self.logger.error("SNS publish failed", exc_info=True, extra={
+                "event_type": event.event_type,
+                "payload": event.payload,
+                "idempotency_key": event.get_idempotency_key()
+            })
             raise SNSPublishException(f"Error Publishing BotEvent: {event}") from e
