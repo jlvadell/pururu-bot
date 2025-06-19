@@ -18,6 +18,7 @@ def setup_logging():
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
+    handler.addFilter(AppVersionFilter())
 
     root_logger = logging.getLogger()
     root_logger.setLevel(config.LOG_LEVEL)
@@ -29,6 +30,14 @@ def setup_logging():
             logging.getLogger(name).setLevel(config.THIRD_PARTY_DEFAULT_LOG_LEVEL)
 
     _initialized = True
+
+
+class AppVersionFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, 'extra'):
+            record.extra = {}
+        record.extra["app_version"] = config.APP_VERSION
+        return True
 
 def get_logger(name: str) -> logging.Logger:
     setup_logging()
