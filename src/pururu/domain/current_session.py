@@ -30,7 +30,7 @@ class CurrentSession:
             self.players_clock_outs[player] = []
         if len(self.players_clock_ins[player]) == len(self.players_clock_outs[player]):
             self.players_clock_ins[player].append(time_fmt)
-        self.logger.debug("Player clocked in", extra={
+        self.logger.debug(f"Player '{player}' clocked in", extra={
             "player": player,
             "time": time_fmt,
             "total_clock_ins": len(self.players_clock_ins[player]),
@@ -48,15 +48,15 @@ class CurrentSession:
             time = datetime.now()
         time_fmt = utils.format_time(time)
         if player not in self.online_players:
-            self.logger.error("Cannot clock out player not online",
+            self.logger.error(f"Cannot clock out player '{player}' not online",
                               extra={"player": player, "online_players": list(self.online_players)})
             return
         self.online_players.remove(player)
         if player not in self.players_clock_outs:
-            self.logger.error("Clock-out data missing for player", extra={"player": player})
+            self.logger.error(f"Clock-out data missing for player '{player}'", extra={"player": player})
             return
         self.players_clock_outs[player].append(time_fmt)
-        self.logger.debug("Player clocked out", extra={
+        self.logger.debug(f"Player '{player}' clocked out", extra={
             "player": player,
             "time": time_fmt,
             "total_clock_ins": len(self.players_clock_ins[player]),
@@ -69,7 +69,7 @@ class CurrentSession:
         :param player: member.name
         :return: int: total playtime in seconds
         """
-        self.logger.debug("Getting player time", extra={"player": player})
+        self.logger.debug(f"Getting player '{player}' time", extra={"player": player})
         if player not in self.players_clock_ins:
             return 0
         clock_ins = self.players_clock_ins[player]
@@ -80,7 +80,8 @@ class CurrentSession:
             clock_out = datetime.strptime(clock_outs[i], utils.FORMATTED_TIME_STR) if i < len(
                 clock_outs) else datetime.now()
             total_time += (clock_out - clock_in).total_seconds()
-        self.logger.debug("Total playtime for player", extra={"player": player, "total_time": total_time})
+        self.logger.debug(f"Total playtime for player '{player}': {total_time}",
+                          extra={"player": player, "total_time": total_time})
         return int(total_time)
 
     def should_start_new_game(self) -> bool:
@@ -113,7 +114,7 @@ class CurrentSession:
         Resets the current game to initial state
         :return: None
         """
-        self.logger.info("CurrentSession state reset", extra={
+        self.logger.info(f"CurrentSession state reset, flushed game_id: {self.game_id}", extra={
             "game_id": self.game_id,
             "online_players_count": len(self.online_players)
         })
@@ -138,12 +139,13 @@ class CurrentSession:
                     clock_out = player_clock_outs[i]
                     clock_out_time = datetime.strptime(clock_out, utils.FORMATTED_TIME_STR)
                     if clock_out_time <= start_time:
-                        self.logger.debug("Discarding session before start_time", extra={
-                            "player": player,
-                            "clock_in": clock_in,
-                            "clock_out": clock_out,
-                            "start_time": utils.format_time(start_time)
-                        })
+                        self.logger.debug(
+                            f"Discarding session for player '{player}' due to being earlier than start_time", extra={
+                                "player": player,
+                                "clock_in": clock_in,
+                                "clock_out": clock_out,
+                                "start_time": utils.format_time(start_time)
+                            })
                         continue
                     else:
                         adjusted_clock_outs.append(clock_out)
@@ -170,12 +172,13 @@ class CurrentSession:
                     utils.FORMATTED_TIME_STR)
                 clock_in_time = datetime.strptime(clock_in, utils.FORMATTED_TIME_STR)
                 if clock_in_time >= end_time:
-                    self.logger.debug("Discarding session outside end_time", extra={
-                        "player": player,
-                        "clock_in": clock_in,
-                        "clock_out": clock_out,
-                        "end_time": utils.format_time(end_time)
-                    })
+                    self.logger.debug(f"Discarding player '{player}' session due to being posterior to end_time",
+                                      extra={
+                                          "player": player,
+                                          "clock_in": clock_in,
+                                          "clock_out": clock_out,
+                                          "end_time": utils.format_time(end_time)
+                                      })
                     continue
                 else:
                     adjusted_clock_ins.append(clock_in)
@@ -192,7 +195,8 @@ class CurrentSession:
         :param poll: the poll object
         :return: None
         """
-        self.logger.debug("Adding new poll", extra={"poll_id": poll.message_id})
+        self.logger.debug(f"Adding new poll with id '{poll.message_id}' and channel: '{poll.channel_id}'",
+                          extra={"poll_id": poll.message_id})
         self.polls[poll.message_id] = {'channel_id': poll.channel_id, "expires_at": poll.expires_at,
                                        "resolution": poll.resolution_type}
 
@@ -202,7 +206,7 @@ class CurrentSession:
         :param poll_id: the message_id of the poll
         :return: None
         """
-        self.logger.debug("Removing poll", extra={"poll_id": poll_id})
+        self.logger.debug(f"Removing poll with id '{poll_id}'", extra={"poll_id": poll_id})
         self.polls.pop(poll_id, None)
 
     def get_expired_polls(self) -> list[Poll]:
@@ -218,7 +222,7 @@ class CurrentSession:
                 poll.message_id = poll_id
                 poll.resolution_type = poll_data['resolution']
                 expired_polls.append(poll)
-        self.logger.debug("Expired polls retrieved", extra={
+        self.logger.debug(f"Expired polls retrieved; total: {len(expired_polls)}", extra={
             "count": len(expired_polls),
             "poll_ids": [poll.message_id for poll in expired_polls]
         })

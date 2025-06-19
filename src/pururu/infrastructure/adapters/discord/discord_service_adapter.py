@@ -23,12 +23,14 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel is not found
         """
         try:
-            self.logger.debug("Sending message", extra={"channel_id": message.channel_id, "content": message.content})
+            self.logger.debug(f"Sending message to channel '{message.channel_id}', content: {message.content}",
+                              extra={"channel_id": message.channel_id, "content": message.content})
             channel = self.bot.get_channel(message.channel_id)
             if not channel:
                 raise DiscordServiceException(f"Unable to send message, channel {message.channel_id} not found")
             sent_message: discord.Message = await channel.send(message.content)
-            self.logger.debug("Message sent", extra={"channel_id": message.channel_id, "message_id": sent_message.id})
+            self.logger.debug(f"Message sent; id {sent_message.id}",
+                              extra={"channel_id": message.channel_id, "message_id": sent_message.id})
             message.message_id = sent_message.id
             return message
         except Exception as e:
@@ -48,7 +50,8 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel is not found
         """
         try:
-            self.logger.debug("Sending poll", extra={"poll_question": poll.question, "channel_id": poll.channel_id})
+            self.logger.debug(f"Sending poll to channel: '{poll.channel_id}' with question: '{poll.question}'",
+                              extra={"poll_question": poll.question, "channel_id": poll.channel_id})
             channel = self.bot.get_channel(poll.channel_id)
             if not channel:
                 raise DiscordServiceException(f"Unable to send poll, channel {poll.channel_id} not found")
@@ -57,9 +60,10 @@ class DiscordServiceAdapter(DiscordInterface):
             for answer in poll.answers:
                 dc_poll.add_answer(text=answer)
             sent_message: discord.Message = await channel.send(poll=dc_poll)
-            self.logger.debug("Poll sent", extra={"poll_question": poll.question, "channel_id": poll.channel_id,
-                                                  "message_id": sent_message.id,
-                                                  "expires_at": sent_message.poll.expires_at})
+            self.logger.debug(f"Poll sent; id '{sent_message.id}', expires at: '{sent_message.poll.expires_at}'",
+                              extra={"poll_question": poll.question, "channel_id": poll.channel_id,
+                                     "message_id": sent_message.id,
+                                     "expires_at": sent_message.poll.expires_at})
             poll.expires_at = sent_message.poll.expires_at
             poll.message_id = sent_message.id
             return poll
@@ -81,7 +85,8 @@ class DiscordServiceAdapter(DiscordInterface):
         :raises DiscordServiceException: if the channel or Message is not found
         """
         try:
-            self.logger.debug("Fetching poll", extra={"channel_id": channel_id, "poll_id": poll_id})
+            self.logger.debug(f"Fetching poll with id '{poll_id}' in channel {channel_id}",
+                              extra={"channel_id": channel_id, "poll_id": poll_id})
             channel = self.bot.get_channel(channel_id)
             if not channel:
                 raise DiscordServiceException(f"Channel with id {channel_id} not found")
@@ -108,8 +113,9 @@ class DiscordServiceAdapter(DiscordInterface):
                               )
             return poll
         except Exception as e:
-            self.logger.error("Failed to fetch poll", exc_info=True, extra={
-                "channel_id": channel_id,
-                "poll_id": poll_id
-            })
+            self.logger.error(f"Failed to fetch poll with id: {poll_id} in channel: {channel_id}", exc_info=True,
+                              extra={
+                                  "channel_id": channel_id,
+                                  "poll_id": poll_id
+                              })
             raise DiscordServiceException(f"Error fetching poll: {poll_id} from channel: {channel_id}") from e

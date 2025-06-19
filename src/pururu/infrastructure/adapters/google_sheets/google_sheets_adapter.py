@@ -59,7 +59,8 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
     def _upsert_attendance(self, attendance: Attendance) -> None:
         try:
-            self.logger.debug("Upserting attendance", extra={"game_id": attendance.game_id})
+            self.logger.debug(f"Upserting attendance for game_id {attendance.game_id}",
+                              extra={"game_id": attendance.game_id})
             sheet = mapper.attendance_to_sheet(attendance)
 
             self.spreadsheet.values_update(
@@ -67,7 +68,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
                                                  AttendanceSheet.DATA_COL_END, sheet.game_id),
                 params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
         except Exception:
-            self.logger.error("Error upserting attendance", exc_info=True,
+            self.logger.error(f"Error upserting attendance for game_id {attendance.game_id}", exc_info=True,
                               extra={"game_id": attendance.game_id, "attendance_data": attendance.__dict__})
             raise
 
@@ -89,7 +90,8 @@ class GoogleSheetsAdapter(DatabaseInterface):
                 attendance_id = idx + AttendanceSheet.DATA_ROW_INIT
                 attendance = mapper.gs_to_attendance_sheet(attendance_id, row)
                 all_attendances.append(mapper.sheet_to_attendance(attendance))
-            self.logger.debug(f"Fetched a total of {len(all_attendances)} attendances", extra={"last_row": last_row})
+            self.logger.debug(f"Fetched a total of {len(all_attendances)} attendances",
+                              extra={"last_row": last_row, "total": len(all_attendances)})
             return all_attendances
         except Exception as e:
             self.logger.error("Error getting all attendances", exc_info=True)
@@ -102,7 +104,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :return: int: coins of the player
         """
         try:
-            self.logger.debug("Querying player coins", extra={"player": player})
+            self.logger.debug(f"Querying player coins for player: '{player}'", extra={"player": player})
             self.circuit_breaker.force_check()
 
             attendance_value_range = self.spreadsheet.values_get(
@@ -112,10 +114,12 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
             column = attendance_value_range['values'][0].index(player)
             player_coins = attendance_value_range['values'][1][column]
-            self.logger.debug(f"Total coins for player {player}: {player_coins}", extra={"player": player})
+            self.logger.debug(f"Total coins for player {player}: {player_coins}",
+                              extra={"player": player, "coins": player_coins})
             return player_coins
         except Exception as e:
-            self.logger.error("Error getting player coins", exc_info=True, extra={"player": player})
+            self.logger.error(f"Error getting player coins for player: '{player}'", exc_info=True,
+                              extra={"player": player})
             raise
 
     def upsert_clocking(self, clocking: Clocking) -> None:
@@ -128,7 +132,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
     def _upsert_clocking(self, clocking: Clocking) -> None:
         try:
-            self.logger.debug(f"Upserting clocking", extra={"game_id": clocking.game_id})
+            self.logger.debug(f"Upserting clocking for game_id {clocking.game_id}", extra={"game_id": clocking.game_id})
             game_id_rows = self.spreadsheet.values_get(
                 self.__build_data_notation(sheet=ClockingSheet.SHEET, col_start=ClockingSheet.DATA_COL_INIT,
                                            row_start=ClockingSheet.DATA_ROW_INIT, col_end=ClockingSheet.DATA_COL_INIT))
@@ -141,7 +145,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
                                                  ClockingSheet.DATA_COL_END, row_idx),
                 params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
         except Exception as e:
-            self.logger.error("Error upserting clocking", exc_info=True,
+            self.logger.error(f"Error upserting clocking for game_id {clocking.game_id}", exc_info=True,
                               extra={"game_id": clocking.game_id, "clocking_data": clocking.__dict__})
             raise
 
@@ -177,7 +181,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
                                            AttendanceSheet.DATA_COL_END, attendance_idx))
             attendance_row = attendance_value_range['values'][0]
             attendance = mapper.gs_to_attendance_sheet(game_id=attendance_idx, row=attendance_row)
-            self.logger.debug("Last attendance fetched!",
+            self.logger.debug(f"Last attendance fetched! game_id: {attendance.game_id}",
                               extra={"row_idx": attendance_row, "game_id": attendance.game_id})
             return mapper.sheet_to_attendance(attendance)
         except:

@@ -20,7 +20,7 @@ class SendMessagePollResolution(PollResolutionStrategy):
         self.discord_service = discord_service
 
     async def resolve(self, poll: Poll) -> Message | None:
-        self.logger.debug("Resolving poll",
+        self.logger.debug(f"Resolving poll with id '{poll.message_id}' in channel '{poll.channel_id}'",
                           extra={"poll_id": poll.message_id, "channel_id": poll.channel_id, "question": poll.question,
                                  "winners": poll.get_winners()})
         try:
@@ -28,7 +28,7 @@ class SendMessagePollResolution(PollResolutionStrategy):
             sent_message = await self.discord_service.send_message(message)
             return sent_message
         except Exception:
-            self.logger.error("Failed to resolve poll", exc_info=True, extra={
+            self.logger.error(f"Failed to resolve poll with id {poll.message_id}", exc_info=True, extra={
                 "poll_id": poll.message_id,
                 "channel_id": poll.channel_id,
                 "question": poll.question,

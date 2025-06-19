@@ -27,14 +27,14 @@ class PururuDiscordBot(commands.Bot):
 
     async def on_voice_state_update(self, member: discord.Member, before_state: discord.VoiceState,
                                     after_state: discord.VoiceState):
-        self.logger.info("Voice state changed", extra={
+        before_name = before_state.channel.name if before_state.channel else None
+        after_name = after_state.channel.name if after_state.channel else None
+        self.logger.info(f"Voice state changed for member {member.name}, from {before_name} to {after_name}", extra={
             "member": member.name,
-            "before_channel": before_state.channel.name if before_state.channel else None,
-            "after_channel": after_state.channel.name if after_state.channel else None
+            "before_channel": before_name,
+            "after_channel": after_name
         })
-        self.pururu_handler.handle_voice_state_update_dc_event(member.name,
-                                                               before_state.channel.name if before_state.channel else None,
-                                                               after_state.channel.name if after_state.channel else None)
+        self.pururu_handler.handle_voice_state_update_dc_event(member.name, before_name, after_name)
 
     async def on_ready(self):
         self.logger.info("Pururu Discord Bot is ready!")
@@ -59,7 +59,7 @@ class PururuDiscordBot(commands.Bot):
             name='stats',
             description='Shows your attendance stats')
         async def stats_command(interaction: discord.Interaction):
-            self.logger.info("Stats command received", extra={
+            self.logger.info(f"Stats command received from user {interaction.user.name}", extra={
                 "user": interaction.user.name,
                 "guild": interaction.guild.name if interaction.guild else None
             })
@@ -69,7 +69,7 @@ class PururuDiscordBot(commands.Bot):
                 await interaction.followup.send(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
                                                 member_stats.as_message())
             except Exception:
-                self.logger.error("Failed to retrieve stats", exc_info=True, extra={
+                self.logger.error(f"Failed to retrieve stats for user {interaction.user.name}", exc_info=True, extra={
                     "user": interaction.user.name,
                     "guild": interaction.guild.name if interaction.guild else None
                 })

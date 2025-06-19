@@ -35,13 +35,13 @@ class SNSEventServiceAdapter(EventService):
                 MessageGroupId=event.event_type,
                 MessageDeduplicationId=event.get_idempotency_key()
             )
-            self.logger.debug("Event successfully published to SNS", extra={
+            self.logger.debug(f"Event of type {event.event_type} successfully published to SNS", extra={
                 "event_type": event.event_type,
                 "message_id": response.get("MessageId"),
                 "idempotency_key": event.get_idempotency_key()
             })
         except Exception as e:
-            self.logger.error("SNS publish failed", exc_info=True, extra={
+            self.logger.error(f"SNS failed to publish event of type {event.event_type}", exc_info=True, extra={
                 "event_type": event.event_type,
                 "payload": event.payload,
                 "idempotency_key": event.get_idempotency_key()
