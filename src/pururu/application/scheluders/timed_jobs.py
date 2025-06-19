@@ -24,6 +24,14 @@ class ScheduledJobs:
                          extra={"job_count": len(self.scheduler.get_jobs())})
         self.scheduler.start()
 
+    def stop(self) -> None:
+        """
+        Stops the scheduler
+        :return: None
+        """
+        self.logger.info("Stopping scheduler")
+        self.scheduler.shutdown(wait=False)
+
     def check_expired_polls_task(self) -> None:
         """
         Emits the CHECK_EXPIRED_POLLS event
