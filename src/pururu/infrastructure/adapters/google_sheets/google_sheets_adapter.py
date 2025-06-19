@@ -223,8 +223,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
 
     def _use_fallback(self, function, *args, **kwargs):
         self.logger.warning(
-            "Using fallback due to circuit breaker open state",
-            extra={"function": function.__name__}
+            "Using fallback due to circuit breaker open state"
         )
         self.in_memory_fallback.add(function, *args, **kwargs)
 

@@ -4,7 +4,7 @@ import pururu.config as config
 from pururu.application.events.entities import (EndGameIntentEvent, GameStartedEvent, PururuEvent, GameEndedEvent,
                                                 MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent,
                                                 CheckExpiredPollsEvent, FinalizePollEvent)
-from pururu.common import utils
+from pururu.common import logger
 from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
                                       EventTooEarlyException)
 from pururu.domain.entities import MemberStats
@@ -16,7 +16,7 @@ class PururuHandler:
     def __init__(self, domain_service: PururuService, event_service: EventService):
         self.domain_service = domain_service
         self.event_service = event_service
-        self.logger = utils.get_logger(__name__)
+        self.logger = logger.get_logger(__name__)
 
     # ---------------------------
     # DISCORD EVENT HANDLERS
@@ -31,9 +31,10 @@ class PururuHandler:
         :param after_channel: after_state channel name
         :return: None
         """
-        self.logger.info(f"Member {member} has changed voice state from {before_channel} to {after_channel}")
+        self.logger.info(f"Member voice state changed, player: {member}, from {before_channel} to {after_channel}",
+                         extra={"member": member, "before_channel": before_channel, "after_channel": after_channel})
         if member not in config.PLAYERS:
-            self.logger.info(f"Member {member} is not a player")
+            self.logger.warning(f"Non-tracked player ignored: {member}", extra={"member": member})
             return
         event = None
         if before_channel is None:
@@ -49,7 +50,6 @@ class PururuHandler:
         :return: None
         """
         self.logger.info("Application Started and connected to Discord")
-        # asyncio.create_task(self.event_system.start_event_processing())
 
     # ---------------------------
     # DISCORD COMMAND HANDLERS
@@ -61,7 +61,7 @@ class PururuHandler:
         :param player: player name
         :return: MemberStats
         """
-        self.logger.info(f"Retrieving stats for player {player}")
+        self.logger.info(f"Retrieving player stats for player: {player}", extra={"player": player})
         return self.domain_service.calculate_player_stats(player)
 
     # ---------------------------
@@ -74,11 +74,13 @@ class PururuHandler:
         :param event: MemberJoinedChannelEvent
         :return: None
         """
-        self.logger.info(f"Member {event.member} joined channel {event.channel} at {event.joined_at}")
+        self.logger.info(f"Player '{event.member}' joined channel '{event.channel}' at {event.joined_at}",
+                         extra={"member": event.member, "channel": event.channel, "time": event.joined_at})
         self.domain_service.add_player(event.member, event.joined_at)
         if self.domain_service.should_start_new_game_session():
             session_info = self.domain_service.get_session_info()
-            self.logger.debug(f"Emitting new game intent, {session_info.players}")
+            self.logger.debug(f"Emitting new game intent, players: {len(session_info.players)}",
+                              extra={"players": session_info.players, "player_count": len(session_info.players)})
             event = NewGameIntentEvent(session_info.players, datetime.now())
             self.__emit_event(event)
 
@@ -88,11 +90,14 @@ class PururuHandler:
         :param event: MemberLeftChannelEvent
         :return: None
         """
-        self.logger.info(f"Member {event.member} left channel {event.channel} at {event.left_at}")
+        self.logger.info(f"Player '{event.member}' left channel '{event.channel}' at {event.left_at}",
+                         extra={"member": event.member, "channel": event.channel, "time": event.left_at})
         self.domain_service.remove_player(event.member, event.left_at)
         if self.domain_service.should_end_game_session():
             session_info = self.domain_service.get_session_info()
-            self.logger.debug(f"Emitting end game intent for game_id {session_info.game_id}, {session_info.players}")
+            self.logger.debug(
+                f"Emitting end game intent, for game_id {session_info.game_id}, players: {len(session_info.players)}",
+                extra={"game_id": session_info.game_id, "players": session_info.players})
             event = EndGameIntentEvent(session_info.game_id, session_info.players, datetime.now())
             self.__emit_event(event)
 
@@ -102,16 +107,18 @@ class PururuHandler:
         :param event: NewGameIntentEvent
         :return: None
         """
-        self.logger.info(f"Handling New game intent with start time at {event.start_time} for players {event.players}")
+        self.logger.info(f"Handling new game intent, players: {event.players}, start time: {event.start_time}",
+                         extra={"players": event.players, "player_count": {len(event.players)},
+                                "start_time": event.start_time})
         if event.get_age() < config.ATTENDANCE_CHECK_DELAY:
-            self.logger.debug(f"Ignoring new game intent (Too Early): {event}")
+            self.logger.debug("Ignoring new game intent (Too Early)", extra={"event": event})
             raise EventTooEarlyException(f"New game intent is too early: {event}")
         try:
             session = self.domain_service.start_new_game(event.start_time)
             event = GameStartedEvent(session.game_id, session.players)
             self.__emit_event(event)
         except CannotStartNewGame as e:
-            self.logger.warning(f"Cannot start new game: {e}")
+            self.logger.warning(f"Cannot start new game, {str(e)}", extra={"reason": str(e)})
 
     def handle_end_game_intent_event(self, event: EndGameIntentEvent) -> None:
         """
@@ -119,19 +126,22 @@ class PururuHandler:
         :param event: EndGameIntentEvent
         :return: None
         """
-        self.logger.info(f"Handling End game intent for game_id {event.game_id} with end time at {event.end_time} "
-                         f"for players {event.players}")
+        self.logger.info(
+            f"Handling end game intent for game_id {event.game_id}, players: {event.players}, end time: {event.end_time}",
+            extra={
+                "game_id": event.game_id, "players": event.players, "end_time": event.end_time
+            })
         if event.get_age() < config.ATTENDANCE_CHECK_DELAY:
-            self.logger.debug(f"Ignoring end game intent (Too Early): {event}")
+            self.logger.debug("Ignoring end game intent (Too Early)", extra={"event": event})
             raise EventTooEarlyException(f"End game intent is too early: {event}")
         try:
             attendance = self.domain_service.end_game(event.end_time)
             event = GameEndedEvent.from_attendance(attendance)
             self.__emit_event(event)
         except CannotEndGame as e:
-            self.logger.warning(f"Cannot end game: {e}")
+            self.logger.debug(f"Cannot end game, {str(e)}", extra={"reason": str(e)})
         except GameEndedWithoutPrecondition as e:
-            self.logger.warning(f"Game ended without precondition: {e}")
+            self.logger.warning(f"Game ended without precondition, {str(e)}", extra={"reason": str(e)})
 
     def handle_game_started_event(self, event: GameStartedEvent) -> None:
         """
@@ -139,7 +149,8 @@ class PururuHandler:
         :param event: GameStartedEvent
         :return: None
         """
-        self.logger.info(f"Game {event.game_id} has started with players {event.players}")
+        self.logger.info(f"Game started with id {event.game_id} and players: {event.players}",
+                         extra={"game_id": event.game_id, "players": event.players, "player_count": len(event.players)})
 
     def handle_game_ended_event(self, event: GameEndedEvent) -> None:
         """
@@ -148,7 +159,13 @@ class PururuHandler:
         :return: None
         """
         attendance = event.to_attendance()
-        self.logger.info(f"Game {attendance.game_id} has ended with attendance {attendance}")
+        self.logger.info(
+            f"Game with id {attendance.game_id} ended, absences: {[m.member for m in attendance.members if not m.attendance]}",
+            extra={
+                "game_id": attendance.game_id,
+                "players": [m.member for m in attendance.members],
+                "absences": [m.member for m in attendance.members if not m.attendance]
+            })
 
     # ---------------------------
     # PURURU EVENT HANDLERS - POLL EVENTS
@@ -160,10 +177,10 @@ class PururuHandler:
         :param event: PururuEvent
         :return: None
         """
-        self.logger.info(f"Consuming: {event}")
         expired_polls = await self.domain_service.get_expired_polls()
         for poll in expired_polls:
             self.__emit_event(FinalizePollEvent.from_poll(poll))
+        self.logger.info(f"Consumed CheckExpiredPollsEvent, total polls {len(expired_polls)}", extra={"expired_count": len(expired_polls)})
 
     async def handle_finalize_poll_event(self, event: FinalizePollEvent) -> None:
         """
@@ -171,10 +188,12 @@ class PururuHandler:
         :param event: PururuEvent
         :return: None
         """
-        self.logger.info(f"Consuming: {event}")
         poll = event.to_poll()
         await self.domain_service.finalize_poll(poll)
-        self.logger.debug(f"Ended poll {poll.message_id} with winners {poll.get_winners()}")
+        self.logger.debug(f"Poll with id {poll.message_id} finalized, winner/s: {poll.get_winners()}", extra={
+            "poll_id": poll.message_id,
+            "winners": poll.get_winners()
+        })
 
     # ---------------------------
     # TIMED JOBS
@@ -185,13 +204,13 @@ class PururuHandler:
         Triggers the flow to check for expired polls
         :return: None
         """
-        self.logger.info("Emitting CheckExpiredPollsEvent")
+        self.logger.debug("Emitting CheckExpiredPollsEvent")
         self.__emit_event(CheckExpiredPollsEvent())
-
 
     # ---------------------------
     # PRIVATE METHODS
     # ---------------------------
     def __emit_event(self, event: PururuEvent) -> None:
-        self.event_service.publish(event.as_bot_event())
-        self.domain_service.register_bot_event(event.as_bot_event())
+        bot_event = event.as_bot_event()
+        self.event_service.publish(bot_event)
+        self.domain_service.register_bot_event(bot_event)
