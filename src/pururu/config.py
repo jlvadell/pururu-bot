@@ -64,4 +64,4 @@ GS_RECOVERY_TIMEOUT = int(os.getenv('GS_RECOVERY_TIMEOUT', 300))  # defaults to 
 # ----------------------------------------
 # -------------- APP Metadata
 # ----------------------------------------
-APP_VERSION = version.__version__
+APP_VERSION = version.get_version()

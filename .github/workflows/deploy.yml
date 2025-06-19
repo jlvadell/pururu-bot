@@ -25,6 +25,15 @@ jobs:
         mv google_creds.json src/pururu/google_creds.json
         mv production.properties src/pururu/.env.production
 
+    - name: Inject production version into __version__.py
+      run: |
+        TAG=$(git describe --tags --abbrev=0)
+        BUILD_TIME=$(date -u +%Y%m%d%H%M%S)
+        FINAL_VERSION="${TAG}+${BUILD_TIME}"
+      
+        echo "Injecting production version: $FINAL_VERSION"
+        sed -i "s|__version__ = \"undefined\"|__version__ = \"${FINAL_VERSION}\"|" src/pururu/__version__.py
+
     - name: Load EC2 Key
       run: |
         echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
