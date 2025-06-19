@@ -161,14 +161,11 @@ async def test_base_event_consumer_deserialize_event_exception():
 
 @patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
 @patch('pururu.application.events.event_consumers.aioboto3.session.Session')
-@patch('pururu.application.events.event_consumers.utils')
 @pytest.mark.asyncio
-async def test_start_generic_polling(mock_utils, mock_boto3_session):
+async def test_start_generic_polling(mock_boto3_session):
     # Given
     mock_sqs = AsyncMock(name='mock_sqs')
     mock_sqs.__aenter__.return_value = mock_sqs
-    mock_logger = MagicMock()
-    mock_utils.get_logger.return_value = mock_logger
 
     # Set up the consumer
     mock_pururu_handler = MagicMock(spec=PururuHandler)
@@ -225,14 +222,11 @@ async def test_start_generic_polling(mock_utils, mock_boto3_session):
 @patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
 @patch('pururu.config.SQS_EVENT_VISIBILITY_TIMEOUT', 30)
 @patch('pururu.application.events.event_consumers.aioboto3.session.Session')
-@patch('pururu.application.events.event_consumers.utils')
 @pytest.mark.asyncio
-async def test_handle_event_too_early_exception(mock_utils, mock_boto3_session):
+async def test_handle_event_too_early_exception(mock_boto3_session):
     # Given
     mock_sqs = AsyncMock(name='mock_sqs')
     mock_sqs.__aenter__.return_value = mock_sqs
-    mock_logger = MagicMock()
-    mock_utils.get_logger.return_value = mock_logger
 
     # Set up the consumer
     mock_pururu_handler = MagicMock(spec=PururuHandler)
