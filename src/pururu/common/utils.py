@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 
 import pururu.config as config
@@ -6,19 +5,21 @@ import pururu.config as config
 FORMATTED_TIME_STR = '%Y-%m-%d %H:%M:%S'
 
 
-def get_logger(name: str) -> logging.Logger:
+def get_banner() -> str:
     """
-    Creates a custom logger instance
-    :param name: __name__ of the module
-    :return: Logger
+    Returns the banner for the application
+    :return: str
     """
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        datefmt=FORMATTED_TIME_STR,
-                        level=config.LOG_LEVEL,
-                        force=True)
-    logger = logging.getLogger(name)
-    return logger
-
+    return f"""
+888888ba                                                        dP                  dP   
+ 88    `8b                                                       88                  88   
+a88aaaa8P' dP    dP 88d888b. dP    dP 88d888b. dP    dP          88d888b. .d8888b. d8888P 
+ 88        88    88 88'  `88 88    88 88'  `88 88    88 88888888 88'  `88 88'  `88   88   
+ 88        88.  .88 88       88.  .88 88       88.  .88          88.  .88 88.  .88   88   
+ dP        `88888P' dP       `88888P' dP       `88888P'          88Y8888' `88888P'   dP   
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+                Pururu Bot - Version {config.APP_VERSION}
+"""
 
 def get_current_time_formatted() -> str:
     """
