@@ -1,5 +1,4 @@
 import pururu.config as config
-from pururu.common import utils
 from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking, AttendanceEventType
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
@@ -65,14 +64,3 @@ def __column_to_index(col: str) -> int:
 
 def __index_to_column(idx: int) -> str:
     return chr(idx + 65)
-
-
-def __map_attendance_event_type(description: str) -> AttendanceEventType:
-    event_type = AttendanceEventType.of(description)
-    if event_type == AttendanceEventType.UNKNOWN:
-        __get_logger().warning(f"Unknown event type: {description}")
-    return event_type
-
-
-def __get_logger():
-    return utils.get_logger(__name__)

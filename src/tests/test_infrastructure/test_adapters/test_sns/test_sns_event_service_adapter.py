@@ -8,9 +8,8 @@ from pururu.infrastructure.adapters.sns.sns_event_service_adapter import SNSEven
 
 
 @patch('pururu.infrastructure.adapters.sns.sns_event_service_adapter.boto3')
-@patch('pururu.common.utils.get_logger')
 @patch('pururu.config.SNS_TOPIC_ARN', 'arn:test:id:topic')
-def set_up(boto3_mock, logger_mock) -> SNSEventServiceAdapter:
+def set_up(boto3_mock) -> SNSEventServiceAdapter:
     sns_mock = Mock()
     boto3_mock.client.return_value = sns_mock
     adapter = SNSEventServiceAdapter()

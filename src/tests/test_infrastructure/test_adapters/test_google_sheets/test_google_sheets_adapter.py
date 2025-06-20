@@ -14,9 +14,8 @@ from unittest.mock import patch, Mock, MagicMock
 
 @patch('pururu.infrastructure.adapters.google_sheets.google_sheets_adapter.gspread')
 @patch('google.oauth2.service_account.Credentials.from_service_account_file')
-@patch('pururu.common.utils.get_logger')
 @patch('pururu.common.circuit_breaker.CircuitBreaker')
-def set_up(gspread_mock, credentials_mock, logger_mock, circuit_breaker_mock) -> GoogleSheetsAdapter:
+def set_up(gspread_mock, credentials_mock, circuit_breaker_mock) -> GoogleSheetsAdapter:
     gs_client_mock = Mock()
     gspread_mock.authorize.return_value = gs_client_mock
     gs_client_mock.open_by_key.return_value = gs_client_mock

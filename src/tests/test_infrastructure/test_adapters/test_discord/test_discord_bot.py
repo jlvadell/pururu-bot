@@ -73,7 +73,6 @@ async def test_on_voice_state_update_ok():
 # SLASH COMMAND HANDLER TESTS
 # ------------------------------
 
-@patch('pururu.config.PING_MESSAGE', None)
 @patch('pururu.config.APP_VERSION', '1.0.0')
 @pytest.mark.asyncio
 async def test_ping_command_ok():
@@ -88,23 +87,6 @@ async def test_ping_command_ok():
     await ping_command.callback(interaction=interaction)
     # Then
     interaction.response.send_message.assert_called_once_with('Pong! Pururu v1.0.0 is watching! :3')
-
-
-@patch('pururu.config.PING_MESSAGE', 'Something')
-@patch('pururu.config.APP_VERSION', '1.0.0')
-@pytest.mark.asyncio
-async def test_ping_command_ok():
-    # Given
-    discord_bot = set_up()
-    discord_bot.setup_commands()
-
-    ping_command: Command = next(filter(lambda x: x.name == 'ping', discord_bot.tree.get_commands()))
-    interaction = AsyncMock()
-    interaction.response = AsyncMock()
-    # When
-    await ping_command.callback(interaction=interaction)
-    # Then
-    interaction.response.send_message.assert_called_once_with('Pong! Pururu v1.0.0 is watching! :3\nSomething')
 
 
 @pytest.mark.asyncio

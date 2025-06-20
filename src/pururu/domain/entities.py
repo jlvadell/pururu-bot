@@ -45,6 +45,12 @@ class AttendanceEventType(Enum):
     OFFICIAL_MEETING = "Quedada Oficial"
     UNKNOWN = "unknown"
 
+    def __str__(self):
+        return self.value
+
+    def __json__(self):
+        return self.value
+
     def points(self) -> int:
         if self == AttendanceEventType.OFFICIAL_GAME:
             return 2
@@ -118,6 +124,12 @@ class SessionInfo:
 @dataclass()
 class PollResolutionType(Enum):
     SEND_MESSAGE = "SEND_MESSAGE"
+
+    def __str__(self):
+        return self.value
+
+    def __json__(self):
+        return self.value
 
 
 @dataclass()

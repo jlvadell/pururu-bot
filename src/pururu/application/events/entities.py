@@ -20,6 +20,12 @@ class EventType(Enum):
     CHECK_EXPIRED_POLLS = "check_expired_polls"
     FINALIZE_POLL = "finalize_poll"
 
+    def __str__(self):
+        return self.value
+
+    def __json__(self):
+        return self.value
+
 class PururuEvent(ABC):
     def __init__(self, event_type: EventType, description: str):
         self.event_type = event_type

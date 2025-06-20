@@ -19,6 +19,7 @@ def test_scheduler_start():
     # Given
     scheduled_jobs = ScheduledJobs(pururu_handler=Mock())
     scheduled_jobs.scheduler = Mock()
+    scheduled_jobs.scheduler.get_jobs.return_value = []
     # When
     scheduled_jobs.start()
     # Then

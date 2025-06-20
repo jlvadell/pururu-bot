@@ -2,6 +2,7 @@ import datetime
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import boto3
 import pytest
 from hamcrest import assert_that, instance_of
 
@@ -160,20 +161,19 @@ async def test_base_event_consumer_deserialize_event_exception():
 
 
 @patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
-@patch('pururu.application.events.event_consumers.aioboto3.session.Session')
-@patch('pururu.application.events.event_consumers.utils')
+@patch('pururu.application.events.event_consumers.aioboto3')
 @pytest.mark.asyncio
-async def test_start_generic_polling(mock_utils, mock_boto3_session):
+async def test_start_generic_polling(mock_aioboto3):
     # Given
+    mock_session = MagicMock(name='mock_session')
+    mock_aioboto3.Session.return_value = mock_session
     mock_sqs = AsyncMock(name='mock_sqs')
     mock_sqs.__aenter__.return_value = mock_sqs
-    mock_logger = MagicMock()
-    mock_utils.get_logger.return_value = mock_logger
+    mock_session.client.return_value = mock_sqs
 
     # Set up the consumer
     mock_pururu_handler = MagicMock(spec=PururuHandler)
     consumer = GameEventConsumer(mock_pururu_handler)
-    consumer.sqs = mock_sqs
     consumer._deserialize_event = MagicMock(
         return_value=MemberJoinedChannelEvent(
             member="test",
@@ -187,7 +187,7 @@ async def test_start_generic_polling(mock_utils, mock_boto3_session):
     dummy_receipt_handle = "test_receipt_handle"
 
     async def fake_receive_message(**kwargs):
-        consumer.stop_polling()  # stop after first poll
+        await consumer.stop_polling()  # stop after first poll
         return {
             "Messages": [{
                 "Body": json.dumps({
@@ -224,20 +224,19 @@ async def test_start_generic_polling(mock_utils, mock_boto3_session):
 
 @patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
 @patch('pururu.config.SQS_EVENT_VISIBILITY_TIMEOUT', 30)
-@patch('pururu.application.events.event_consumers.aioboto3.session.Session')
-@patch('pururu.application.events.event_consumers.utils')
+@patch('pururu.application.events.event_consumers.aioboto3')
 @pytest.mark.asyncio
-async def test_handle_event_too_early_exception(mock_utils, mock_boto3_session):
+async def test_handle_event_too_early_exception(mock_aioboto3):
     # Given
+    mock_session = MagicMock(name='mock_session')
+    mock_aioboto3.Session.return_value = mock_session
     mock_sqs = AsyncMock(name='mock_sqs')
     mock_sqs.__aenter__.return_value = mock_sqs
-    mock_logger = MagicMock()
-    mock_utils.get_logger.return_value = mock_logger
+    mock_session.client.return_value = mock_sqs
 
     # Set up the consumer
     mock_pururu_handler = MagicMock(spec=PururuHandler)
     consumer = GameEventConsumer(mock_pururu_handler)
-    consumer.sqs = mock_sqs
     consumer._deserialize_event = MagicMock(
         return_value=MemberJoinedChannelEvent(
             member="test",
@@ -251,7 +250,7 @@ async def test_handle_event_too_early_exception(mock_utils, mock_boto3_session):
     dummy_receipt_handle = "test_receipt_handle"
 
     async def fake_receive_message(**kwargs):
-        consumer.stop_polling()  # stop after first poll
+        await consumer.stop_polling()# stop after first poll
         return {
             "Messages": [{
                 "Body": json.dumps({
@@ -269,7 +268,7 @@ async def test_handle_event_too_early_exception(mock_utils, mock_boto3_session):
             }]
         }
 
-    mock_sqs.receive_message.side_effect = fake_receive_message
+    mock_sqs.receive_message = AsyncMock(name="mock_sqs_receive_msg", side_effect=fake_receive_message)
 
     # Dummy delete
     mock_sqs.delete_message = MagicMock()

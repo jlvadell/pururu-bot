@@ -1,9 +1,11 @@
+import warnings
+
 import gspread
 from google.oauth2.service_account import Credentials
 
 import pururu.config as config
 import pururu.infrastructure.adapters.google_sheets.mapper as mapper
-from pururu.common import utils
+from pururu.common import logger
 from pururu.common.circuit_breaker import CircuitBreaker
 from pururu.domain.entities import BotEvent, Attendance, Clocking
 from pururu.domain.services.database_service import DatabaseInterface
@@ -26,7 +28,6 @@ class FallBackInMemoryStorage:
             yield self.data.pop(0)
 
 
-
 class GoogleSheetsAdapter(DatabaseInterface):
     """
     DatabaseInterface Implementation for using Google Sheets as DB, check the docs:
@@ -41,7 +42,7 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.credentials = Credentials.from_service_account_file(credentials_path, scopes=scopes)
         self.client = gspread.authorize(self.credentials)
         self.spreadsheet = self.client.open_by_key(spreadsheet_id)
-        self.logger = utils.get_logger(__name__)
+        self.logger = logger.get_logger(__name__)
         self.cache = {}
         self.in_memory_fallback = FallBackInMemoryStorage()
         self.circuit_breaker = CircuitBreaker(failure_threshold=config.GS_FAILURE_THRESHOLD,
@@ -57,32 +58,44 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.circuit_breaker.call(self._upsert_attendance, attendance)
 
     def _upsert_attendance(self, attendance: Attendance) -> None:
-        self.logger.debug(f"Upsertting attendance with id: {attendance.game_id}")
-        sheet = mapper.attendance_to_sheet(attendance)
+        try:
+            self.logger.debug(f"Upserting attendance for game_id {attendance.game_id}",
+                              extra={"game_id": attendance.game_id})
+            sheet = mapper.attendance_to_sheet(attendance)
 
-        self.spreadsheet.values_update(
-            range=self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, sheet.game_id,
-                                             AttendanceSheet.DATA_COL_END, sheet.game_id),
-            params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
+            self.spreadsheet.values_update(
+                range=self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, sheet.game_id,
+                                                 AttendanceSheet.DATA_COL_END, sheet.game_id),
+                params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
+        except Exception:
+            self.logger.error(f"Error upserting attendance for game_id {attendance.game_id}", exc_info=True,
+                              extra={"game_id": attendance.game_id, "attendance_data": attendance.__dict__})
+            raise
 
     def get_all_attendances(self) -> list[Attendance]:
         """
         Get all attendances from the Google sheet
         :return: list[Attendance]; all attendances
         """
-        self.logger.debug("Getting all attendances")
-        self.circuit_breaker.force_check()
-        all_attendances = []
-        last_row = self.__get_last_row(AttendanceSheet.SHEET)
-        attendance_value_range = self.spreadsheet.values_get(
-            self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
-                                       AttendanceSheet.DATA_ROW_INIT,
-                                       AttendanceSheet.DATA_COL_END, last_row))
-        for idx, row in enumerate(attendance_value_range['values']):
-            attendance_id = idx + AttendanceSheet.DATA_ROW_INIT
-            attendance = mapper.gs_to_attendance_sheet(attendance_id, row)
-            all_attendances.append(mapper.sheet_to_attendance(attendance))
-        return all_attendances
+        try:
+            self.logger.debug("Querying all attendances")
+            self.circuit_breaker.force_check()
+            all_attendances = []
+            last_row = self.__get_last_row(AttendanceSheet.SHEET)
+            attendance_value_range = self.spreadsheet.values_get(
+                self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT,
+                                           AttendanceSheet.DATA_ROW_INIT,
+                                           AttendanceSheet.DATA_COL_END, last_row))
+            for idx, row in enumerate(attendance_value_range['values']):
+                attendance_id = idx + AttendanceSheet.DATA_ROW_INIT
+                attendance = mapper.gs_to_attendance_sheet(attendance_id, row)
+                all_attendances.append(mapper.sheet_to_attendance(attendance))
+            self.logger.debug(f"Fetched a total of {len(all_attendances)} attendances",
+                              extra={"last_row": last_row, "total": len(all_attendances)})
+            return all_attendances
+        except Exception as e:
+            self.logger.error("Error getting all attendances", exc_info=True)
+            raise
 
     def get_player_coins(self, player) -> int:
         """
@@ -90,18 +103,24 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :param player: player name
         :return: int: coins of the player
         """
-        self.logger.debug(f"Getting kerocoins of player: {player}")
-        self.circuit_breaker.force_check()
+        try:
+            self.logger.debug(f"Querying player coins for player: '{player}'", extra={"player": player})
+            self.circuit_breaker.force_check()
 
-        attendance_value_range = self.spreadsheet.values_get(
-            self.__build_data_notation(CoinsSheet.SHEET, CoinsSheet.DATA_COL_INIT,
-                                       CoinsSheet.DATA_ROW_INIT,
-                                       CoinsSheet.DATA_COL_END, CoinsSheet.DATA_ROW_END))
+            attendance_value_range = self.spreadsheet.values_get(
+                self.__build_data_notation(CoinsSheet.SHEET, CoinsSheet.DATA_COL_INIT,
+                                           CoinsSheet.DATA_ROW_INIT,
+                                           CoinsSheet.DATA_COL_END, CoinsSheet.DATA_ROW_END))
 
-        column = attendance_value_range['values'][0].index(player)
-        cell = attendance_value_range['values'][1][column]
-
-        return cell
+            column = attendance_value_range['values'][0].index(player)
+            player_coins = attendance_value_range['values'][1][column]
+            self.logger.debug(f"Total coins for player {player}: {player_coins}",
+                              extra={"player": player, "coins": player_coins})
+            return player_coins
+        except Exception as e:
+            self.logger.error(f"Error getting player coins for player: '{player}'", exc_info=True,
+                              extra={"player": player})
+            raise
 
     def upsert_clocking(self, clocking: Clocking) -> None:
         """
@@ -112,18 +131,23 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.circuit_breaker.call(self._upsert_clocking, clocking)
 
     def _upsert_clocking(self, clocking: Clocking) -> None:
-        self.logger.debug(f"Upsertting clocking for game_id: {clocking.game_id}")
-        game_id_rows = self.spreadsheet.values_get(
-            self.__build_data_notation(sheet=ClockingSheet.SHEET, col_start=ClockingSheet.DATA_COL_INIT,
-                                       row_start=ClockingSheet.DATA_ROW_INIT, col_end=ClockingSheet.DATA_COL_INIT))
-        game_ids = [int(row[0]) for row in game_id_rows['values']]
-        row_idx = ClockingSheet.DATA_ROW_INIT
-        row_idx = row_idx + (game_ids.index(clocking.game_id) if clocking.game_id in game_ids else len(game_ids))
-        sheet = mapper.clocking_to_sheet(clocking)
-        self.spreadsheet.values_update(
-            range=self.__build_data_notation(ClockingSheet.SHEET, ClockingSheet.DATA_COL_INIT, row_idx,
-                                             ClockingSheet.DATA_COL_END, row_idx),
-            params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
+        try:
+            self.logger.debug(f"Upserting clocking for game_id {clocking.game_id}", extra={"game_id": clocking.game_id})
+            game_id_rows = self.spreadsheet.values_get(
+                self.__build_data_notation(sheet=ClockingSheet.SHEET, col_start=ClockingSheet.DATA_COL_INIT,
+                                           row_start=ClockingSheet.DATA_ROW_INIT, col_end=ClockingSheet.DATA_COL_INIT))
+            game_ids = [int(row[0]) for row in game_id_rows['values']]
+            row_idx = ClockingSheet.DATA_ROW_INIT
+            row_idx = row_idx + (game_ids.index(clocking.game_id) if clocking.game_id in game_ids else len(game_ids))
+            sheet = mapper.clocking_to_sheet(clocking)
+            self.spreadsheet.values_update(
+                range=self.__build_data_notation(ClockingSheet.SHEET, ClockingSheet.DATA_COL_INIT, row_idx,
+                                                 ClockingSheet.DATA_COL_END, row_idx),
+                params=self.DEFAULT_PARAMS, body={"values": [sheet.to_row_values()]})
+        except Exception as e:
+            self.logger.error(f"Error upserting clocking for game_id {clocking.game_id}", exc_info=True,
+                              extra={"game_id": clocking.game_id, "clocking_data": clocking.__dict__})
+            raise
 
     def insert_bot_event(self, bot_event: BotEvent) -> None:
         """
@@ -132,6 +156,8 @@ class GoogleSheetsAdapter(DatabaseInterface):
         :param bot_event: the event
         :return: None
         """
+        warnings.warn("insert_bot_event is deprecated", DeprecationWarning)
+        self.logger.warning("DEPRECATED: insert_bot_event is deprecated and should not be used")
         self.circuit_breaker.call(self._insert_bot_event, bot_event)
 
     def _insert_bot_event(self, bot_event: BotEvent) -> None:
@@ -146,17 +172,21 @@ class GoogleSheetsAdapter(DatabaseInterface):
         Get the last attendance from the Google sheet
         :return: Attendance; last attendance row
         """
-        self.logger.debug("Getting last attendance")
-        self.circuit_breaker.force_check()
-        attendance_idx = self.__get_last_row(AttendanceSheet.SHEET)
-        attendance_value_range = self.spreadsheet.values_get(
-            self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, attendance_idx,
-                                       AttendanceSheet.DATA_COL_END, attendance_idx))
-        self.logger.debug(f"find last attendance result: {attendance_value_range}")
-        attendance_row = attendance_value_range['values'][0]
-        attendance = mapper.gs_to_attendance_sheet(game_id=attendance_idx, row=attendance_row)
-        self.logger.debug(f"Attendance sheet: {attendance}")
-        return mapper.sheet_to_attendance(attendance)
+        try:
+            self.logger.debug("Getting last attendance")
+            self.circuit_breaker.force_check()
+            attendance_idx = self.__get_last_row(AttendanceSheet.SHEET)
+            attendance_value_range = self.spreadsheet.values_get(
+                self.__build_data_notation(AttendanceSheet.SHEET, AttendanceSheet.DATA_COL_INIT, attendance_idx,
+                                           AttendanceSheet.DATA_COL_END, attendance_idx))
+            attendance_row = attendance_value_range['values'][0]
+            attendance = mapper.gs_to_attendance_sheet(game_id=attendance_idx, row=attendance_row)
+            self.logger.debug(f"Last attendance fetched! game_id: {attendance.game_id}",
+                              extra={"row_idx": attendance_row, "game_id": attendance.game_id})
+            return mapper.sheet_to_attendance(attendance)
+        except:
+            self.logger.error("Error getting last attendance", exc_info=True)
+            raise
 
     def __get_last_row(self, sheet: str, col: str = "A") -> int:
         """
@@ -196,13 +226,21 @@ class GoogleSheetsAdapter(DatabaseInterface):
         return f'{sheet}!{col_start}:{col_start}'
 
     def _use_fallback(self, function, *args, **kwargs):
+        self.logger.warning(
+            "Using fallback due to circuit breaker open state"
+        )
         self.in_memory_fallback.add(function, *args, **kwargs)
 
     def _fallback_recovery(self):
-        self.logger.debug("Recovering from fallback")
+        self.logger.info("Recovering from fallback")
         for fallback_item in self.in_memory_fallback.get_and_clear():
             try:
                 fallback_item["function"](*fallback_item["args"], **fallback_item["kwargs"])
             except Exception as e:
                 self.in_memory_fallback.return_item(fallback_item)
-                raise e
+                self.logger.error(
+                    "Fallback retry failed",
+                    exc_info=True,
+                    extra={"function": fallback_item["function"].__name__}
+                )
+                raise

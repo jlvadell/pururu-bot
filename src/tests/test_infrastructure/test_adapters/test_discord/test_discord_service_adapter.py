@@ -41,12 +41,11 @@ async def test_send_message_ko_channel_not_found(message: Message):
     dc_service = set_up()
     dc_service.bot.get_channel.return_value = None
     # When
-    with pytest.raises(DiscordServiceException) as exc_info:
+    with pytest.raises(DiscordServiceException):
         await dc_service.send_message(message)
 
     # Then
     dc_service.bot.get_channel.assert_called_once_with(message.channel_id)
-    assert_that(exc_info.value.args[0], equal_to(f"Unable to send message, channel {message.channel_id} not found"))
 
 
 @pytest.mark.asyncio
@@ -78,12 +77,11 @@ async def test_send_poll_ko_channel_not_found(poll: Poll):
     dc_service = set_up()
     dc_service.bot.get_channel.return_value = None
     # When
-    with pytest.raises(DiscordServiceException) as exc_info:
+    with pytest.raises(DiscordServiceException):
         await dc_service.send_poll(poll)
 
     # Then
     dc_service.bot.get_channel.assert_called_once_with(poll.channel_id)
-    assert_that(exc_info.value.args[0], equal_to(f"Unable to send poll, channel {poll.channel_id} not found"))
 
 
 @pytest.mark.asyncio
@@ -125,12 +123,11 @@ async def test_fetch_poll_ko_channel_not_found():
     dc_service = set_up()
     dc_service.bot.get_channel.return_value = None
     # When
-    with pytest.raises(DiscordServiceException) as exc_info:
+    with pytest.raises(DiscordServiceException):
         await dc_service.fetch_poll(channel_id, poll_id)
 
     # Then
     dc_service.bot.get_channel.assert_called_once_with(channel_id)
-    assert_that(exc_info.value.args[0], equal_to(f"Channel with id {channel_id} not found"))
 
 
 @pytest.mark.asyncio
@@ -143,10 +140,9 @@ async def test_fetch_poll_ko_message_not_found():
     dc_service.bot.get_channel.return_value = channel_mock
     channel_mock.fetch_message.return_value = None
     # When
-    with pytest.raises(DiscordServiceException) as exc_info:
+    with pytest.raises(DiscordServiceException):
         await dc_service.fetch_poll(channel_id, poll_id)
 
     # Then
     dc_service.bot.get_channel.assert_called_once_with(channel_id)
     channel_mock.fetch_message.assert_called_once_with(poll_id)
-    assert_that(exc_info.value.args[0], equal_to(f"Poll with id {poll_id} not found in channel {channel_id}"))

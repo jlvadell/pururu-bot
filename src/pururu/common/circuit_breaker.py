@@ -1,7 +1,8 @@
 import time
+import warnings
 from enum import Enum
 
-from pururu.common import utils
+from pururu.common import logger
 from pururu.common.exceptions import CircuitBreakerException
 
 
@@ -10,17 +11,29 @@ class CircuitBreakerState(Enum):
     CLOSED = "CLOSED"
     HALF_OPEN = "HALF_OPEN"
 
+    def __str__(self):
+        return self.value
+
+    def __json__(self):
+        return self.value
+
 
 class CircuitBreaker:
+    """
+    DEPRECATION NOTICE: This class is deprecated and will be removed in a future version. with the current externalized events this is not needed anymore.
+    """
+
     def __init__(self, failure_threshold: int, recovery_timeout: int, open_fallback=None, on_half_open=None):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
         self.state = CircuitBreakerState.CLOSED
-        self.logger = utils.get_logger(__name__)
+        self.logger = logger.get_logger(__name__)
         self.last_failure_time = 0
         self.open_fallback = open_fallback
         self.on_half_open = on_half_open
+        warnings.warn("DEPRECATION NOTICE: CircuitBreaker is deprecated and will be removed in a future version.", DeprecationWarning)
+        self.logger.warning("CircuitBreaker is deprecated and will be removed in a future version. Please use the new event system instead.")
 
     def call(self, func, *args, **kwargs):
         if self.state == CircuitBreakerState.OPEN:

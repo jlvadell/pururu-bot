@@ -93,13 +93,3 @@ def test_column_to_index():
 
 def test_index_to_column():
     assert_that(mapper.__index_to_column(5), equal_to("F"))
-
-
-def test_map_attendance_event_type_ok():
-    assert_that(mapper.__map_attendance_event_type(AttendanceEventType.OFFICIAL_GAME.value).value,
-                equal_to(AttendanceEventType.OFFICIAL_GAME.value))
-
-
-def test_map_attendance_event_type_unknown():
-    assert_that(mapper.__map_attendance_event_type("unknown event type123465").value,
-                equal_to(AttendanceEventType.UNKNOWN.value))

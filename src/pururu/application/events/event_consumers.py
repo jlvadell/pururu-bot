@@ -1,3 +1,4 @@
+import asyncio
 import json
 from abc import ABC, abstractmethod
 
@@ -7,7 +8,7 @@ import pururu.config as config
 from pururu.application.events.entities import PururuEvent, EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
     NewGameIntentEvent, EndGameIntentEvent, GameEndedEvent, GameStartedEvent, CheckExpiredPollsEvent, FinalizePollEvent
 from pururu.application.services.pururu_handler import PururuHandler
-from pururu.common import utils
+from pururu.common import logger
 from pururu.common.exceptions import EventDeserializationException, EventTooEarlyException
 
 
@@ -24,9 +25,9 @@ class BaseEventConsumer(ABC):
     }
 
     def __init__(self, name):
-        self.logger = utils.get_logger(name)
+        self.logger = logger.get_logger(name)
         self.aws_session = aioboto3.Session()
-        self.sqs = self.aws_session.client("sqs")
+        self.sqs = None
         self.run_polling = False
 
     def _deserialize_event(self, message: dict) -> PururuEvent:
@@ -47,17 +48,21 @@ class BaseEventConsumer(ABC):
             cls = self.EVENT_CLASS_MAP[event_type]
 
             # process the payload into the specific event class
+            self.logger.debug(f"Event deserialized, type: {event_type}",
+                              extra={"event_type": event_type, "raw_payload": inner_event})
             return cls.process_payload(inner_event)
         except Exception as e:
+            self.logger.error(f"Failed to deserialize message, {message}", exc_info=e, extra={"message_raw": message})
             raise EventDeserializationException(f"Failed to deserialize message, raw: {message}") from e
 
     @abstractmethod
     def _handle_event(self, event: PururuEvent):
         pass
 
-    def stop_polling(self):
-        self.run_polling = False
-        self.logger.info("Polling stopped")
+    async def stop_polling(self):
+        if self.run_polling:
+            self.run_polling = False
+            await self.sqs.close()
 
     async def _start_generic_polling(self, queue_url: str, polling_time: int):
         """
@@ -69,42 +74,63 @@ class BaseEventConsumer(ABC):
         if self.run_polling:
             self.logger.warning("Polling already running.")
             return
-        self.logger.info("polling started")
+        self.logger.info(f"Polling started {queue_url}; interval {polling_time}",
+                         extra={"queue_url": queue_url, "interval": polling_time})
         self.run_polling = True
         last_receipt_handle = None
-        async with self.sqs as sqs_client:
-            while self.run_polling:
-                try:
-                    response = await sqs_client.receive_message(
-                        QueueUrl=queue_url,
-                        MaxNumberOfMessages=1,
-                        WaitTimeSeconds=polling_time,
-                        MessageAttributeNames=["All"]
-                    )
-                    messages = response.get("Messages", [])
-                    if not messages:
-                        continue
-
-                    for message in messages:
-                        event = self._deserialize_event(message)
-                        last_receipt_handle = message["ReceiptHandle"]
-                        self.logger.info(
-                            f"Event Polled, Event type {event.event_type}, Event age: {event.get_age()}s")
-                        await self._handle_event(event)
-
-                        await sqs_client.delete_message(
+        try:
+            async with self.aws_session.client("sqs") as sqs_client:
+                self.sqs = sqs_client
+                while self.run_polling:
+                    try:
+                        response = await sqs_client.receive_message(
                             QueueUrl=queue_url,
-                            ReceiptHandle=message["ReceiptHandle"]
+                            MaxNumberOfMessages=1,
+                            WaitTimeSeconds=polling_time,
+                            MessageAttributeNames=["All"]
                         )
-                except EventTooEarlyException as ex:
-                    self.logger.warning(f"Delaying event event due to {ex}")
-                    await sqs_client.change_message_visibility(
-                        QueueUrl=queue_url,
-                        ReceiptHandle=last_receipt_handle,
-                        VisibilityTimeout=config.SQS_EVENT_VISIBILITY_TIMEOUT
-                    )
-                except Exception as e:
-                    self.logger.error(f"Failed to poll or process message: {e}")
+                        messages = response.get("Messages", [])
+                        if not messages:
+                            continue
+
+                        for message in messages:
+                            event = self._deserialize_event(message)
+                            last_receipt_handle = message["ReceiptHandle"]
+                            self.logger.info(f"Event polled, type {event.event_type}, age: {event.get_age()}", extra={
+                                "queue_url": queue_url,
+                                "event_type": event.event_type,
+                                "event_age": event.get_age(),
+                                "event_payload": event.__dict__
+                            })
+                            await self._handle_event(event)
+
+                            await sqs_client.delete_message(
+                                QueueUrl=queue_url,
+                                ReceiptHandle=message["ReceiptHandle"]
+                            )
+                    except EventTooEarlyException as ex:
+                        self.logger.warning("Delaying event due to being too early", extra={
+                            "queue_url": queue_url,
+                            "error": str(ex),
+                            "visibility_timeout": config.SQS_EVENT_VISIBILITY_TIMEOUT
+                        })
+                        await sqs_client.change_message_visibility(
+                            QueueUrl=queue_url,
+                            ReceiptHandle=last_receipt_handle,
+                            VisibilityTimeout=config.SQS_EVENT_VISIBILITY_TIMEOUT
+                        )
+                    except Exception as e:
+                        self.logger.error(f"Failed to poll or process message, url {queue_url}", exc_info=e,
+                                          extra={"queue_url": queue_url})
+        except asyncio.CancelledError:
+            self.logger.info(f"Polling task for {queue_url} was cancelled.")
+            raise
+        finally:
+            try:
+                await self.stop_polling()
+            except Exception as e:
+                self.logger.error(f"Failed to stop polling for {queue_url}", exc_info=e, extra={"queue_url": queue_url})
+            self.logger.info(f"Polling stopped for {queue_url}", extra={"queue_url": queue_url})
 
 
 class GameEventConsumer(BaseEventConsumer):
@@ -118,7 +144,7 @@ class GameEventConsumer(BaseEventConsumer):
         await super()._start_generic_polling(self.queue_url, self.polling_time)
 
     async def _handle_event(self, event: PururuEvent):
-        self.logger.info(f"Handling event: {event.event_type}")
+        self.logger.info(f"Handling game event, type: {event.event_type}", extra={"event_type": event.event_type})
         if event.event_type == EventType.MEMBER_JOINED_CHANNEL:
             self.pururu_handler.handle_member_joined_channel_event(event)
         elif event.event_type == EventType.MEMBER_LEFT_CHANNEL:
@@ -132,7 +158,8 @@ class GameEventConsumer(BaseEventConsumer):
         elif event.event_type == EventType.GAME_STARTED:
             self.pururu_handler.handle_game_started_event(event)
         else:
-            self.logger.warning(f"Unhandled game event type: {event.event_type}")
+            self.logger.error(f"Unhandled game event of type {event.event_type}",
+                              extra={"event_type": event.event_type})
 
 
 class PollEventConsumer(BaseEventConsumer):
@@ -146,10 +173,11 @@ class PollEventConsumer(BaseEventConsumer):
         await super()._start_generic_polling(self.queue_url, self.polling_time)
 
     async def _handle_event(self, event: PururuEvent):
-        self.logger.info(f"Handling event: {event.event_type}")
+        self.logger.info(f"Handling poll event, type: {event.event_type}", extra={"event_type": event.event_type})
         if event.event_type == EventType.CHECK_EXPIRED_POLLS:
             await self.pururu_handler.handle_check_expired_polls_event(event)
         elif event.event_type == EventType.FINALIZE_POLL:
             await self.pururu_handler.handle_finalize_poll_event(event)
         else:
-            self.logger.warning(f"Unhandled poll event type: {event.event_type}")
+            self.logger.error(f"Unhandled poll event of type {event.event_type}",
+                              extra={"event_type": event.event_type})
