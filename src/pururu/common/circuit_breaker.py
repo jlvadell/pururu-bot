@@ -11,6 +11,12 @@ class CircuitBreakerState(Enum):
     CLOSED = "CLOSED"
     HALF_OPEN = "HALF_OPEN"
 
+    def __str__(self):
+        return self.value
+
+    def __json__(self):
+        return self.value
+
 
 class CircuitBreaker:
     """
