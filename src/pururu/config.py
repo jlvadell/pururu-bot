@@ -64,4 +64,5 @@ GS_RECOVERY_TIMEOUT = int(os.getenv('GS_RECOVERY_TIMEOUT', 300))  # defaults to 
 # ----------------------------------------
 # -------------- APP Metadata
 # ----------------------------------------
+LOG_FORMAT_JSON = str_to_bool(os.getenv('LOG_FORMAT_JSON', 'true'))
 APP_VERSION = version.get_version()
