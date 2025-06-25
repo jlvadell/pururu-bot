@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands
 
-import pururu.config as config
+from pururu.__version__ import get_version
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.common import logger
+from pururu.config import settings
 
 
 class PururuDiscordBot(commands.Bot):
@@ -15,12 +16,12 @@ class PururuDiscordBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         self.setup_commands()
-        guild = discord.Object(id=config.GUILD_ID)
+        guild = discord.Object(id=settings.discord.guild_id)
         self.tree.clear_commands(guild=guild)
         self.tree.copy_global_to(guild=guild)
         result = await self.tree.sync(guild=guild)
         self.logger.info("Commands synced successfully", extra={
-            "guild_id": config.GUILD_ID,
+            "guild_id": settings.discord.guild_id,
             "command_count": len(result),
             "commands": [x.name for x in result]
         })
@@ -53,7 +54,7 @@ class PururuDiscordBot(commands.Bot):
                 "guild": interaction.guild.name if interaction.guild else None
             })
             await interaction.response.send_message(
-                f"Pong! Pururu v{config.APP_VERSION} is watching! :3")
+                f"Pong! Pururu {get_version()} is watching! :3")
 
         @self.tree.command(
             name='stats',

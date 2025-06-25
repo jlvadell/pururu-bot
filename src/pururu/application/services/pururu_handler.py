@@ -1,12 +1,12 @@
 from datetime import datetime
 
-import pururu.config as config
 from pururu.application.events.entities import (EndGameIntentEvent, GameStartedEvent, PururuEvent, GameEndedEvent,
                                                 MemberJoinedChannelEvent, MemberLeftChannelEvent, NewGameIntentEvent,
                                                 CheckExpiredPollsEvent, FinalizePollEvent)
 from pururu.common import logger
 from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
                                       EventTooEarlyException)
+from pururu.config import settings
 from pururu.domain.entities import MemberStats
 from pururu.domain.services.event_service import EventService
 from pururu.domain.services.pururu_service import PururuService
@@ -33,7 +33,7 @@ class PururuHandler:
         """
         self.logger.info(f"Member voice state changed, player: {member}, from {before_channel} to {after_channel}",
                          extra={"member": member, "before_channel": before_channel, "after_channel": after_channel})
-        if member not in config.PLAYERS:
+        if member not in settings.general.players.keys():
             self.logger.warning(f"Non-tracked player ignored: {member}", extra={"member": member})
             return
         event = None
@@ -110,7 +110,7 @@ class PururuHandler:
         self.logger.info(f"Handling new game intent, players: {event.players}, start time: {event.start_time}",
                          extra={"players": event.players, "player_count": {len(event.players)},
                                 "start_time": event.start_time})
-        if event.get_age() < config.ATTENDANCE_CHECK_DELAY:
+        if event.get_age() < settings.general.attendance_check_delay:
             self.logger.debug("Ignoring new game intent (Too Early)", extra={"event": event})
             raise EventTooEarlyException(f"New game intent is too early: {event}")
         try:
@@ -131,7 +131,7 @@ class PururuHandler:
             extra={
                 "game_id": event.game_id, "players": event.players, "end_time": event.end_time
             })
-        if event.get_age() < config.ATTENDANCE_CHECK_DELAY:
+        if event.get_age() < settings.general.attendance_check_delay:
             self.logger.debug("Ignoring end game intent (Too Early)", extra={"event": event})
             raise EventTooEarlyException(f"End game intent is too early: {event}")
         try:
@@ -180,7 +180,8 @@ class PururuHandler:
         expired_polls = await self.domain_service.get_expired_polls()
         for poll in expired_polls:
             self.__emit_event(FinalizePollEvent.from_poll(poll))
-        self.logger.info(f"Consumed CheckExpiredPollsEvent, total polls {len(expired_polls)}", extra={"expired_count": len(expired_polls)})
+        self.logger.info(f"Consumed CheckExpiredPollsEvent, total polls {len(expired_polls)}",
+                         extra={"expired_count": len(expired_polls)})
 
     async def handle_finalize_poll_event(self, event: FinalizePollEvent) -> None:
         """

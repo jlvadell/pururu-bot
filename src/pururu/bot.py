@@ -1,11 +1,11 @@
 import asyncio
 import signal
 
-import pururu.config as config
 from pururu.application.events.event_consumers import GameEventConsumer, PollEventConsumer
 from pururu.application.scheluders.timed_jobs import ScheduledJobs
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.common import logger, utils
+from pururu.config import settings
 from pururu.domain.services.pururu_service import PururuService
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
 from pururu.infrastructure.adapters.discord.discord_service_adapter import DiscordServiceAdapter
@@ -36,7 +36,8 @@ class Application:
         self.event_emitter_service = SNSEventServiceAdapter()
 
         # Google Sheet - Database service implementation
-        self.db_service = GoogleSheetsAdapter(config.GOOGLE_SHEETS_CREDENTIALS, config.SPREADSHEET_ID)
+        self.db_service = GoogleSheetsAdapter(settings.secrets.google_sheets_credentials,
+                                              settings.secrets.spreadsheet_id)
 
         # Domain service
         self.pururu_service = PururuService(self.db_service)
@@ -70,7 +71,7 @@ class Application:
                                                name="PollEventConsumer_polling")
                 self.tasks.append(game_consumer)
                 self.tasks.append(poll_consumer)
-                await self.discord_bot.start(config.DISCORD_TOKEN)
+                await self.discord_bot.start(settings.secrets.discord_token)
         except asyncio.CancelledError:
             await self.shutdown()
             raise
@@ -98,7 +99,7 @@ if __name__ == '__main__':
     asyncio.set_event_loop(loop)
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
-            loop.add_signal_handler(sig, app.shutdown)
+            loop.add_signal_handler(sig, lambda: asyncio.ensure_future(app.shutdown))
         except NotImplementedError:
             """Handle NotImplementedError on Windows"""
             pass

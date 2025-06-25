@@ -27,7 +27,7 @@ def set_up(event_service_mock) -> PururuHandler:
     return pururu_handler
 
 
-@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.settings.general.players", {"member1": {}, "member2": {}, "member3": {}})
 def test_handle_voice_state_update_dc_event_player_joined():
     # Given
     pururu_handler = set_up()
@@ -41,7 +41,7 @@ def test_handle_voice_state_update_dc_event_player_joined():
     pururu_handler.event_service.publish.assert_called_once()
 
 
-@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.settings.general.players", {"member1": {}, "member2": {}, "member3": {}})
 def test_handle_voice_state_update_dc_event_player_left_ok():
     # Given
     pururu_handler = set_up()
@@ -54,7 +54,7 @@ def test_handle_voice_state_update_dc_event_player_left_ok():
     assert_that(event.payload["channel"], equal_to("channel"))
 
 
-@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.settings.general.players", {"member1": {}, "member2": {}, "member3": {}})
 def test_handle_voice_state_update_dc_event_player_changed_between_channels():
     # Given
     pururu_handler = set_up()
@@ -64,7 +64,7 @@ def test_handle_voice_state_update_dc_event_player_changed_between_channels():
     pururu_handler.event_service.assert_not_called()
 
 
-@patch("pururu.config.PLAYERS", ["member1", "member2", "member3"])
+@patch("pururu.config.settings.general.players", {"member1": {}, "member2": {}, "member3": {}})
 def test_handle_voice_state_update_dc_event_player_not_in_array():
     # Given
     pururu_handler = set_up()
@@ -171,7 +171,7 @@ def test_handle_new_game_intent_event_cannot_start_new_game_exception(session_in
     pururu_handler.event_service.assert_not_called()
 
 
-@patch("pururu.config.ATTENDANCE_CHECK_DELAY", 60)
+@patch("pururu.config.settings.general.attendance_check_delay", 60)
 def test_handle_new_game_intent_event_too_early_exception(new_game_intent_event: NewGameIntentEvent):
     # Given
     pururu_handler = set_up()
@@ -206,7 +206,7 @@ def test_handle_end_game_intent_event_cannot_end_game(end_game_intent_event: End
     pururu_handler.event_service.assert_not_called()
 
 
-@patch("pururu.config.ATTENDANCE_CHECK_DELAY", 60)
+@patch("pururu.config.settings.general.attendance_check_delay", 60)
 def test_handle_end_game_intent_event_too_early_exception(end_game_intent_event: EndGameIntentEvent):
     # Given
     pururu_handler = set_up()

@@ -154,10 +154,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# env file
+# env file / dynaconf
 .env
 .env.production
 .env.development
+.secrets.*
+settings.local.toml
 
 # secrets file
 secrets.json

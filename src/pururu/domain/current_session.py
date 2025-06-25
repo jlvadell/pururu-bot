@@ -1,7 +1,7 @@
 from datetime import datetime
 
-import pururu.config as config
 from pururu.common import utils, logger
+from pururu.config import settings
 from pururu.domain.entities import Poll
 
 
@@ -89,14 +89,14 @@ class CurrentSession:
         Checks if the conditions to start a new game are met
         :return: bool
         """
-        return self.game_id is None and len(self.online_players) >= config.MIN_ATTENDANCE_MEMBERS
+        return self.game_id is None and len(self.online_players) >= settings.general.min_attendance_members
 
     def should_end_game(self) -> bool:
         """
         Checks if the conditions to end the current game are met
         :return: bool
         """
-        return self.game_id is not None and len(self.online_players) < config.MIN_ATTENDANCE_MEMBERS
+        return self.game_id is not None and len(self.online_players) < settings.general.min_attendance_members
 
     def get_players(self) -> list:
         """

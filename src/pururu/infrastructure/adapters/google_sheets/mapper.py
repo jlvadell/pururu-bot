@@ -1,4 +1,4 @@
-import pururu.config as config
+from pururu.config import settings
 from pururu.domain.entities import Attendance, BotEvent, MemberAttendance, Clocking, AttendanceEventType
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
 
@@ -25,7 +25,7 @@ def clocking_to_sheet(domain_entity: Clocking) -> ClockingSheet:
 
 def sheet_to_attendance(sheet: AttendanceSheet) -> Attendance:
     members = []
-    for idx, player in enumerate(config.GS_ATTENDANCE_PLAYER_MAPPING.keys()):
+    for idx, player in enumerate(settings.google_sheets.attendance_player_mapping.keys()):
         members.append(MemberAttendance(player, __parse_str_to_bool(sheet.absence[idx]),
                                         __parse_str_to_bool(sheet.unjustified[idx]), sheet.motives[idx]))
 
@@ -36,7 +36,7 @@ def gs_to_attendance_sheet(game_id: int, row: list) -> AttendanceSheet:
     absence = []
     unjustified = []
     motives = []
-    for cell in config.GS_ATTENDANCE_PLAYER_MAPPING.values():
+    for cell in settings.google_sheets.attendance_player_mapping.values():
         idx = __column_to_index(cell)
         absence.append(row[idx])
         unjustified.append(row[idx + 1])

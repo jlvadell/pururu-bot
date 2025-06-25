@@ -3,10 +3,10 @@ import warnings
 import gspread
 from google.oauth2.service_account import Credentials
 
-import pururu.config as config
 import pururu.infrastructure.adapters.google_sheets.mapper as mapper
 from pururu.common import logger
 from pururu.common.circuit_breaker import CircuitBreaker
+from pururu.config import settings
 from pururu.domain.entities import BotEvent, Attendance, Clocking
 from pururu.domain.services.database_service import DatabaseInterface
 from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet, \
@@ -45,8 +45,8 @@ class GoogleSheetsAdapter(DatabaseInterface):
         self.logger = logger.get_logger(__name__)
         self.cache = {}
         self.in_memory_fallback = FallBackInMemoryStorage()
-        self.circuit_breaker = CircuitBreaker(failure_threshold=config.GS_FAILURE_THRESHOLD,
-                                              recovery_timeout=config.GS_RECOVERY_TIMEOUT,
+        self.circuit_breaker = CircuitBreaker(failure_threshold=settings.google_sheets.failure_threshold,
+                                              recovery_timeout=settings.google_sheets.recovery_timeout,
                                               open_fallback=self._use_fallback, on_half_open=self._fallback_recovery)
 
     def upsert_attendance(self, attendance: Attendance) -> None:

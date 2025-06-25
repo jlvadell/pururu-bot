@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-import pururu.config as config
 from pururu.common import utils, logger
 from pururu.common.exceptions import (CannotStartNewGame, CannotEndGame, GameEndedWithoutPrecondition,
                                       DiscordServiceException)
+from pururu.config import settings
 from pururu.domain.current_session import CurrentSession
 from pururu.domain.entities import BotEvent, Attendance, MemberAttendance, Clocking, AttendanceEventType, MemberStats, \
     Poll, SessionInfo, Message
@@ -36,13 +36,13 @@ class PururuService:
         :param event: BotEvent
         :return: None
         """
-        if not config.DISCORD_EVENT_LOG_ENABLED:
+        if not settings.general.discord_event_log_enabled:
             self.logger.debug("Ignoring bot event, logging disabled",
                               extra={"event_type": event.event_type, "event_data": event.payload})
             return
         self.logger.debug("Registering bot event", extra={"event_type": event.event_type, "event_data": event.payload})
-        message = Message(event.description, config.DISCORD_EVENT_LOG_CHANNEL_ID)
-        # TODO: this should be async
+        message = Message(event.description, settings.discord.discord_event_log_channel_id)
+        # FIXME: this should be async
         self.discord_service.send_message(message)
 
     def get_session_info(self) -> SessionInfo:
@@ -142,7 +142,7 @@ class PururuService:
             self.logger.warning(f"Cannot end game with id: {self.current_session.game_id}, conditions not met", extra={
                 "current_players": self.current_session.get_players(),
                 "total_players": len(self.current_session.get_players()),
-                "required_players": config.MIN_ATTENDANCE_MEMBERS,
+                "required_players": settings.general.min_attendance_members,
                 "game_id": self.current_session.game_id
             })
             raise CannotEndGame(f"End game condition not met, current players: {self.current_session.get_players()}, "
@@ -152,7 +152,7 @@ class PururuService:
         self.current_session.adjust_players_clocking_end_time(end_time)
         game_id = self.current_session.game_id
         player_attendance_count = 0
-        for player in config.PLAYERS:
+        for player in settings.general.players.keys():
             player_attended = self.__has_player_attended(player)
             if player_attended:
                 player_attendance_count += 1
@@ -163,14 +163,14 @@ class PururuService:
         attendance = Attendance(game_id, members, utils.get_current_time_formatted(),
                                 AttendanceEventType.OFFICIAL_GAME)
         self.current_session.reset()
-        if player_attendance_count < config.MIN_ATTENDANCE_MEMBERS:
+        if player_attendance_count < settings.general.min_attendance_members:
             self.logger.warning(f"Game with id {game_id} ended without enough attendance", extra={
                 "game_id": game_id,
                 "attendance_count": player_attendance_count,
-                "min_required": config.MIN_ATTENDANCE_MEMBERS
+                "min_required": settings.general.min_attendance_members
             })
             raise GameEndedWithoutPrecondition(
-                f"Attendance not enough, attendance count: {player_attendance_count}; min required: {config.MIN_ATTENDANCE_MEMBERS}")
+                f"Attendance not enough, attendance count: {player_attendance_count}; min required: {settings.general.min_attendance_members}")
         self.database_service.upsert_attendance(attendance)
         self.database_service.upsert_clocking(clocking)
         return attendance
@@ -224,7 +224,7 @@ class PururuService:
         :return: bool
         """
         playtime = self.current_session.get_player_time(player)
-        return playtime >= config.MIN_ATTENDANCE_TIME
+        return playtime >= settings.general.min_attendance_time
 
     def __get_new_game_id(self) -> int:
         """

@@ -4,12 +4,12 @@ from abc import ABC, abstractmethod
 
 import aioboto3
 
-import pururu.config as config
 from pururu.application.events.entities import PururuEvent, EventType, MemberJoinedChannelEvent, MemberLeftChannelEvent, \
     NewGameIntentEvent, EndGameIntentEvent, GameEndedEvent, GameStartedEvent, CheckExpiredPollsEvent, FinalizePollEvent
 from pururu.application.services.pururu_handler import PururuHandler
 from pururu.common import logger
 from pururu.common.exceptions import EventDeserializationException, EventTooEarlyException
+from pururu.config import settings
 
 
 class BaseEventConsumer(ABC):
@@ -26,7 +26,7 @@ class BaseEventConsumer(ABC):
 
     def __init__(self, name):
         self.logger = logger.get_logger(name)
-        self.aws_session = aioboto3.Session()
+        self.aws_session = aioboto3.Session(region_name=settings.events.aws_region)
         self.sqs = None
         self.run_polling = False
 
@@ -112,12 +112,12 @@ class BaseEventConsumer(ABC):
                         self.logger.warning("Delaying event due to being too early", extra={
                             "queue_url": queue_url,
                             "error": str(ex),
-                            "visibility_timeout": config.SQS_EVENT_VISIBILITY_TIMEOUT
+                            "visibility_timeout": settings.events.sqs_event_visibility_timeout
                         })
                         await sqs_client.change_message_visibility(
                             QueueUrl=queue_url,
                             ReceiptHandle=last_receipt_handle,
-                            VisibilityTimeout=config.SQS_EVENT_VISIBILITY_TIMEOUT
+                            VisibilityTimeout=settings.events.sqs_event_visibility_timeout
                         )
                     except Exception as e:
                         self.logger.error(f"Failed to poll or process message, url {queue_url}", exc_info=e,
@@ -136,8 +136,8 @@ class BaseEventConsumer(ABC):
 class GameEventConsumer(BaseEventConsumer):
     def __init__(self, pururu_handler: PururuHandler):
         super().__init__(__name__)
-        self.queue_url = config.GAME_EVENTS_QUEUE_URL
-        self.polling_time = config.EVENTS_POLLING_INTERVAL
+        self.queue_url = settings.events.game_events_queue_url
+        self.polling_time = settings.events.events_polling_interval
         self.pururu_handler = pururu_handler
 
     async def start_polling(self):
@@ -165,8 +165,8 @@ class GameEventConsumer(BaseEventConsumer):
 class PollEventConsumer(BaseEventConsumer):
     def __init__(self, pururu_handler: PururuHandler):
         super().__init__(__name__)
-        self.queue_url = config.POLL_EVENTS_QUEUE_URL
-        self.polling_time = config.EVENTS_POLLING_INTERVAL
+        self.queue_url = settings.events.poll_events_queue_url
+        self.polling_time = settings.events.events_polling_interval
         self.pururu_handler = pururu_handler
 
     async def start_polling(self):
