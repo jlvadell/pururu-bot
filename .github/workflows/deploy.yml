@@ -11,20 +11,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup production environment
-      env:
-        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-        GS_ATTENDANCE_PLAYER_MAPPING: ${{ secrets.GS_ATTENDANCE_PLAYER_MAPPING }}
-        GUILD_ID: ${{ secrets.GUILD_ID }}
-        PLAYERS: ${{ secrets.PLAYERS }}
-        SPREADSHEET_CREDS: ${{ secrets.SPREADSHEET_CREDS }}
-        SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
-      run: | 
-        chmod +x scripts/build_prod_env.sh
-        sh scripts/build_prod_env.sh
-        mv google_creds.json src/pururu/google_creds.json
-        mv production.properties src/pururu/.env.production
-
     - name: Inject production version into __version__.py
       run: |
         TAG=$(git describe --tags --abbrev=0)
@@ -50,5 +36,5 @@ jobs:
           docker build -t pururu-bot .
           docker stop pururu-bot || true
           docker rm pururu-bot || true
-          docker run -d --name pururu-bot pururu-bot
+          docker run -d --name pururu-bot -v /home/${{ secrets.EC2_USER }}/config:/home/nonroot/app/config pururu-bot
         EOF
