@@ -2,9 +2,9 @@ import json
 
 import boto3
 
-import pururu.config as config
 from pururu.common import logger
 from pururu.common.exceptions import SNSPublishException
+from pururu.config import settings
 from pururu.domain.entities import BotEvent
 from pururu.domain.services.event_service import EventService
 
@@ -12,8 +12,8 @@ from pururu.domain.services.event_service import EventService
 class SNSEventServiceAdapter(EventService):
     def __init__(self):
         self.logger = logger.get_logger(__name__)
-        self.sns = boto3.client("sns")
-        self.topic_arn = config.SNS_TOPIC_ARN
+        self.sns = boto3.client("sns", region_name=settings.events.aws_region, endpoint_url=settings.events.aws_endpoint_url)
+        self.topic_arn = settings.events.sns_topic_arn
 
     def publish(self, event: BotEvent) -> None:
         """

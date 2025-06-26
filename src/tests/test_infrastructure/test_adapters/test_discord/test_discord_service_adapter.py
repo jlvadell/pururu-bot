@@ -10,7 +10,7 @@ from pururu.common.exceptions import DiscordServiceException
 from tests.test_domain.test_entities import message, poll
 
 
-@patch('pururu.config.GUILD_ID', 123456)
+@patch('pururu.config.settings.discord.guild_id', 123456)
 def set_up(async_mock = False):
     mock_bot = AsyncMock(name='async_bot') if async_mock else Mock(name='sync_bot')
     dc_service = DiscordServiceAdapter(mock_bot)

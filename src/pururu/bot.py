@@ -1,11 +1,12 @@
 import asyncio
 import signal
 
-import pururu.config as config
 from pururu.application.events.event_consumers import GameEventConsumer, PollEventConsumer
 from pururu.application.scheluders.timed_jobs import ScheduledJobs
 from pururu.application.services.pururu_handler import PururuHandler
+from pururu.application.watchers.config_watcher import ConfigFilesWatcher
 from pururu.common import logger, utils
+from pururu.config import settings
 from pururu.domain.services.pururu_service import PururuService
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
 from pururu.infrastructure.adapters.discord.discord_service_adapter import DiscordServiceAdapter
@@ -23,6 +24,7 @@ class Application:
         self.discord_service = None
         self.discord_bot = None
         self.scheduler = None
+        self.config_watcher = None
         self.game_event_consumer = None
         self.poll_event_consumer = None
         self.tasks = []
@@ -36,7 +38,8 @@ class Application:
         self.event_emitter_service = SNSEventServiceAdapter()
 
         # Google Sheet - Database service implementation
-        self.db_service = GoogleSheetsAdapter(config.GOOGLE_SHEETS_CREDENTIALS, config.SPREADSHEET_ID)
+        self.db_service = GoogleSheetsAdapter(settings.secrets.google_sheets_credentials,
+                                              settings.secrets.spreadsheet_id)
 
         # Domain service
         self.pururu_service = PururuService(self.db_service)
@@ -46,6 +49,9 @@ class Application:
 
         # Scheduled Jobs
         self.scheduler = ScheduledJobs(self.pururu_handler)
+
+        # watchers
+        self.config_watcher = ConfigFilesWatcher(self.pururu_handler)
 
         # Event Consumers
         self.game_event_consumer = GameEventConsumer(self.pururu_handler)
@@ -60,6 +66,7 @@ class Application:
         # Additional wiring
         self.pururu_service.set_discord_service(self.discord_service)
         self.scheduler.start()
+        self.config_watcher.start_config_watcher()
 
         # start async processes
         try:
@@ -70,7 +77,7 @@ class Application:
                                                name="PollEventConsumer_polling")
                 self.tasks.append(game_consumer)
                 self.tasks.append(poll_consumer)
-                await self.discord_bot.start(config.DISCORD_TOKEN)
+                await self.discord_bot.start(settings.secrets.discord_token)
         except asyncio.CancelledError:
             await self.shutdown()
             raise
@@ -87,6 +94,9 @@ class Application:
         if self.scheduler:
             self.scheduler.stop()
             self.logger.info("Scheduler stopped")
+        if self.config_watcher:
+            self.config_watcher.stop_config_watcher()
+            self.logger.info("Config watcher stopped")
         await self.discord_bot.close()
         self.logger.info("Discord connection closed")
         self.logger.info("Application stopped")
@@ -98,7 +108,7 @@ if __name__ == '__main__':
     asyncio.set_event_loop(loop)
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
-            loop.add_signal_handler(sig, app.shutdown)
+            loop.add_signal_handler(sig, lambda: asyncio.ensure_future(app.shutdown))
         except NotImplementedError:
             """Handle NotImplementedError on Windows"""
             pass

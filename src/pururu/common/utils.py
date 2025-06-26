@@ -1,6 +1,6 @@
 from datetime import datetime
 
-import pururu.config as config
+from pururu.__version__ import get_version
 
 FORMATTED_TIME_STR = '%Y-%m-%d %H:%M:%S'
 
@@ -18,8 +18,9 @@ a88aaaa8P' dP    dP 88d888b. dP    dP 88d888b. dP    dP          88d888b. .d8888
  88        88.  .88 88       88.  .88 88       88.  .88          88.  .88 88.  .88   88   
  dP        `88888P' dP       `88888P' dP       `88888P'          88Y8888' `88888P'   dP   
 oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-                Pururu Bot - Version {config.APP_VERSION}
+                Pururu Bot - Version {get_version()}
 """
+
 
 def get_current_time_formatted() -> str:
     """

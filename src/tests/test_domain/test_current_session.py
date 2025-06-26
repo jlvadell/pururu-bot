@@ -154,7 +154,7 @@ def test_get_player_time_no_player_data():
     assert_that(actual_player_time, equal_to(expected_player_time))
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 2)
+@patch("pururu.config.settings.general.min_attendance_members", 2)
 def test_should_start_new_game_true():
     # Given
     current_session = CurrentSession()
@@ -166,7 +166,7 @@ def test_should_start_new_game_true():
     assert_that(actual_should_start_new_game, equal_to(True))
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 2)
+@patch("pururu.config.settings.general.min_attendance_members", 2)
 def test_should_start_new_game_false_game_already_going():
     # Given
     current_session = CurrentSession()
@@ -178,7 +178,7 @@ def test_should_start_new_game_false_game_already_going():
     assert_that(actual_should_start_new_game, equal_to(False))
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.settings.general.min_attendance_members", 3)
 def test_should_start_new_game_false_not_enough_players():
     # Given
     current_session = CurrentSession()
@@ -190,7 +190,7 @@ def test_should_start_new_game_false_not_enough_players():
     assert_that(actual_should_start_new_game, equal_to(False))
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.settings.general.min_attendance_members", 3)
 def test_should_end_game_true():
     # Given
     current_session = CurrentSession()
@@ -202,7 +202,7 @@ def test_should_end_game_true():
     assert_that(actual_should_end_game, equal_to(True))
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
+@patch("pururu.config.settings.general.min_attendance_members", 3)
 def test_should_end_game_false_theres_no_game():
     # Given
     current_session = CurrentSession()
@@ -214,7 +214,7 @@ def test_should_end_game_false_theres_no_game():
     assert_that(actual_should_end_game, equal_to(False))
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 1)
+@patch("pururu.config.settings.general.min_attendance_members", 1)
 def test_should_end_game_false_too_many_players():
     # Given
     current_session = CurrentSession()

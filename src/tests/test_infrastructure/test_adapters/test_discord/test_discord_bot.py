@@ -16,7 +16,7 @@ def set_up(pururu_handler_mock):
     return discord_bot
 
 
-@patch('pururu.config.GUILD_ID', 123456)
+@patch('pururu.config.settings.discord.guild_id', 123456)
 @pytest.mark.asyncio
 @patch.object(PururuDiscordBot, 'setup_commands', new_callable=AsyncMock)
 @patch.object(discord.app_commands.CommandTree, 'clear_commands', new_callable=AsyncMock)
@@ -73,9 +73,9 @@ async def test_on_voice_state_update_ok():
 # SLASH COMMAND HANDLER TESTS
 # ------------------------------
 
-@patch('pururu.config.APP_VERSION', '1.0.0')
+@patch('pururu.infrastructure.adapters.discord.discord_bot.get_version', return_value='v1.0.0')
 @pytest.mark.asyncio
-async def test_ping_command_ok():
+async def test_ping_command_ok(get_Version_mock):
     # Given
     discord_bot = set_up()
     discord_bot.setup_commands()

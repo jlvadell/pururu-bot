@@ -1,9 +1,11 @@
 import datetime
+import json
 import logging
 import sys
-import pururu.config as config
-import json
+
+from pururu.__version__ import get_version
 from pururu.common import utils
+from pururu.config import settings
 
 _APP_LOGGER_NAME = "pururu"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -18,7 +20,7 @@ class JSONFormatter(logging.Formatter):
             "level": record.levelname,
             "source": record.name,
             "message": record.getMessage(),
-            "app_version": config.APP_VERSION,
+            "app_version": get_version()
         }
 
         # Include all promoted fields from record (extra fields injected)
@@ -47,7 +49,7 @@ def setup_logging():
     if _initialized:
         return
 
-    if config.LOG_FORMAT_JSON:
+    if settings.general.log_format_json:
         formatter = JSONFormatter(datefmt=_DATE_FORMAT)
     else:
         formatter = logging.Formatter(
@@ -59,15 +61,21 @@ def setup_logging():
     handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(config.LOG_LEVEL)
+    root_logger.setLevel(settings.general.log_level)
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
 
     for name in list(logging.root.manager.loggerDict):
         if not name.startswith(_APP_LOGGER_NAME):
-            logging.getLogger(name).setLevel(config.THIRD_PARTY_DEFAULT_LOG_LEVEL)
+            logging.getLogger(name).setLevel(settings.general.third_party_default_log_level)
 
     _initialized = True
+
+
+def reset_logging():
+    global _initialized
+    _initialized = False  # allow re-run of setup_logging()
+    setup_logging()
 
 def get_logger(name: str) -> logging.Logger:
     setup_logging()

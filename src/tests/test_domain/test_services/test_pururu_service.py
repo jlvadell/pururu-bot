@@ -68,8 +68,8 @@ def test_calculate_player_stats_ok(member_stats: MemberStats):
     service.current_session.assert_not_called()
 
 
-@patch("pururu.config.DISCORD_EVENT_LOG_ENABLED", True)
-@patch("pururu.config.DISCORD_EVENT_LOG_CHANNEL_ID", 123456)
+@patch("pururu.config.settings.general.discord_event_log_enabled", True)
+@patch("pururu.config.settings.discord.discord_event_log_channel_id", 123456)
 def test_register_bot_event_when_log_enabled():
     # Given
     service = set_up()
@@ -87,7 +87,7 @@ def test_register_bot_event_when_log_enabled():
     service.database_service.assert_not_called()
 
 
-@patch("pururu.config.DISCORD_EVENT_LOG_ENABLED", False)
+@patch("pururu.config.settings.general.discord_event_log_enabled", False)
 def test_register_bot_event_when_log_enabled():
     # Given
     service = set_up()
@@ -201,9 +201,9 @@ def test_end_game_conditions_not_met():
     service.database_service.assert_not_called()
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
-@patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
+@patch("pururu.config.settings.general.min_attendance_members", 3)
+@patch("pururu.config.settings.general.players", {"member1": {}, "member2": {}, "member3": {}, "member4": {}})
+@patch("pururu.config.settings.general.min_attendance_time", 60)
 @patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10 10:00:00")
 def test_end_game_not_enough_player_attendance(utils_mock):
     # Given
@@ -217,9 +217,9 @@ def test_end_game_not_enough_player_attendance(utils_mock):
     service.database_service.assert_not_called()
 
 
-@patch("pururu.config.MIN_ATTENDANCE_MEMBERS", 3)
-@patch("pururu.config.PLAYERS", ["member1", "member2", "member3", "member4"])
-@patch("pururu.config.MIN_ATTENDANCE_TIME", 60)
+@patch("pururu.config.settings.general.min_attendance_members", 3)
+@patch("pururu.config.settings.general.players", {"member1": {}, "member2": {}, "member3": {}, "member4": {}})
+@patch("pururu.config.settings.general.min_attendance_time", 60)
 @patch("pururu.common.utils.get_current_time_formatted", return_value="2023-08-10")
 def test_end_game_ok(utils_mock):
     # Given

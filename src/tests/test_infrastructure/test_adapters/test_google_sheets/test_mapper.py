@@ -37,7 +37,7 @@ def test_clocking_to_sheet(clocking: Clocking, clocking_sheet: ClockingSheet):
 
 
 @pytest.mark.usefixtures("attendance_sheet", "attendance")
-@patch("pururu.config.GS_ATTENDANCE_PLAYER_MAPPING", {"member1": "C", "member2": "F", "member3": "I"})
+@patch("pururu.config.settings.google_sheets.attendance_player_mapping", {"member1": "C", "member2": "F", "member3": "I"})
 def test_sheet_to_attendance(attendance_sheet: AttendanceSheet, attendance: Attendance):
     actual = mapper.sheet_to_attendance(attendance_sheet)
     assert_that(actual.game_id, equal_to(attendance.game_id))
@@ -51,7 +51,7 @@ def test_sheet_to_attendance(attendance_sheet: AttendanceSheet, attendance: Atte
 
 
 @pytest.mark.usefixtures("attendance_sheet")
-@patch("pururu.config.GS_ATTENDANCE_PLAYER_MAPPING", {"member1": "C", "member2": "F", "member3": "I"})
+@patch("pururu.config.settings.google_sheets.attendance_player_mapping", {"member1": "C", "member2": "F", "member3": "I"})
 def test_gs_to_attendance_sheet(attendance_sheet: AttendanceSheet):
     row = attendance_sheet.to_row_values()
     actual = mapper.gs_to_attendance_sheet(attendance_sheet.game_id, row)
@@ -64,7 +64,7 @@ def test_gs_to_attendance_sheet(attendance_sheet: AttendanceSheet):
 
 
 @pytest.mark.usefixtures("attendance_sheet")
-@patch("pururu.config.GS_ATTENDANCE_PLAYER_MAPPING", {"member1": "C", "member2": "F", "member3": "I"})
+@patch("pururu.config.settings.google_sheets.attendance_player_mapping", {"member1": "C", "member2": "F", "member3": "I"})
 def test_gs_to_attendance_sheet_empty_motive_column(attendance_sheet: AttendanceSheet):
     row = attendance_sheet.to_row_values()
     row.pop()

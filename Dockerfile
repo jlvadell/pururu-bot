@@ -20,7 +20,7 @@ USER nonroot
 WORKDIR /home/nonroot/app
 
 # set environment variables
-ENV APP_ENV=production
+ENV PURURU_APP_ENV=production
 ENV PYTHONPATH="${PYTHONPATH}:/home/nonroot/app/src"
 
 # Install requirements

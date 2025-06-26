@@ -160,7 +160,7 @@ async def test_base_event_consumer_deserialize_event_exception():
         consumer._deserialize_event(message)
 
 
-@patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
+@patch('pururu.config.settings.events.game_events_queue_url', "test_queue_url")
 @patch('pururu.application.events.event_consumers.aioboto3')
 @pytest.mark.asyncio
 async def test_start_generic_polling(mock_aioboto3):
@@ -222,8 +222,8 @@ async def test_start_generic_polling(mock_aioboto3):
     )
 
 
-@patch('pururu.config.GAME_EVENTS_QUEUE_URL', "test_queue_url")
-@patch('pururu.config.SQS_EVENT_VISIBILITY_TIMEOUT', 30)
+@patch('pururu.config.settings.events.game_events_queue_url', "test_queue_url")
+@patch('pururu.config.settings.events.sqs_event_visibility_timeout', 30)
 @patch('pururu.application.events.event_consumers.aioboto3')
 @pytest.mark.asyncio
 async def test_handle_event_too_early_exception(mock_aioboto3):
