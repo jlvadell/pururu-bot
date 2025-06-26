@@ -209,6 +209,21 @@ class PururuHandler:
         self.__emit_event(CheckExpiredPollsEvent())
 
     # ---------------------------
+    # WATCHDOG EVENTS
+    # ---------------------------
+    def on_configuration_files_changed(self) -> None:
+        """
+        Handles the configuration files changed event.
+        This method is called when the configuration files are changed.
+        :return: None
+        """
+        self.logger.debug("Reloading settings")
+        settings.reload()
+        self.logger.debug("Recreating logger with new settings")
+        logger.reset_logging()
+        self.logger.debug("Settings reloaded successfully")
+
+    # ---------------------------
     # PRIVATE METHODS
     # ---------------------------
     def __emit_event(self, event: PururuEvent) -> None:

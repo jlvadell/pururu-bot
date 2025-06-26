@@ -1,3 +1,4 @@
+from unittest import mock
 from unittest.mock import patch, AsyncMock
 
 import pytest
@@ -306,3 +307,15 @@ def test_trigger_check_expired_polls_flow():
     pururu_handler.event_service.publish.assert_called_once()
     event = pururu_handler.event_service.publish.call_args[0][0]
     assert_that(event.event_type, equal_to(EventType.CHECK_EXPIRED_POLLS.value))
+
+
+@patch("pururu.common.logger.reset_logging")
+@patch("pururu.config.settings.reload")
+def test_on_configuration_files_changed(reload_mock, reset_logging_mock):
+    # Given
+    pururu_handler = set_up()
+    # When
+    pururu_handler.on_configuration_files_changed()
+    # Then
+    reset_logging_mock.assert_called_once()
+    reload_mock.assert_called_once()

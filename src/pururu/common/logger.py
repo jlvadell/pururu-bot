@@ -72,6 +72,11 @@ def setup_logging():
     _initialized = True
 
 
+def reset_logging():
+    global _initialized
+    _initialized = False  # allow re-run of setup_logging()
+    setup_logging()
+
 def get_logger(name: str) -> logging.Logger:
     setup_logging()
     return logging.getLogger(name)

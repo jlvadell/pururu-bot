@@ -4,6 +4,7 @@ import signal
 from pururu.application.events.event_consumers import GameEventConsumer, PollEventConsumer
 from pururu.application.scheluders.timed_jobs import ScheduledJobs
 from pururu.application.services.pururu_handler import PururuHandler
+from pururu.application.watchers.config_watcher import ConfigFilesWatcher
 from pururu.common import logger, utils
 from pururu.config import settings
 from pururu.domain.services.pururu_service import PururuService
@@ -23,6 +24,7 @@ class Application:
         self.discord_service = None
         self.discord_bot = None
         self.scheduler = None
+        self.config_watcher = None
         self.game_event_consumer = None
         self.poll_event_consumer = None
         self.tasks = []
@@ -48,6 +50,9 @@ class Application:
         # Scheduled Jobs
         self.scheduler = ScheduledJobs(self.pururu_handler)
 
+        # watchers
+        self.config_watcher = ConfigFilesWatcher(self.pururu_handler)
+
         # Event Consumers
         self.game_event_consumer = GameEventConsumer(self.pururu_handler)
         self.poll_event_consumer = PollEventConsumer(self.pururu_handler)
@@ -61,6 +66,7 @@ class Application:
         # Additional wiring
         self.pururu_service.set_discord_service(self.discord_service)
         self.scheduler.start()
+        self.config_watcher.start_config_watcher()
 
         # start async processes
         try:
@@ -88,6 +94,9 @@ class Application:
         if self.scheduler:
             self.scheduler.stop()
             self.logger.info("Scheduler stopped")
+        if self.config_watcher:
+            self.config_watcher.stop_config_watcher()
+            self.logger.info("Config watcher stopped")
         await self.discord_bot.close()
         self.logger.info("Discord connection closed")
         self.logger.info("Application stopped")
