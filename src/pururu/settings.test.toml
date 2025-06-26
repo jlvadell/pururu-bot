@@ -32,7 +32,8 @@
     sqs_event_visibility_timeout = 120 # 2 minutes
     events_polling_interval = 20 # seconds
     sns_topic_arn = "arn:aws:sns:eu-west-1:000000000000:pururu_test_topic.fifo"
-    aws_endpoint_url = "http://localhost:4566"
+    aws_sns_endpoint_url = "http://localhost:4566"
+    aws_sqs_endpoint_url = "http://localhost:4566"
     aws_region = "eu-west-1"
 
 # ----------------------------------------

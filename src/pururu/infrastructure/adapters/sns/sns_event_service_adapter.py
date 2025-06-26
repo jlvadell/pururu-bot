@@ -12,7 +12,7 @@ from pururu.domain.services.event_service import EventService
 class SNSEventServiceAdapter(EventService):
     def __init__(self):
         self.logger = logger.get_logger(__name__)
-        self.sns = boto3.client("sns", region_name=settings.events.aws_region, endpoint_url=settings.events.aws_endpoint_url)
+        self.sns = boto3.client("sns", region_name=settings.events.aws_region, endpoint_url=settings.events.aws_sns_endpoint_url)
         self.topic_arn = settings.events.sns_topic_arn
 
     def publish(self, event: BotEvent) -> None:
