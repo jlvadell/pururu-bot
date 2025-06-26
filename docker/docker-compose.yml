@@ -1,0 +1,22 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      - SERVICES=sns,sqs
+      - DEBUG=1
+      - LOCALSTACK_HOST=localhost
+      - AWS_DEFAULT_REGION=eu-west-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+
+      # Named resources
+      - SNS_TOPIC_NAME=pururu_test_topic.fifo
+      - SQS_GAME_QUEUE_NAME=pururu_test_game_queue
+      - SQS_POLL_QUEUE_NAME=pururu_test_poll_queue
+    volumes:
+      - ./localstack:/etc/localstack/init/ready.d
+      - /var/run/docker.sock:/var/run/docker.sock

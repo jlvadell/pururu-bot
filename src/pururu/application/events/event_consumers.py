@@ -79,7 +79,7 @@ class BaseEventConsumer(ABC):
         self.run_polling = True
         last_receipt_handle = None
         try:
-            async with self.aws_session.client("sqs") as sqs_client:
+            async with self.aws_session.client("sqs", endpoint_url=settings.events.aws_endpoint_url) as sqs_client:
                 self.sqs = sqs_client
                 while self.run_polling:
                     try:
