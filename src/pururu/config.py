@@ -3,6 +3,7 @@ from dynaconf import Dynaconf
 settings = Dynaconf(
     envvar_prefix="PURURU",
     settings_files=[
+        "src/pururu/settings.test.toml",
         "pururu/settings.test.toml",
         "pururu/settings.local.toml",
         "pururu/.secrets.local.toml",
