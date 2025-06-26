@@ -1,8 +1,8 @@
-[test]
+[default]
 # ----------------------------------------
 # General Logging & Attendance Config
 # ----------------------------------------
-[test.general]
+[default.general]
     third_party_default_log_level = "WARNING"
     log_level = "DEBUG"
     attendance_check_delay = 10
@@ -10,23 +10,23 @@
     min_attendance_members = 1
     log_format_json = false # use JSON format for logs; required for Grafana Loki
     discord_event_log_enabled = false # send messages to Discord event log channel
-    [test.general.players]
-      [test.general.players.player1]
+    [default.general.players]
+      [default.general.players.player1]
       discord_uid = 123
       is_admin = false
 
-      [test.general.players.player2]
+      [default.general.players.player2]
       discord_uid = 456
       is_admin = false
 
-      [test.general.players.player3]
+      [default.general.players.player3]
       discord_uid = 789
       is_admin = true
 
 # ----------------------------------------
 # Event settings
 # ----------------------------------------
-[test.events]
+[default.events]
     game_events_queue_url = "http://sqs.eu-west-1.localhost:4566/000000000000/pururu_test_game_queue.fifo"
     poll_events_queue_url = "http://sqs.eu-west-1.localhost:4566/000000000000/pururu_test_poll_queue.fifo"
     sqs_event_visibility_timeout = 120 # 2 minutes
@@ -38,19 +38,19 @@
 # ----------------------------------------
 # Discord Bot Config
 # ----------------------------------------
-[test.discord]
+[default.discord]
     guild_id = 123456
     discord_event_log_channel_id = 789012
 
 # ----------------------------------------
 # Google Sheets Adapter
 # ----------------------------------------
-[test.google_sheets]
+[default.google_sheets]
     # circuit breaker settings
     failure_threshold = 5
     recovery_timeout = 10
 
-    [test.google_sheets.attendance_player_mapping]
+    [default.google_sheets.attendance_player_mapping]
     player1 = "C"
     player2 = "F"
     player3 = "I"
@@ -58,7 +58,7 @@
 # ----------------------------------------
 # Secrets
 # ----------------------------------------
-[test.secrets]
+[default.secrets]
 discord_token = "your_discord_token_here"
 google_sheets_credentials = "your_google_sheets_credentials_path_here"
 spreadsheet_id = "your_spreadsheet_id_here"
