@@ -86,7 +86,7 @@ jobs:
             -v "${CONFIG_DIR}:/home/nonroot/app/config:ro" \
             -v "${DATA_VOLUME}:/home/nonroot/app/data" \
             -v "${APP_HOME}/.aws:/home/nonroot/.aws:ro" \
-            "${APP_NAME}:${{ steps.ver.outputs.version }}"
+            "${APP_NAME}:${{ steps.ver.outputs.tag }}"
 
     - name: Clean old images
       run: docker image prune -f
