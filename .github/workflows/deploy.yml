@@ -1,40 +1,92 @@
-name: Deploy EC2
+name: Deploy RPI
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        description: What do you want to do?
+        options:
+          - build_and_deploy
+          - restart_only
+        default: build_and_deploy
+      version_tag:
+        type: string
+        description: Optional tag to use (fallbacks to git ref or a manual timestamp)
+        required: false
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+
+    env:
+      APP_NAME: pururu-bot
+      APP_HOME: /home/jlvadell/pururu/
+      APP_DIR: /home/jlvadell/pururu/app
+      CONFIG_DIR: /home/jlvadell/pururu/config
+      DATA_VOLUME: pururu_data
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Inject production version into __version__.py
+    - name: Compute version
+      id: ver
       run: |
-        TAG=$(git describe --tags --abbrev=0)
-        BUILD_TIME=$(date -u +%Y%m%d%H%M%S)
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          TAG="${{ inputs.version_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="manual-$(date -u +%Y%m%d%H%M%S)"
+          fi
+        else
+          TAG="${GITHUB_REF_NAME}"
+        fi
+
+        BUILD_TIME="$(date -u +%Y%m%d%H%M%S)"
         FINAL_VERSION="${TAG}+${BUILD_TIME}"
-      
-        echo "Injecting production version: $FINAL_VERSION"
-        sed -i "s|__version__ = \"undefined\"|__version__ = \"${FINAL_VERSION}\"|" src/pururu/__version__.py
 
-    - name: Load EC2 Key
-      run: |
-        echo "${{ secrets.EC2_KEY }}" | base64 -d > /tmp/ssh_key
-        chmod 700 /tmp/ssh_key
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "version=$FINAL_VERSION" >> $GITHUB_OUTPUT
+        echo "Computed version: $FINAL_VERSION"
 
-    - name: Sync project files to EC2
+    - name: Inject production version into __version__.py
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'restart_only' }}
       run: |
-        rsync -avL --progress -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key" ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
+        sed -i 's|__version__ = "undefined"|__version__ = "'"${{ steps.ver.outputs.version }}"'"|' src/pururu/__version__.py
+        grep '__version__' src/pururu/__version__.py || true
 
-    - name: Deploy on EC2
+    - name: Ensure data volume exists
       run: |
-        ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          cd /home/${{ secrets.EC2_USER }}/app/
-          docker build -t pururu-bot .
-          docker stop pururu-bot || true
-          docker rm pururu-bot || true
-          docker run -d --name pururu-bot -v /home/${{ secrets.EC2_USER }}/config:/home/nonroot/app/config pururu-bot
-        EOF
+        docker volume create "${DATA_VOLUME}" >/dev/null
+
+    - name: Sync project into APP_DIR
+      run: |
+        rsync -a --delete ./ "${APP_DIR}/"
+
+    - name: Build Docker image
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'build_and_deploy' }}
+      working-directory: ${{ env.APP_DIR }}
+      run: |
+        docker build \
+          --pull \
+          -t "${APP_NAME}:${{ steps.ver.outputs.version }}" \
+          -t "${APP_NAME}:latest" \
+          --label "org.opencontainers.image.version=${{ steps.ver.outputs.version }}" \
+          --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+          .
+
+    - name: Restart container
+      working-directory: ${{ env.APP_DIR }}
+      run: |
+        docker rm -f "${APP_NAME}" 2>/dev/null || true
+        docker run -d \
+            --name "${APP_NAME}" \
+            --restart unless-stopped \
+            -v "${CONFIG_DIR}:/home/nonroot/app/config:ro" \
+            -v "${DATA_VOLUME}:/home/nonroot/app/data" \
+            -v "${APP_HOME}/.aws:/home/nonroot/.aws:ro" \
+            "${APP_NAME}:${{ steps.ver.outputs.version }}"
+
+    - name: Clean old images
+      run: docker image prune -f
