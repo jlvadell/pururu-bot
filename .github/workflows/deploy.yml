@@ -51,7 +51,7 @@ jobs:
         echo "Computed version: $FINAL_VERSION"
 
     - name: Inject production version into __version__.py
-      if: ${{ inputs.mode != 'restart_only' || github.event_name != 'workflow_dispatch' }}
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'restart_only' }}
       run: |
         sed -i 's|__version__ = "undefined"|__version__ = "'"${{ steps.ver.outputs.version }}"'"|' src/pururu/__version__.py
         grep '__version__' src/pururu/__version__.py || true
