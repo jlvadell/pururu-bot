@@ -70,9 +70,9 @@ jobs:
       run: |
         docker build \
           --pull \
-          -t "${APP_NAME}:${{ steps.ver.outputs.version }}" \
+          -t "${APP_NAME}:${{ steps.ver.outputs.tag }}" \
           -t "${APP_NAME}:latest" \
-          --label "org.opencontainers.image.version=${{ steps.ver.outputs.version }}" \
+          --label "org.opencontainers.image.version=${{ steps.ver.outputs.tag }}" \
           --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
           .
 
