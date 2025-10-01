@@ -1,13 +1,13 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from pururu.application.handlers.background_event_handler import BackgroundEventHandler
 from pururu.common import logger
-from pururu.application.services.pururu_handler import PururuHandler
 
 
 class ScheduledJobs:
-    def __init__(self, pururu_handler: PururuHandler):
+    def __init__(self, event_handler: BackgroundEventHandler):
         self.scheduler = BackgroundScheduler()
-        self.pururu_handler = pururu_handler
+        self.event_handler = event_handler
         self.logger = logger.get_logger(__name__)
 
         # ------------------------------------
@@ -38,4 +38,4 @@ class ScheduledJobs:
         :return: None
         """
         self.logger.debug("Triggering check expired polls flow")
-        self.pururu_handler.trigger_check_expired_polls_flow()
+        self.event_handler.trigger_check_expired_polls_flow()
