@@ -1,0 +1,83 @@
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
+from hamcrest import assert_that, instance_of
+
+from pururu.application.handlers.discord_event_handler import DiscordEventHandler
+from pururu.domain.messaging.events.session_events import PlayerJoinedSessionEvent, PlayerLeftSessionEvent
+
+
+@pytest.fixture
+def mock_event_bus():
+    """Create a mock EventBus for testing"""
+    return MagicMock()
+
+
+@pytest.fixture
+def handler(mock_event_bus):
+    """Create a DiscordEventHandler instance with mocked dependencies"""
+    return DiscordEventHandler(mock_event_bus)
+
+
+# Test handle_on_voice_state_update_event
+@pytest.mark.unit
+@patch('pururu.application.handlers.discord_event_handler.settings')
+@patch('pururu.application.handlers.discord_event_handler.datetime')
+def test_handle_voice_state_update_player_joined(mock_datetime, mock_settings, handler, mock_event_bus):
+    # Arrange
+    mock_settings.general.players.keys.return_value = ["player1", "player2"]
+    fixed_time = datetime(2025, 10, 1, 12, 0, 0)
+    mock_datetime.now.return_value = fixed_time
+
+    # Act
+    handler.handle_on_voice_state_update_event("123", "player1", None, "voice-channel")
+
+    # Assert
+    mock_event_bus.publish.assert_called_once()
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(PlayerJoinedSessionEvent))
+
+
+@pytest.mark.unit
+@patch('pururu.application.handlers.discord_event_handler.settings')
+@patch('pururu.application.handlers.discord_event_handler.datetime')
+def test_handle_voice_state_update_player_left(mock_datetime, mock_settings, handler, mock_event_bus):
+    # Arrange
+    mock_settings.general.players.keys.return_value = ["player1", "player2"]
+    fixed_time = datetime(2025, 10, 1, 12, 0, 0)
+    mock_datetime.now.return_value = fixed_time
+
+    # Act
+    handler.handle_on_voice_state_update_event("123", "player1", "voice-channel", None)
+
+    # Assert
+    mock_event_bus.publish.assert_called_once()
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(PlayerLeftSessionEvent))
+
+
+@pytest.mark.unit
+@patch('pururu.application.handlers.discord_event_handler.settings')
+def test_handle_voice_state_update_channel_switch_ignored(mock_settings, handler, mock_event_bus):
+    # Arrange
+    mock_settings.general.players.keys.return_value = ["player1", "player2"]
+
+    # Act
+    handler.handle_on_voice_state_update_event("123", "player1", "channel1", "channel2")
+
+    # Assert
+    mock_event_bus.publish.assert_not_called()
+
+
+@pytest.mark.unit
+@patch('pururu.application.handlers.discord_event_handler.settings')
+def test_handle_voice_state_update_non_tracked_player(mock_settings, handler, mock_event_bus):
+    # Arrange
+    mock_settings.general.players.keys.return_value = ["player1", "player2"]
+
+    # Act
+    handler.handle_on_voice_state_update_event("123", "unknown_player", None, "voice-channel")
+
+    # Assert
+    mock_event_bus.publish.assert_not_called()
