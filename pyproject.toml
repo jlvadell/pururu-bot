@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pururu"
+description = "Discord bot for managing attendance"
+authors = [
+    { name = "Jose Vadell", email = "me@jlvadell.com" }
+]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Other Audience",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+keywords = ["discord", "bot", "attendance", "management"]
+dynamic = ["version"]
+
+# Core dependencies
+dependencies = [
+    "discord.py~=2.5.2",
+    "google-auth~=2.34.0",
+    "gspread~=6.2.1",
+    "APScheduler~=3.11.0",
+    "boto3~=1.37.3",
+    "aioboto3~=14.3.0",
+    "dynaconf~=3.2.11",
+    "watchdog~=6.0.0",
+    "ulid-py~=1.1.0",
+    "sqlalchemy~=2.0.43",
+    "psycopg2~=2.9.10",
+]
+
+[project.optional-dependencies]
+# Development and testing dependencies
+dev = [
+    "pytest~=8.4.0",
+    "pytest-cov~=6.2.1",
+    "pytest-asyncio~=1.0.0",
+    "coverage~=7.9.1",
+    "pyhamcrest~=2.1.0",
+    "freezegun~=1.5.2",
+    "moto~=5.1.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/jlvadell/pururu-bot"
+Repository = "https://github.com/jlvadell/pururu-bot"
+Issues = "https://github.com/jlvadell/pururu-bot/issues"
+
+[project.scripts]
+pururu = "pururu.bot:main"
+test = "pytest:main --no-cov"
+test-unit = "pytest:main -m unit"
+test-integration = "pytest:main -m integration"
+coverage = "pytest:main --cov=src/pururu --cov-report=xml:coverage.xml --cov-report=term-missing"
+
+[tool.setuptools]
+packages = ["pururu"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "pururu.__version__.get_version"}
+
+# ============================================================================
+# Tool Configurations
+# ============================================================================
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+pythonpath = ["src"]
+addopts = "--cov=pururu --cov-report=xml:coverage.xml --cov-report=term-missing"
+asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src/pururu"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/*.json",
+    "*/*.toml",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
