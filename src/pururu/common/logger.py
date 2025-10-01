@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 import sys
@@ -26,22 +25,9 @@ class JSONFormatter(logging.Formatter):
         # Include all promoted fields from record (extra fields injected)
         for k, v in record.__dict__.items():
             if k not in log_record and not k.startswith("_") and not callable(v):
-                log_record[k] = self.serialize_item(v)
+                log_record[k] = utils.serialize(v)
 
         return json.dumps(log_record)
-
-    def serialize_item(self, item):
-        """ Serializes an item to a JSON-compatible format."""
-        if isinstance(item, (str, int, float, bool)):
-            return item
-        elif isinstance(item, dict):
-            return {k: self.serialize_item(v) for k, v in item.items()}
-        elif isinstance(item, list):
-            return [self.serialize_item(i) for i in item]
-        elif isinstance(item, datetime.datetime):
-            return utils.format_time(item)
-        else:
-            return str(item)
 
 
 def setup_logging():
@@ -65,7 +51,7 @@ def setup_logging():
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
 
-    for name in list(logging.root.manager.loggerDict):
+    for name in logging.root.manager.loggerDict:
         if not name.startswith(_APP_LOGGER_NAME):
             logging.getLogger(name).setLevel(settings.general.third_party_default_log_level)
 

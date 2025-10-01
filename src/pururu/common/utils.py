@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from pururu.__version__ import get_version
 
@@ -22,27 +23,41 @@ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 """
 
 
-def get_current_time_formatted() -> str:
+def serialize(value) -> any:
     """
-    Returns the current time in a formatted string, e.g. 2021-09-01 12:00:00
-    :return: str
+    Recursively converts a value to a JSON-serializable format.
+    Handles dicts, lists, datetime objects, and Enums.
+    :param value: value to convert
+    :return: serializable value
     """
-    return datetime.now().strftime(FORMATTED_TIME_STR)
+    if isinstance(value, dict):
+        return {k: serialize(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [serialize(v) for v in value]
+    elif isinstance(value, datetime):
+        return value.isoformat()
+    elif isinstance(value, Enum):
+        return value.value
+    else:
+        return value
 
 
-def format_time(time: datetime) -> str:
+def deserialize(field_type, value) -> any:
     """
-    Formats a datetime object into a string
-    :param time: datetime
-    :return: str
+    Recursively converts a JSON-serializable value back to its original type.
+    :param field_type: the expected type of the field
+    :param value: serialized value
+    :return: deserialized value
     """
-    return time.strftime(FORMATTED_TIME_STR)
-
-
-def parse_time(time: str) -> datetime:
-    """
-    Parses a string into a datetime object
-    :param time: str
-    :return: datetime
-    """
-    return datetime.strptime(time, FORMATTED_TIME_STR)
+    if value is None:
+        return None
+    elif field_type == datetime:
+        return datetime.fromisoformat(value)
+    elif hasattr(field_type, '__origin__') and field_type.__origin__ is list:
+        # Handle list types
+        inner_type = field_type.__args__[0] if field_type.__args__ else None
+        return [deserialize(inner_type, item) for item in value]
+    elif isinstance(field_type, type) and issubclass(field_type, Enum):
+        return field_type(value)
+    else:
+        return value
