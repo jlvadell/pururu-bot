@@ -166,7 +166,8 @@ class Application:
         self.logger.info("Application stopped")
 
 
-if __name__ == '__main__':
+def main():
+    """Main entry point for the application."""
     app = Application()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -182,3 +183,7 @@ if __name__ == '__main__':
         loop.run_until_complete(app.shutdown())
     finally:
         loop.close()
+
+
+if __name__ == '__main__':
+    main()
