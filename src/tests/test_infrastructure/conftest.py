@@ -49,21 +49,6 @@ def mock_postgres_pool():
     return mock_pool
 
 
-# AWS fixtures
-@pytest.fixture
-def mock_boto3_client():
-    """Create a mock boto3 client for AWS services"""
-    return MagicMock()
-
-
-@pytest.fixture
-def mock_sns_client():
-    """Create a mock AWS SNS client"""
-    mock = MagicMock()
-    mock.publish.return_value = {'MessageId': 'msg-123'}
-    return mock
-
-
 @pytest.fixture
 def mock_s3_client():
     """Create a mock AWS S3 client"""
