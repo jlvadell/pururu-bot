@@ -51,8 +51,8 @@ class PostgresSessionRepositoryImpl(SessionRepository):
 
     def find_active_session(self) -> Session | None:
         with OrmSession(self.postgres_engine) as orm_session:
-            record = orm_session.query(SessionRecord).filter(
-                SessionRecord.status == Status.DRAFT.value and SessionRecord.end_time == None).one_or_none()
+            record = orm_session.query(SessionRecord).filter(and_(
+                SessionRecord.status == Status.DRAFT.value, SessionRecord.end_time.is_(None))).one_or_none()
             if record:
                 return PostgresMapper.map_record_to_session(record)
             return None

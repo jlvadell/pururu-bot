@@ -32,8 +32,8 @@ class GoogleSheetsMapper:
              attended in player_attendance],
             [GoogleSheetsMapper._parse_bool_to_str(not attended and not player_session.justified_absence) for
              (attended, player_session) in zip(player_attendance, sorted_player_sessions)],
-            [player_session.motive for player_session in session.players],
-            session.get_official_start_time().date().isoformat(),
+            [player_session.motive for player_session in sorted_player_sessions],
+            session.get_official_start_time().date().isoformat() if session.get_official_start_time() is not None else "",
             GoogleSheetsMapper._parse_type_to_str(session.type)
         )
 

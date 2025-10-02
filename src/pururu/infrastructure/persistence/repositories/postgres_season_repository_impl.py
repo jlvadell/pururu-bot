@@ -14,7 +14,7 @@ class PostgresSeasonRepositoryImpl(SeasonRepository):
 
     def get_current_season(self) -> Season | None:
         with Session(self.postgres_engine) as session:
-            season = session.query(SeasonRecord).filter(SeasonRecord.end_date == None).one_or_none()
+            season = session.query(SeasonRecord).filter(SeasonRecord.end_date.is_(None)).one_or_none()
             if not season:
                 return None
             return PostgresMapper.map_record_to_season(season)
