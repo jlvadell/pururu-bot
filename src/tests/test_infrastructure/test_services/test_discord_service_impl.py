@@ -1,0 +1,158 @@
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from hamcrest import assert_that, equal_to, none, instance_of
+
+from pururu.domain.entities.poll import PollReference, Poll, PollResolutionType
+from pururu.domain.services.discord.discord_entities import SimpleMessage
+from pururu.infrastructure.services.discord_service_impl import DiscordServiceImpl
+
+
+@pytest.fixture
+def mock_discord_bot():
+    """Create a mock PururuDiscordBot"""
+    return MagicMock()
+
+
+@pytest.fixture
+def service(mock_discord_bot):
+    """Create a DiscordServiceImpl instance with mocked dependencies"""
+    return DiscordServiceImpl(mock_discord_bot)
+
+
+@pytest.fixture
+def simple_message():
+    """Create a sample SimpleMessage"""
+    return SimpleMessage(
+        channel_id="123456",
+        content="Test message content"
+    )
+
+
+@pytest.fixture
+def poll_reference():
+    """Create a sample PollReference"""
+    return PollReference(
+        id="987654",
+        channel_id="123456",
+        expires_at=datetime(2025, 10, 2, 12, 0, 0),
+        resolution_type=PollResolutionType.SEND_MESSAGE
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_send_simple_message_success(service, mock_discord_bot, simple_message):
+    """Test send_simple_message successfully sends message and returns with message_id"""
+    # Arrange
+    mock_channel = AsyncMock()
+    mock_sent_message = MagicMock()
+    mock_sent_message.id = 999888
+    mock_channel.send.return_value = mock_sent_message
+    mock_discord_bot.get_channel.return_value = mock_channel
+
+    # Act
+    result = await service.send_simple_message(simple_message)
+
+    # Assert
+    assert_that(result, instance_of(SimpleMessage))
+    assert_that(result.channel_id, equal_to("123456"))
+    assert_that(result.content, equal_to("Test message content"))
+    assert_that(result.id, equal_to(999888))  # Note: implementation sets .id not .message_id
+    mock_discord_bot.get_channel.assert_called_once_with(123456)
+    mock_channel.send.assert_called_once_with("Test message content")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_send_simple_message_channel_not_found(service, mock_discord_bot, simple_message):
+    """Test send_simple_message returns None when channel is not found"""
+    # Arrange
+    mock_discord_bot.get_channel.return_value = None
+
+    # Act
+    result = await service.send_simple_message(simple_message)
+
+    # Assert
+    assert_that(result, none())
+    mock_discord_bot.get_channel.assert_called_once_with(123456)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_fetch_poll_success(service, mock_discord_bot, poll_reference):
+    """Test fetch_poll successfully retrieves and parses poll data"""
+    # Arrange
+    mock_channel = AsyncMock()
+    mock_message = MagicMock()
+    mock_poll = MagicMock()
+
+    # Configure mock poll
+    mock_poll.id = "987654"
+    mock_poll.question = "What game should we play?"
+    mock_poll.duration.total_seconds.return_value = 86400  # 24 hours
+    mock_poll.multiple = False
+    mock_poll.expires_at = datetime(2025, 10, 2, 12, 0, 0)
+
+    # Configure poll answers
+    answer1 = MagicMock()
+    answer1.text = "Game A"
+    answer1.vote_count = 5
+    answer2 = MagicMock()
+    answer2.text = "Game B"
+    answer2.vote_count = 3
+    mock_poll.answers = [answer1, answer2]
+
+    mock_message.poll = mock_poll
+    mock_channel.fetch_message.return_value = mock_message
+    mock_discord_bot.get_channel.return_value = mock_channel
+
+    # Act
+    result = await service.fetch_poll(poll_reference)
+
+    # Assert
+    assert_that(result, instance_of(Poll))
+    assert_that(result.id, equal_to("987654"))
+    assert_that(result.channel_id, equal_to("123456"))
+    assert_that(result.question, equal_to("What game should we play?"))
+    assert_that(result.duration_hours, equal_to(24.0))
+    assert_that(result.allow_multiple, equal_to(False))
+    assert_that(result.expires_at, equal_to(datetime(2025, 10, 2, 12, 0, 0)))
+    assert_that(result.answers, equal_to(["Game A", "Game B"]))
+    assert_that(result.results, equal_to({"Game A": 5, "Game B": 3}))
+    mock_discord_bot.get_channel.assert_called_once_with(123456)
+    mock_channel.fetch_message.assert_called_once_with(987654)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_fetch_poll_channel_not_found(service, mock_discord_bot, poll_reference):
+    """Test fetch_poll returns None when channel is not found"""
+    # Arrange
+    mock_discord_bot.get_channel.return_value = None
+
+    # Act
+    result = await service.fetch_poll(poll_reference)
+
+    # Assert
+    assert_that(result, none())
+    mock_discord_bot.get_channel.assert_called_once_with(123456)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_fetch_poll_message_not_found(service, mock_discord_bot, poll_reference):
+    """Test fetch_poll returns None when message is not found"""
+    # Arrange
+    mock_channel = AsyncMock()
+    mock_channel.fetch_message.return_value = None
+    mock_discord_bot.get_channel.return_value = mock_channel
+
+    # Act
+    result = await service.fetch_poll(poll_reference)
+
+    # Assert
+    assert_that(result, none())
+    mock_discord_bot.get_channel.assert_called_once_with(123456)
+    mock_channel.fetch_message.assert_called_once_with(987654)

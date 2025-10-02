@@ -4,25 +4,26 @@ import discord
 import pytest
 from discord.app_commands import Command
 
-from pururu.domain.entities import MemberStats
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
-from tests.test_domain.test_entities import member_stats
 
 
-@patch('pururu.application.services.pururu_handler.PururuHandler')
-def set_up(pururu_handler_mock):
-    discord_bot = PururuDiscordBot(pururu_handler_mock)
+@patch('pururu.application.handlers.discord_event_handler.DiscordEventHandler')
+def set_up(discord_event_handler_mock):
+    discord_bot = PururuDiscordBot()
+    discord_bot.set_event_handler(discord_event_handler_mock)
     discord_bot.logger = Mock()
     return discord_bot
 
 
 @patch('pururu.config.settings.discord.guild_id', 123456)
 @pytest.mark.asyncio
+@pytest.mark.unit
 @patch.object(PururuDiscordBot, 'setup_commands', new_callable=AsyncMock)
 @patch.object(discord.app_commands.CommandTree, 'clear_commands', new_callable=AsyncMock)
 @patch.object(discord.app_commands.CommandTree, 'copy_global_to', new_callable=AsyncMock)
 @patch.object(discord.app_commands.CommandTree, 'sync', new_callable=AsyncMock)
 async def test_setup_hook(mock_sync, mock_copy_global, mock_clear_commands, mock_setup_commands):
+    """Test the setup_hook method"""
     # Given
     bot_instance = set_up()
     guild = discord.Object(id=123456)
@@ -39,25 +40,30 @@ async def test_setup_hook(mock_sync, mock_copy_global, mock_clear_commands, mock
 
 
 # ------------------------------
-# EVENT HANDLER TESTS
+# HOOK TESTS
 # ------------------------------
 
 @pytest.mark.asyncio
+@pytest.mark.unit
 async def test_on_ready_ok():
+    """Test the on_ready event"""
     # Given
     discord_bot = set_up()
     # When
     await discord_bot.on_ready()
     # Then
-    discord_bot.pururu_handler.handle_on_ready_dc_event.assert_called_once()
+    discord_bot.event_handler.handle_on_ready_event.assert_called_once()
 
 
 @pytest.mark.asyncio
+@pytest.mark.unit
 async def test_on_voice_state_update_ok():
+    """Test the on_voice_state_update event"""
     # Given
     discord_bot = set_up()
     member = Mock(spec=discord.Member)
     member.name = 'member'
+    member.id = 123456
     before_state = Mock(spec=discord.VoiceState, channel=Mock())
     before_state.channel.name = 'before_state'
     after_state = Mock(spec=discord.VoiceState, channel=Mock())
@@ -65,17 +71,20 @@ async def test_on_voice_state_update_ok():
     # When
     await discord_bot.on_voice_state_update(member, before_state, after_state)
     # Then
-    discord_bot.pururu_handler.handle_voice_state_update_dc_event.assert_called_once_with('member', 'before_state',
-                                                                                          'after_state')
+    discord_bot.event_handler.handle_on_voice_state_update_event.assert_called_once_with('123456', 'member',
+                                                                                         'before_state',
+                                                                                         'after_state')
 
 
 # ------------------------------
-# SLASH COMMAND HANDLER TESTS
+# SLASH COMMAND TESTS
 # ------------------------------
 
 @patch('pururu.infrastructure.adapters.discord.discord_bot.get_version', return_value='v1.0.0')
 @pytest.mark.asyncio
+@pytest.mark.unit
 async def test_ping_command_ok(get_Version_mock):
+    """Test the ping command"""
     # Given
     discord_bot = set_up()
     discord_bot.setup_commands()
@@ -87,24 +96,3 @@ async def test_ping_command_ok(get_Version_mock):
     await ping_command.callback(interaction=interaction)
     # Then
     interaction.response.send_message.assert_called_once_with('Pong! Pururu v1.0.0 is watching! :3')
-
-
-@pytest.mark.asyncio
-async def test_stats_command_ok(member_stats: MemberStats):
-    # Given
-    discord_bot = set_up()
-    discord_bot.setup_commands()
-    stats_command: Command = next(filter(lambda x: x.name == 'stats', discord_bot.tree.get_commands()))
-    interaction = AsyncMock()
-    interaction.response = AsyncMock()
-    interaction.followup = AsyncMock()
-    interaction.user.name = 'user_name'
-    interaction.user.mention = 'user_mention'
-    discord_bot.pururu_handler.retrieve_player_stats.return_value = member_stats
-    # When
-    await stats_command.callback(interaction=interaction)
-    # Then
-    interaction.response.defer.assert_called_once_with(ephemeral=True, thinking=True)
-    discord_bot.pururu_handler.retrieve_player_stats.assert_called_once_with('user_name')
-    interaction.followup.send.assert_called_once_with("Hola user_mention! Estos son tus Stats:\n"
-                                                      + member_stats.as_message())

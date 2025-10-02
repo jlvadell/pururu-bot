@@ -83,10 +83,10 @@ def mock_discord_client():
 @pytest.fixture
 def mock_discord_channel():
     """Create a mock Discord channel"""
-    mock = AsyncMock()
+    mock = MagicMock()
     mock.id = 123456789
     mock.name = "test-channel"
-    mock.send.return_value = MagicMock(id=987654321)
+    mock.send.return_value = AsyncMock(id=987654321)
     return mock
 
 
