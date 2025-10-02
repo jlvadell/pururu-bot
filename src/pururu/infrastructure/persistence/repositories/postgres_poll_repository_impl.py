@@ -1,7 +1,7 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from domain.entities.poll import PollReference
+from pururu.domain.entities.poll import PollReference
 from pururu.common import logger
 from pururu.domain.repositories.poll_repository import PollRepository
 from pururu.infrastructure.adapters.postgres.engine import PostgresDBEngine

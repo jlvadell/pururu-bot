@@ -58,10 +58,6 @@ Issues = "https://github.com/jlvadell/pururu-bot/issues"
 
 [project.scripts]
 pururu = "pururu.bot:main"
-test = "pytest:main --no-cov"
-test-unit = "pytest:main -m unit"
-test-integration = "pytest:main -m integration"
-coverage = "pytest:main --cov=src/pururu --cov-report=xml:coverage.xml --cov-report=term-missing"
 
 [tool.setuptools]
 packages = ["pururu"]
