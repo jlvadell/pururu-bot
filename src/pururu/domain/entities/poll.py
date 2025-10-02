@@ -20,6 +20,7 @@ class PollReference:
     expires_at: datetime | None
     resolution_type: PollResolutionType
 
+
 @dataclass
 class Poll(PollReference):
     question: str

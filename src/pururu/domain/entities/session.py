@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+
 from pururu.domain.exceptions import (SessionAlreadyConcludedException, CannotConcludeSessionException)
 
 
@@ -126,7 +127,8 @@ class Session:
         self.players.append(player_session)
         return player_session
 
-    def register_player_connection(self, player_id: str, connection_time: datetime | None, skip_version_increment = False) -> None:
+    def register_player_connection(self, player_id: str, connection_time: datetime | None,
+                                   skip_version_increment=False) -> None:
         """
         Registers a player connection at the given time or just adds the player if connection_time is None
         :param player_id: the player id
@@ -208,7 +210,8 @@ class Session:
         if self.is_concluded():
             raise SessionAlreadyConcludedException(f"Session '{self.id}' is already concluded")
         if not self.can_conclude():
-            raise CannotConcludeSessionException(f"Session '{self.id}' cannot be concluded because conditions are not met")
+            raise CannotConcludeSessionException(
+                f"Session '{self.id}' cannot be concluded because conditions are not met")
         self.end_time = end_time
         self.status = Status.COMPLETED
         official_start_time = self.get_official_start_time(min_players)
@@ -253,4 +256,3 @@ class Session:
             [ps for ps in self.players if ps.intervals and ps.intervals[-1].end],
             key=lambda ps: ps.intervals[-1].end
         )
-
