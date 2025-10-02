@@ -4,6 +4,10 @@ from typing import Optional
 from sqlalchemy import String, Integer, ForeignKey, DateTime, Date, Boolean, ForeignKeyConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+CASCADE_ALL_DELETE_ORPHAN = "all, delete-orphan"
+PLAYER_TABLE_PK = "player.player_id"
+SESSION_TABLE_PK = "session.session_id"
+
 
 class Base(DeclarativeBase):
     pass
@@ -15,10 +19,10 @@ class SeasonRecord(Base):
     season_id: Mapped[str] = mapped_column(String(30), primary_key=True)
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    president_id: Mapped[str] = mapped_column(String(30), ForeignKey("player.player_id"), nullable=False)
+    president_id: Mapped[str] = mapped_column(String(30), ForeignKey(PLAYER_TABLE_PK), nullable=False)
 
     sessions: Mapped[list["SessionRecord"]] = relationship("SessionRecord", back_populates="season",
-                                                           cascade="all, delete-orphan")
+                                                           cascade=CASCADE_ALL_DELETE_ORPHAN)
 
 
 class SessionRecord(Base):
@@ -35,10 +39,10 @@ class SessionRecord(Base):
 
     season: Mapped["SeasonRecord"] = relationship("SeasonRecord", back_populates="sessions")
     players: Mapped[list["PlayerSessionRecord"]] = relationship("PlayerSessionRecord", back_populates="session",
-                                                                cascade="all, delete-orphan")
+                                                                cascade=CASCADE_ALL_DELETE_ORPHAN)
     connections: Mapped[list["PlayerSessionIntervalRecord"]] = relationship("PlayerSessionIntervalRecord",
                                                                             back_populates="session",
-                                                                            cascade="all, delete-orphan")
+                                                                            cascade=CASCADE_ALL_DELETE_ORPHAN)
 
 
 class PlayerRecord(Base):
@@ -49,24 +53,24 @@ class PlayerRecord(Base):
     birthday: Mapped[date] = mapped_column(Date, nullable=False)
 
     sessions: Mapped[list["PlayerSessionRecord"]] = relationship("PlayerSessionRecord", back_populates="player",
-                                                                 cascade="all, delete-orphan")
+                                                                 cascade=CASCADE_ALL_DELETE_ORPHAN)
     connections: Mapped[list["PlayerSessionIntervalRecord"]] = relationship("PlayerSessionIntervalRecord",
                                                                             back_populates="player",
-                                                                            cascade="all, delete-orphan")
+                                                                            cascade=CASCADE_ALL_DELETE_ORPHAN)
 
 
 class PlayerSessionRecord(Base):
     __tablename__ = "player_session"
 
-    session_id: Mapped[str] = mapped_column(String(30), ForeignKey("session.session_id"), primary_key=True)
-    player_id: Mapped[str] = mapped_column(String(30), ForeignKey("player.player_id"), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(30), ForeignKey(SESSION_TABLE_PK), primary_key=True)
+    player_id: Mapped[str] = mapped_column(String(30), ForeignKey(PLAYER_TABLE_PK), primary_key=True)
     justified_absence: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     motive: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     intervals: Mapped[list["PlayerSessionIntervalRecord"]] = relationship(
         "PlayerSessionIntervalRecord",
         back_populates="playerSession",
-        cascade="all, delete-orphan",
+        cascade=CASCADE_ALL_DELETE_ORPHAN,
         foreign_keys="[PlayerSessionIntervalRecord.session_id, PlayerSessionIntervalRecord.player_id]",
         overlaps="connections"
     )
@@ -84,8 +88,8 @@ class PlayerSessionIntervalRecord(Base):
         ),
     )
 
-    session_id: Mapped[str] = mapped_column(String(30), ForeignKey("session.session_id"), primary_key=True)
-    player_id: Mapped[str] = mapped_column(String(30), ForeignKey("player.player_id"), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(30), ForeignKey(SESSION_TABLE_PK), primary_key=True)
+    player_id: Mapped[str] = mapped_column(String(30), ForeignKey(PLAYER_TABLE_PK), primary_key=True)
     join_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, primary_key=True)
     leave_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 

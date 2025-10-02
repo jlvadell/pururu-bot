@@ -3,7 +3,8 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+
+from pururu.common.utils import serialize, deserialize
 
 
 @dataclass(frozen=True)
@@ -21,19 +22,8 @@ class DomainEvent:
         Converts the event instance into a JSON-serializable dictionary.
         Handles datetime and Enum fields.
         """
-        def convert(value):
-            if isinstance(value, dict):
-                return {k: convert(v) for k, v in value.items()}
-            elif isinstance(value, list):
-                return [convert(v) for v in value]
-            elif isinstance(value, datetime):
-                return value.isoformat()
-            elif isinstance(value, Enum):
-                return value.value
-            else:
-                return value
 
-        serialized = {k: convert(v) for k, v in self.__dict__.items()}
+        serialized = {k: serialize(v) for k, v in self.__dict__.items()}
         return serialized
 
     def idempotency_key(self) -> str:
@@ -48,20 +38,6 @@ class DomainEvent:
         Handles datetime and Enum fields.
         """
 
-        def convert_field(field_type, value):
-            if value is None:
-                return None
-            elif field_type == datetime:
-                return datetime.fromisoformat(value)
-            elif hasattr(field_type, '__origin__') and field_type.__origin__ is list:
-                # Handle list types
-                inner_type = field_type.__args__[0] if field_type.__args__ else None
-                return [convert_field(inner_type, item) for item in value]
-            elif isinstance(field_type, type) and issubclass(field_type, Enum):
-                return field_type(value)
-            else:
-                return value
-
         # Get field types for this dataclass
         field_types = {f.name: f.type for f in dataclasses.fields(cls)}
 
@@ -71,7 +47,7 @@ class DomainEvent:
             if key in ["event_type"]:
                 continue
             if key in field_types:
-                converted_data[key] = convert_field(field_types[key], value)
+                converted_data[key] = deserialize(field_types[key], value)
             else:
                 converted_data[key] = value  # Keep unknown fields as-is
         return cls(**converted_data)
