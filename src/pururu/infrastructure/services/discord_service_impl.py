@@ -2,8 +2,7 @@ import discord
 
 from pururu.common import logger
 from pururu.domain.entities.poll import PollReference, Poll
-from pururu.domain.services.discord.discord_entities import SimpleMessage
-from pururu.domain.services.discord.discord_service import DiscordService
+from pururu.domain.services.discord_service import DiscordService
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
 
 
@@ -12,23 +11,17 @@ class DiscordServiceImpl(DiscordService):
         self.bot = bot
         self.logger = logger.get_logger(__name__)
 
-    async def send_simple_message(self, message: SimpleMessage) -> SimpleMessage | None:
-        """
-        Sends a message to a Discord channel
-        :param message: message, containing channel_id and content
-        :return: message containing id of the sent message or None if failed
-        """
-        channel = self.bot.get_channel(int(message.channel_id))
+    async def send_simple_message(self, channel_id: str, content: str) -> bool:
+        channel = self.bot.get_channel(int(channel_id))
         if not channel:
-            self.logger.error(f"Failed to send message to channel {message.channel_id}", extra={
-                "channel_id": message.channel_id
+            self.logger.error(f"Failed to send message to channel {channel_id}", extra={
+                "channel_id": channel_id
             })
-            return None
-        sent_message: discord.Message = await channel.send(message.content)
-        self.logger.debug(f"Message sent to channel {message.channel_id} with id {sent_message.id}",
-                          extra={"channel_id": message.channel_id, "message_id": sent_message.id})
-        message.id = sent_message.id
-        return message
+            return False
+        sent_message: discord.Message = await channel.send(content)
+        self.logger.debug(f"Message sent to channel {channel_id} with id {sent_message.id}",
+                          extra={"channel_id": channel_id, "message_id": sent_message.id})
+        return True
 
     async def fetch_poll(self, poll: PollReference) -> Poll | None:
         """

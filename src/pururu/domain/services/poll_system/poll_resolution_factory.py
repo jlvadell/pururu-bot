@@ -1,7 +1,8 @@
-from pururu.domain.entities.poll import PollResolutionType
-from pururu.domain.services.poll_system.poll_resolution_strategy import SendMessagePollResolution, PollResolutionStrategy
-from pururu.domain.exceptions import PollResolutionStrategyUnsupportedException
 from pururu.common import logger
+from pururu.domain.entities.poll import PollResolutionType
+from pururu.domain.exceptions import PollResolutionStrategyUnsupportedException
+from pururu.domain.services.poll_system.poll_resolution_strategy import SendMessagePollResolution, \
+    PollResolutionStrategy
 
 
 class PollResolutionFactory:

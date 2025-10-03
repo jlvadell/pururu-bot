@@ -1,6 +1,6 @@
 from pururu.common import logger
 from pururu.domain.entities.poll import Poll, PollReference, PollResolutionType
-from pururu.domain.services.discord.discord_service import DiscordService
+from pururu.domain.services.discord_service import DiscordService
 from pururu.domain.services.poll_system.poll_resolution_factory import PollResolutionFactory
 
 class PollSystemService:

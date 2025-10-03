@@ -2,10 +2,9 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from hamcrest import assert_that, equal_to, none, instance_of
+from hamcrest import assert_that, equal_to, none, instance_of, is_
 
 from pururu.domain.entities.poll import PollReference, Poll, PollResolutionType
-from pururu.domain.services.discord.discord_entities import SimpleMessage
 from pururu.infrastructure.services.discord_service_impl import DiscordServiceImpl
 
 
@@ -22,15 +21,6 @@ def service(mock_discord_bot):
 
 
 @pytest.fixture
-def simple_message():
-    """Create a sample SimpleMessage"""
-    return SimpleMessage(
-        channel_id="123456",
-        content="Test message content"
-    )
-
-
-@pytest.fixture
 def poll_reference():
     """Create a sample PollReference"""
     return PollReference(
@@ -43,9 +33,11 @@ def poll_reference():
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_send_simple_message_success(service, mock_discord_bot, simple_message):
-    """Test send_simple_message successfully sends message and returns with message_id"""
+async def test_send_simple_message_success(service, mock_discord_bot):
+    """Test send_simple_message successfully sends message and returns True"""
     # Arrange
+    channel_id = "123456"
+    content = "Test message content"
     mock_channel = AsyncMock()
     mock_sent_message = MagicMock()
     mock_sent_message.id = 999888
@@ -53,29 +45,28 @@ async def test_send_simple_message_success(service, mock_discord_bot, simple_mes
     mock_discord_bot.get_channel.return_value = mock_channel
 
     # Act
-    result = await service.send_simple_message(simple_message)
+    result = await service.send_simple_message(channel_id, content)
 
     # Assert
-    assert_that(result, instance_of(SimpleMessage))
-    assert_that(result.channel_id, equal_to("123456"))
-    assert_that(result.content, equal_to("Test message content"))
-    assert_that(result.id, equal_to(999888))  # Note: implementation sets .id not .message_id
+    assert_that(result, is_(True))
     mock_discord_bot.get_channel.assert_called_once_with(123456)
     mock_channel.send.assert_called_once_with("Test message content")
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_send_simple_message_channel_not_found(service, mock_discord_bot, simple_message):
-    """Test send_simple_message returns None when channel is not found"""
+async def test_send_simple_message_channel_not_found(service, mock_discord_bot):
+    """Test send_simple_message returns False when channel is not found"""
     # Arrange
+    channel_id = "123456"
+    content = "Test message content"
     mock_discord_bot.get_channel.return_value = None
 
     # Act
-    result = await service.send_simple_message(simple_message)
+    result = await service.send_simple_message(channel_id, content)
 
     # Assert
-    assert_that(result, none())
+    assert_that(result, is_(False))
     mock_discord_bot.get_channel.assert_called_once_with(123456)
 
 

@@ -2,9 +2,7 @@ from abc import ABC, abstractmethod
 
 from pururu.common import logger
 from pururu.domain.entities.poll import Poll
-from pururu.domain.services.discord.discord_entities import SimpleMessage
-from pururu.domain.services.discord.discord_service import DiscordService
-
+from pururu.domain.services.discord_service import DiscordService
 
 
 class PollResolutionStrategy(ABC):
@@ -25,5 +23,5 @@ class SendMessagePollResolution(PollResolutionStrategy):
     async def resolve(self, poll: Poll) -> None:
         self.logger.debug(f"Resolving poll with id '{poll.id}' in channel '{poll.channel_id}'",
                           extra={"message_id": poll.id, "channel_id": poll.channel_id})
-        message = SimpleMessage(f"{poll.question}\nResults: {poll.get_winners()}", poll.channel_id)
-        await self.discord_service.send_simple_message(message)
+        await self.discord_service.send_simple_message(poll.channel_id,
+                                                       f"{poll.question}\nResults: {poll.get_winners()}")

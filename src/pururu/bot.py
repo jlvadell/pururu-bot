@@ -15,7 +15,7 @@ from pururu.domain.repositories.poll_repository import PollRepository
 from pururu.domain.repositories.season_repository import SeasonRepository
 from pururu.domain.repositories.session_repository import SessionRepository
 from pururu.domain.services.data_sync_service import DataSyncService
-from pururu.domain.services.discord.discord_service import DiscordService
+from pururu.domain.services.discord_service import DiscordService
 from pururu.domain.services.id_generator_service import IdGeneratorService
 from pururu.domain.services.player_service import PlayerService
 from pururu.domain.services.poll_system.poll_resolution_factory import PollResolutionFactory
