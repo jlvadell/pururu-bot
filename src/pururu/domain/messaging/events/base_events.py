@@ -11,11 +11,8 @@ from pururu.common.utils import serialize, deserialize
 class DomainEvent:
     """Base class for domain events."""
     priority = ""
-    event_type: str = dataclasses.field(init=False, default=None)
+    event_type: str = dataclasses.field(init=False)
     created_at: datetime
-
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', self.__class__.__name__)
 
     def serialize(self) -> dict:
         """

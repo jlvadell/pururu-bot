@@ -32,7 +32,7 @@ class SQSClientAdapter:
         for queue_name in queue_config.keys():
             consumer = GenericSQSPoller(
                 consumer_name=queue_name,
-                region=settings.events.aws_region,
+                region=settings.aws.region,
                 queue_url=queue_config[queue_name]["queue_url"],
                 polling_time=queue_config[queue_name].get("polling_time", 20),
                 endpoint_url=queue_config[queue_name]["endpoint_url"],

@@ -43,7 +43,7 @@ def mock_session():
     player2.get_total_time.return_value = 0
 
     session.players = [player1, player2]
-    session.get_official_start_time.return_value = datetime(2025, 10, 1, 10, 0, 0)
+    session.get_official_start_time.return_value = datetime(2025, 10, 1, 10, 0, 0, 123)
     session.get_official_end_time.return_value = datetime(2025, 10, 1, 12, 0, 0)
 
     return session
@@ -58,7 +58,7 @@ def test_to_attendance(mock_settings, mock_session):
     # Assert
     assert_that(result, instance_of(AttendanceSheet))
     assert_that(result.session_id, equal_to("session123"))
-    assert_that(result.date, equal_to("2025-10-01"))
+    assert_that(result.date, equal_to("2025-10-01 10:00:00"))
     assert_that(result.description, equal_to("Juegueo Oficial"))
     assert_that(len(result.absence), equal_to(2))
     assert_that(len(result.unjustified), equal_to(2))

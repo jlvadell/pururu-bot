@@ -8,9 +8,10 @@ from pururu.domain.messaging.events.base_events import SecondaryDomainEvent
 # ---------------------------
 @dataclass(frozen=True)
 class CheckExpiredPollsEvent(SecondaryDomainEvent):
-    pass
+    event_type = "CheckExpiredPollsEvent"
 
 
 @dataclass(frozen=True)
 class FinalizePollEvent(SecondaryDomainEvent):
+    event_type = "FinalizePollEvent"
     poll_id: str

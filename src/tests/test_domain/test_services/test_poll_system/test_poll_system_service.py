@@ -55,13 +55,13 @@ def test_get_expired_polls_returns_all_expired_polls(service, mock_poll_reposito
         expires_at=datetime(2025, 10, 1, 13, 0, 0),
         resolution_type=PollResolutionType.SEND_MESSAGE
     )
-    mock_poll_repository.get_expired_polls.return_value = [expired_poll1, expired_poll2]
+    mock_poll_repository.find_all_expired.return_value = [expired_poll1, expired_poll2]
 
     # Act
     result = service.get_expired_polls()
 
     # Assert
-    mock_poll_repository.get_expired_polls.assert_called_once()
+    mock_poll_repository.find_all_expired.assert_called_once()
     assert_that(result, has_length(2))
     assert_that(result[0], equal_to(expired_poll1))
     assert_that(result[1], equal_to(expired_poll2))
@@ -77,7 +77,7 @@ def test_get_expired_polls_returns_empty_list_when_no_polls(service, mock_poll_r
     result = service.get_expired_polls()
 
     # Assert
-    mock_poll_repository.get_expired_polls.assert_called_once()
+    mock_poll_repository.find_all_expired.assert_called_once()
     assert_that(result, has_length(0))
 
 
@@ -113,7 +113,7 @@ async def test_finalize_poll_resolves_poll_successfully(
     mock_discord_service.fetch_poll.assert_called_once_with(poll_ref)
     mock_poll_resolution_factory.get_strategy.assert_called_once_with(poll_ref.resolution_type)
     mock_strategy.resolve.assert_called_once_with(poll)
-    mock_poll_repository.remove_poll.assert_called_once_with(poll.id)
+    mock_poll_repository.delete.assert_called_once_with(poll.id)
 
 
 @pytest.mark.unit
@@ -165,7 +165,7 @@ async def test_finalize_poll_removes_poll_when_not_found_in_discord(
     mock_poll_repository.find_by_id.assert_called_once_with(poll_ref.id)
     mock_discord_service.fetch_poll.assert_called_once_with(poll_ref)
     mock_poll_resolution_factory.get_strategy.assert_not_called()
-    mock_poll_repository.remove_poll.assert_called_once_with(poll_ref.id)
+    mock_poll_repository.delete.assert_called_once_with(poll_ref.id)
 
 
 @pytest.mark.unit
