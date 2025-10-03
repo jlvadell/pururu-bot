@@ -17,11 +17,7 @@ class GoogleSheetsMapper:
         sorted_player_sessions = sorted(session.players,
                                         key=lambda player_session: settings.google_sheets.general.player_order.get(
                                             player_session.player_id, float('inf')))
-        player_attendance = [player_session.has_attended(min_time=settings.general.min_attendance_time,
-                                                         start_time=session.get_official_start_time(
-                                                             settings.general.min_attendance_members),
-                                                         end_time=session.get_official_end_time(
-                                                             settings.general.min_attendance_members)) for
+        player_attendance = [player_session.attended for
                              player_session in sorted_player_sessions]
 
         return AttendanceSheet(

@@ -48,6 +48,7 @@ class PostgresMapper:
     @staticmethod
     def _update_player_session_record(existing_record: PlayerSessionRecord, player_session: PlayerSession):
         """Update an existing PlayerSessionRecord with its intervals."""
+        existing_record.attended = player_session.attended
         existing_record.justified_absence = player_session.justified_absence
         existing_record.motive = player_session.motive
         existing_intervals = {interval.join_time: interval for interval in
@@ -68,6 +69,7 @@ class PostgresMapper:
         player_session_record = PlayerSessionRecord(
             session_id=session_id,
             player_id=player_session.player_id,
+            attended=player_session.attended,
             justified_absence=player_session.justified_absence,
             motive=player_session.motive,
 
@@ -105,6 +107,7 @@ class PostgresMapper:
     def map_record_to_player_session(record: PlayerSessionRecord) -> PlayerSession:
         player_session = PlayerSession(
             player_id=record.player_id,
+            attended=record.attended,
             justified_absence=record.justified_absence,
             motive=record.motive,
             intervals=[PostgresMapper.map_record_to_interval(interval) for interval in record.intervals]

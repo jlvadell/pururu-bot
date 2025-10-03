@@ -26,10 +26,25 @@ def player_session():
     return PlayerSession(
         player_id="player123",
         justified_absence=False,
+        attended=True,
         motive=None,
         intervals=[
             Interval(start=datetime(2025, 10, 1, 10, 0, 0), end=datetime(2025, 10, 1, 11, 0, 0)),
             Interval(start=datetime(2025, 10, 1, 11, 30, 0), end=datetime(2025, 10, 1, 12, 0, 0))
+        ]
+    )
+
+@pytest.fixture
+def player_session_online():
+    """Create a sample PlayerSession"""
+    return PlayerSession(
+        player_id="player123",
+        justified_absence=False,
+        attended=False,
+        motive=None,
+        intervals=[
+            Interval(start=datetime(2025, 10, 1, 10, 0, 0), end=datetime(2025, 10, 1, 11, 0, 0)),
+            Interval(start=datetime(2025, 10, 1, 11, 30, 0), end=None)
         ]
     )
 
@@ -47,6 +62,19 @@ def session():
         end_time=None
     )
 
+
+@pytest.fixture
+def on_going_session(player_session_online):
+    """Create a completed Session with players"""
+    return Session(
+        id="session123",
+        season_id="season456",
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[player_session_online],
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None
+    )
 
 @pytest.fixture
 def completed_session(player_session):

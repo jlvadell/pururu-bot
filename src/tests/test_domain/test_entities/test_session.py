@@ -55,6 +55,7 @@ def test_player_session_get_total_time():
     # Arrange
     player_session = PlayerSession(
         player_id="player123",
+        attended=True,
         justified_absence=False,
         motive=None,
         intervals=[
@@ -76,6 +77,7 @@ def test_player_session_get_total_time_with_crop():
     # Arrange
     player_session = PlayerSession(
         player_id="player123",
+        attended=True,
         justified_absence=False,
         motive=None,
         intervals=[
@@ -99,6 +101,7 @@ def test_player_session_get_total_time_skips_open_intervals():
     # Arrange
     player_session = PlayerSession(
         player_id="player123",
+        attended=True,
         justified_absence=False,
         motive=None,
         intervals=[
@@ -120,6 +123,7 @@ def test_player_session_has_attended_true():
     # Arrange
     player_session = PlayerSession(
         player_id="player123",
+        attended=None,
         justified_absence=False,
         motive=None,
         intervals=[
@@ -140,6 +144,7 @@ def test_player_session_has_attended_false():
     # Arrange
     player_session = PlayerSession(
         player_id="player123",
+        attended=False,
         justified_absence=False,
         motive=None,
         intervals=[
@@ -214,6 +219,7 @@ def test_session_any_player_connected_true():
         players=[
             PlayerSession(
                 player_id="player123",
+                attended=None,
                 justified_absence=False,
                 motive=None,
                 intervals=[Interval(datetime(2025, 10, 1, 10, 0, 0), None)]
@@ -242,6 +248,7 @@ def test_session_any_player_connected_false():
         players=[
             PlayerSession(
                 player_id="player123",
+                attended=None,
                 justified_absence=False,
                 motive=None,
                 intervals=[Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]
@@ -260,7 +267,7 @@ def test_session_any_player_connected_false():
 def test_session_get_player_found():
     """Test Session.get_player returns player when found"""
     # Arrange
-    player_session = PlayerSession("player123", False, None, [])
+    player_session = PlayerSession("player123", None, False, None, [])
     session = Session(
         id="session123",
         season_id="season456",
@@ -314,11 +321,12 @@ def test_session_add_player_new():
     )
 
     # Act
-    result = session.add_player("player123", justified_absence=True, motive="sick")
+    result = session.add_player("player123", attended=False, justified_absence=True, motive="sick")
 
     # Assert
     assert_that(len(session.players), equal_to(1))
     assert_that(result.player_id, equal_to("player123"))
+    assert_that(result.attended, is_(False))
     assert_that(result.justified_absence, is_(True))
     assert_that(result.motive, equal_to("sick"))
 
@@ -327,7 +335,7 @@ def test_session_add_player_new():
 def test_session_add_player_existing():
     """Test Session.add_player returns existing player if already added"""
     # Arrange
-    existing_player = PlayerSession("player123", False, None, [])
+    existing_player = PlayerSession("player123", None, False, None, [])
     session = Session(
         id="session123",
         season_id="season456",
@@ -384,6 +392,7 @@ def test_session_register_player_connection_closes_previous():
         players=[
             PlayerSession(
                 "player123",
+                None,
                 False,
                 None,
                 [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]
@@ -413,6 +422,7 @@ def test_session_register_player_disconnection():
         players=[
             PlayerSession(
                 "player123",
+                None,
                 False,
                 None,
                 [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]
@@ -482,9 +492,9 @@ def test_session_get_official_start_time_enough_players():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
-            PlayerSession("p2", False, None, [Interval(datetime(2025, 10, 1, 10, 5, 0), None)]),
-            PlayerSession("p3", False, None, [Interval(datetime(2025, 10, 1, 10, 10, 0), None)])
+            PlayerSession("p1", None, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
+            PlayerSession("p2", None, False, None, [Interval(datetime(2025, 10, 1, 10, 5, 0), None)]),
+            PlayerSession("p3", None, False, None, [Interval(datetime(2025, 10, 1, 10, 10, 0), None)])
         ]
     )
 
@@ -507,7 +517,7 @@ def test_session_get_official_start_time_not_enough_players():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
+            PlayerSession("p1", None, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
         ]
     )
 
@@ -530,11 +540,11 @@ def test_session_get_official_end_time_enough_players():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None,
+            PlayerSession("p1", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 10, 15, 0))]),
-            PlayerSession("p2", False, None,
+            PlayerSession("p2", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 1, 0), datetime(2025, 10, 1, 10, 5, 0))]),
-            PlayerSession("p3", False, None,
+            PlayerSession("p3", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 2, 0), datetime(2025, 10, 1, 10, 10, 0))]),
         ]
     )
@@ -559,13 +569,13 @@ def test_session_get_official_end_time_still_online():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None,
+            PlayerSession("p1", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 10, 15, 0))]),
-            PlayerSession("p2", False, None,
+            PlayerSession("p2", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 1, 0), datetime(2025, 10, 1, 10, 5, 0))]),
-            PlayerSession("p3", False, None,
+            PlayerSession("p3", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 2, 0), datetime(2025, 10, 1, 10, 10, 0))]),
-            PlayerSession("p4", False, None,
+            PlayerSession("p4", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 2, 0), None)]),
         ]
     )
@@ -590,13 +600,13 @@ def test_session_get_official_end_time_players_online():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None,
+            PlayerSession("p1", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 10, 15, 0))]),
-            PlayerSession("p2", False, None,
+            PlayerSession("p2", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 1, 0), None)]),
-            PlayerSession("p3", False, None,
+            PlayerSession("p3", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 2, 0), None)]),
-            PlayerSession("p4", False, None,
+            PlayerSession("p4", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 2, 0), None)]),
         ]
     )
@@ -621,11 +631,11 @@ def test_session_conclude_success():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None,
+            PlayerSession("p1", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))]),
-            PlayerSession("p2", False, None,
+            PlayerSession("p2", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))]),
-            PlayerSession("p3", False, None,
+            PlayerSession("p3", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))])
         ]
     )
@@ -651,11 +661,11 @@ def test_session_conclude_discard():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None,
+            PlayerSession("p1", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))]),
-            PlayerSession("p2", False, None,
+            PlayerSession("p2", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))]),
-            PlayerSession("p3", False, None,
+            PlayerSession("p3", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))])
         ]
     )
@@ -700,7 +710,7 @@ def test_session_conclude_cannot_conclude():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
+            PlayerSession("p1", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
         ]
     )
 
@@ -721,7 +731,7 @@ def test_session_can_conclude_true():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None,
+            PlayerSession("p1", False, False, None,
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))])
         ]
     )
@@ -745,7 +755,7 @@ def test_session_can_conclude_false():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
+            PlayerSession("p1", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
         ]
     )
 

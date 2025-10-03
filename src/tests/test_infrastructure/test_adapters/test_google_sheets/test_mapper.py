@@ -30,14 +30,14 @@ def mock_session():
     # Mock player sessions
     player1 = MagicMock()
     player1.player_id = "player1"
-    player1.has_attended.return_value = True
+    player1.attended = True
     player1.justified_absence = False
     player1.motive = ""
     player1.get_total_time.return_value = 600
 
     player2 = MagicMock()
     player2.player_id = "player2"
-    player2.has_attended.return_value = False
+    player2.attended = False
     player2.justified_absence = True
     player2.motive = "sick"
     player2.get_total_time.return_value = 0
@@ -92,7 +92,7 @@ def test_to_attendance_unjustified_absence(mock_settings):
 
     player = MagicMock()
     player.player_id = "player1"
-    player.has_attended.return_value = False
+    player.attended = False
     player.justified_absence = False  # Not justified
     player.motive = ""
 

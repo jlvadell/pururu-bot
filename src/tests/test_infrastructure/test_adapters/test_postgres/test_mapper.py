@@ -92,7 +92,8 @@ def test_update_record_from_session(mock_datetime):
         PlayerSessionRecord(
             session_id="session123",
             player_id="player123",
-            justified_absence=False,
+            justified_absence=True,
+            attended=None,
             motive=None,
             intervals=[
                 PlayerSessionIntervalRecord(
@@ -112,7 +113,7 @@ def test_update_record_from_session(mock_datetime):
         type=Type.ADDITIONAL_GAME,
         status=Status.COMPLETED,
         players=[
-            PlayerSession("player123", False, "some motive",
+            PlayerSession("player123", True, False, "some motive",
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0), )])
         ],
         version=2
@@ -133,6 +134,7 @@ def test_update_record_from_session(mock_datetime):
     player = result.players[0]
     assert_that(player.player_id, equal_to("player123"))
     assert_that(player.justified_absence, equal_to(False))
+    assert_that(player.attended, equal_to(True))
     assert_that(player.motive, equal_to("some motive"))
     assert_that(len(player.intervals), equal_to(1))
 
@@ -156,6 +158,8 @@ def test_map_player_session_to_record(player_session):
     assert_that(result.session_id, equal_to("session123"))
     assert_that(result.player_id, equal_to("player123"))
     assert_that(result.justified_absence, equal_to(False))
+    assert_that(result.attended, equal_to(True))
+    assert_that(result.motive, equal_to(None))
     assert_that(len(result.intervals), equal_to(2))
 
 
@@ -167,6 +171,7 @@ def test_map_record_to_player_session():
         session_id="session123",
         player_id="player123",
         justified_absence=True,
+        attended=False,
         motive="sick"
     )
     record.intervals = []
@@ -178,6 +183,7 @@ def test_map_record_to_player_session():
     assert_that(result, instance_of(PlayerSession))
     assert_that(result.player_id, equal_to("player123"))
     assert_that(result.justified_absence, equal_to(True))
+    assert_that(result.attended, equal_to(False))
     assert_that(result.motive, equal_to("sick"))
 
 

@@ -41,6 +41,7 @@ class Interval:
 @dataclass
 class PlayerSession:
     player_id: str
+    attended: bool
     justified_absence: bool
     motive: str | None
     intervals: list[Interval]
@@ -110,11 +111,13 @@ class Session:
         """
         return next((ps for ps in self.players if ps.player_id == player_id), None)
 
-    def add_player(self, player_id: str, justified_absence: bool = False, motive: str = "") -> PlayerSession:
+    def add_player(self, player_id: str, attended: bool = False, justified_absence: bool = False,
+                   motive: str = "") -> PlayerSession:
         """
         Adds a player to the session with the given justified absence and motive; no intervals are added
         if the player is already in the session, does nothing
         :param player_id: the player id
+        :param attended: whether the player attended (default None, to be set when concluding the session)
         :param justified_absence: whether the absence is justified
         :param motive: the motive for the absence
         :return: player session
@@ -122,7 +125,8 @@ class Session:
         player_session = self.get_player(player_id)
         if player_session:
             return player_session
-        player_session = PlayerSession(player_id=player_id, justified_absence=justified_absence, motive=motive,
+        player_session = PlayerSession(player_id=player_id, attended=attended, justified_absence=justified_absence,
+                                       motive=motive,
                                        intervals=[])
         self.players.append(player_session)
         return player_session
@@ -186,16 +190,12 @@ class Session:
             return self.end_time
         return players_ordered[-min_players].intervals[-1].end
 
-    def get_official_player_count(self, min_playtime: int = 1800, official_start_time: datetime | None = None,
-                                  official_end_time: datetime | None = None) -> int:
+    def count_attended_players(self) -> int:
         """
-        Returns the official player count of the session, by default a player is considered to have attended if they have at least 30 minutes (1800 seconds) of total time in the session
-        :param min_playtime: minimum playtime in seconds to consider attendance (default 1800 seconds = 30 minutes)
-        :param official_start_time: official start time
-        :param official_end_time: official end time
+        Returns the number of players who attended the session (i.e., attended is True)
         :return: int
         """
-        return sum(1 for ps in self.players if ps.has_attended(min_playtime, official_start_time, official_end_time))
+        return sum(1 for ps in self.players if ps.attended)
 
     def conclude(self, end_time: datetime, min_players: int = 3, min_playtime: int = 1800) -> None:
         """
@@ -216,10 +216,12 @@ class Session:
         self.status = Status.COMPLETED
         official_start_time = self.get_official_start_time(min_players)
         official_end_time = self.get_official_end_time(min_players)
+        for player in self.players:
+            player.attended = player.has_attended(min_players, official_start_time, official_end_time)
         duration = int((official_end_time - official_start_time).total_seconds())
-        official_player_count = self.get_official_player_count(min_playtime, official_start_time, official_end_time)
+        attended_count = self.count_attended_players()
 
-        if duration < min_playtime or official_player_count < min_players:
+        if duration < min_playtime or attended_count < min_players:
             self.status = Status.DISCARDED
         self.increment_version()
 

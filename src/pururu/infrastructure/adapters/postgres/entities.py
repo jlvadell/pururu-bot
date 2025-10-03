@@ -64,6 +64,7 @@ class PlayerSessionRecord(Base):
 
     session_id: Mapped[str] = mapped_column(String(30), ForeignKey(SESSION_TABLE_PK), primary_key=True)
     player_id: Mapped[str] = mapped_column(String(30), ForeignKey(PLAYER_TABLE_PK), primary_key=True)
+    attended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     justified_absence: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     motive: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
