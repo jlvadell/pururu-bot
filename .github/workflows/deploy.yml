@@ -22,7 +22,7 @@ jobs:
 
     env:
       APP_NAME: pururu-bot
-      APP_HOME: /home/jlvadell/pururu/
+      APP_HOME: /home/jlvadell/pururu
       APP_DIR: /home/jlvadell/pururu/app
       CONFIG_DIR: /home/jlvadell/pururu/config
       DATA_VOLUME: pururu_data
