@@ -18,13 +18,17 @@ def temp_toml_file():
     os.remove(f.name)
 
 
+@pytest.mark.unit
 def test_config_files_watcher_triggers_on_modify(temp_toml_file, monkeypatch):
+    """Test trigger"""
+    # Arrange
     handler = mock.Mock()
     watcher = ConfigFilesWatcher(handler)
 
     # Patch settings._loaded_files to include our temp file
     monkeypatch.setattr("pururu.config.settings._loaded_files", [temp_toml_file])
 
+    # Act
     watcher.start_config_watcher()
     time.sleep(0.2)  # Let the observer start
 
@@ -39,13 +43,20 @@ def test_config_files_watcher_triggers_on_modify(temp_toml_file, monkeypatch):
         time.sleep(0.2)
 
     watcher.stop_config_watcher()
+
+    # Assert
     # not using assert_called_once because the event might be triggered multiple times due to file system events
     assert_that(handler.on_configuration_files_changed.called, equal_to(True))
 
 
+@pytest.mark.unit
 def test_config_files_watcher_no_files(monkeypatch):
+    """Test no config files"""
+    # Arrange
     handler = mock.Mock()
     watcher = ConfigFilesWatcher(handler)
     monkeypatch.setattr("pururu.config.settings._loaded_files", [])
+    # Act
     watcher.start_config_watcher()
+    # Assert
     assert_that(watcher.config_observer, equal_to(None))

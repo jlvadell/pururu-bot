@@ -1,21 +1,13 @@
 import pytest
 from hamcrest import assert_that, equal_to
 
-from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, BotEventSheet, ClockingSheet
-
-
-@pytest.fixture
-def bot_event_sheet():
-    return BotEventSheet(
-        event_type="event_type",
-        date="2023-08-10",
-        description="Bot event description"
-    )
+from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet
 
 
 @pytest.fixture
 def attendance_sheet():
     return AttendanceSheet(
+        session_id="abcd",
         game_id=1,
         absence=["FALSE", "TRUE", "TRUE"],
         unjustified=["FALSE", "FALSE", "TRUE"],
@@ -33,20 +25,36 @@ def clocking_sheet():
     )
 
 
-@pytest.mark.usefixtures("bot_event_sheet")
-def test_bot_event_sheet_to_row(bot_event_sheet: BotEventSheet):
-    actual = bot_event_sheet.to_row_values()
-    assert_that(actual, equal_to(["event_type", "2023-08-10", "Bot event description"]))
-
-
-@pytest.mark.usefixtures("attendance_sheet")
-def test_attendance_sheet_to_row(attendance_sheet: AttendanceSheet):
+@pytest.mark.unit
+def test_attendance_sheet_to_row(attendance_sheet):
+    """Test the to_row_values method of AttendanceSheet."""
+    # Arrange
+    expected = [
+        attendance_sheet.session_id,
+        attendance_sheet.description,
+        attendance_sheet.date,
+        attendance_sheet.absence[0],
+        attendance_sheet.unjustified[0],
+        attendance_sheet.motives[0],
+        attendance_sheet.absence[1],
+        attendance_sheet.unjustified[1],
+        attendance_sheet.motives[1],
+        attendance_sheet.absence[2],
+        attendance_sheet.unjustified[2],
+        attendance_sheet.motives[2],
+    ]
+    # Act
     actual = attendance_sheet.to_row_values()
-    assert_that(actual, equal_to(["Juegueo Oficial", "2023-08-10", "FALSE", "FALSE", "personal", "TRUE",
-                                  "FALSE", "personal", "TRUE", "TRUE", ""]))
+    # Assert
+    assert_that(actual, equal_to(expected))
 
 
-@pytest.mark.usefixtures("clocking_sheet")
-def test_clocking_sheet_to_row(clocking_sheet: ClockingSheet):
+@pytest.mark.unit
+def test_clocking_sheet_to_row(clocking_sheet):
+    """Test the to_row_values method of ClockingSheet."""
+    # Arrange
+    expected = [clocking_sheet.game_id] + clocking_sheet.playtimes
+    # Act
     actual = clocking_sheet.to_row_values()
-    assert_that(actual, equal_to([1, 300, 0, 1800]))
+    # Assert
+    assert_that(actual, equal_to(expected))

@@ -34,4 +34,4 @@ def get_version():
 
             return f"{tag}+{count}.{commit}_DEV"
         except Exception:
-            return "UNKNOWN_VERSION"
+            return "0.0.0"

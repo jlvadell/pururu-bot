@@ -13,23 +13,24 @@ RUN apt update \
     && apt-get autoremove --purge  -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the non-root user as the default user
-USER nonroot
-
-# set working directory
+# set working directory and ensure nonroot owns it
 WORKDIR /home/nonroot/app
+RUN chown -R nonroot:nonroot /home/nonroot
 
 # set environment variables
 ENV PURURU_APP_ENV=production
-ENV PYTHONPATH="${PYTHONPATH}:/home/nonroot/app/src"
 
-# Install requirements
-COPY src/pururu/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy project files and install dependencies
+COPY --chown=nonroot:nonroot . .
 
-# Copy project
-COPY ./src/ ./
+# Set the non-root user as the default user
+USER nonroot
 
+# Add user's local bin to PATH for installed scripts
+ENV PATH="/home/nonroot/.local/bin:${PATH}"
 
-# Run the application
-CMD ["python", "pururu/bot.py"]
+# Install the package to user directory
+RUN pip install --no-cache-dir --user .
+
+# Run the application using the entry point
+CMD ["pururu"]

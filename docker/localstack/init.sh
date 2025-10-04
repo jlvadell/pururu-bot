@@ -7,16 +7,16 @@ TOPIC_NAME="${SNS_TOPIC_NAME:-sns_topic}"
 TOPIC_ARN="arn:aws:sns:${AWS_DEFAULT_REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
 
 # Define filter policies
-GAME_FILTER='{"FilterPolicy": "{\"event_type\": [\"member_joined_channel\",\"member_left_channel\",\"new_game_intent\",\"end_game_intent\",\"game_started\",\"game_ended\"]}"}'
-POLL_FILTER='{"FilterPolicy":"{\"event_type\": [\"check_expired_polls\",\"finalize_poll\"]}"}'
+PRIMARY_FILTER='{"FilterPolicy": "{\"queue_priority\": [\"Primary\"]}"}'
+SECONDARY_FILTER='{"FilterPolicy":"{\"queue_priority\": [\"Secondary\"]}"}'
 
 # Create topic
 awslocal sns create-topic --name "$TOPIC_NAME" --attributes FifoTopic=true
 
 # Queue and filter pairs
 declare -A QUEUE_FILTERS=(
-  ["${SQS_GAME_QUEUE_NAME:-game-queue}"]="$GAME_FILTER"
-  ["${SQS_POLL_QUEUE_NAME:-poll-queue}"]="$POLL_FILTER"
+  ["${SQS_PRIMARY_QUEUE_NAME:-primary-queue}"]="$PRIMARY_FILTER"
+  ["${SQS_SECONDARY_QUEUE_NAME:-secondary-queue}"]="$SECONDARY_FILTER"
 )
 
 for QUEUE_NAME in "${!QUEUE_FILTERS[@]}"; do

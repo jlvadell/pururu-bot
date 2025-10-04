@@ -2,17 +2,20 @@ import discord
 from discord.ext import commands
 
 from pururu.__version__ import get_version
-from pururu.application.services.pururu_handler import PururuHandler
+from pururu.application.handlers.discord_event_handler import DiscordEventHandler
 from pururu.common import logger
 from pururu.config import settings
 
 
 class PururuDiscordBot(commands.Bot):
-    def __init__(self, pururu_handler: PururuHandler):
+    def __init__(self):
         intents = discord.Intents.default()
         super().__init__(command_prefix="/", intents=intents)
         self.logger = logger.get_logger(__name__)
-        self.pururu_handler = pururu_handler
+        self.event_handler = None
+
+    def set_event_handler(self, event_handler: DiscordEventHandler):
+        self.event_handler = event_handler
 
     async def setup_hook(self) -> None:
         self.setup_commands()
@@ -35,11 +38,11 @@ class PururuDiscordBot(commands.Bot):
             "before_channel": before_name,
             "after_channel": after_name
         })
-        self.pururu_handler.handle_voice_state_update_dc_event(member.name, before_name, after_name)
+        self.event_handler.handle_on_voice_state_update_event(str(member.id), member.name, before_name, after_name)
 
     async def on_ready(self):
         self.logger.info("Pururu Discord Bot is ready!")
-        self.pururu_handler.handle_on_ready_dc_event()
+        self.event_handler.handle_on_ready_event()
 
     def setup_commands(self):
         self.logger.debug("Setting up commands...")
@@ -55,23 +58,3 @@ class PururuDiscordBot(commands.Bot):
             })
             await interaction.response.send_message(
                 f"Pong! Pururu {get_version()} is watching! :3")
-
-        @self.tree.command(
-            name='stats',
-            description='Shows your attendance stats')
-        async def stats_command(interaction: discord.Interaction):
-            self.logger.info(f"Stats command received from user {interaction.user.name}", extra={
-                "user": interaction.user.name,
-                "guild": interaction.guild.name if interaction.guild else None
-            })
-            await interaction.response.defer(ephemeral=True, thinking=True)
-            try:
-                member_stats = self.pururu_handler.retrieve_player_stats(interaction.user.name)
-                await interaction.followup.send(f"Hola {interaction.user.mention}! Estos son tus Stats:\n" +
-                                                member_stats.as_message())
-            except Exception:
-                self.logger.error(f"Failed to retrieve stats for user {interaction.user.name}", exc_info=True, extra={
-                    "user": interaction.user.name,
-                    "guild": interaction.guild.name if interaction.guild else None
-                })
-                await interaction.followup.send("Ooops! Something went wrong with that :(")

@@ -1,95 +1,249 @@
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 import pytest
-from hamcrest import assert_that, equal_to, is_not
+from hamcrest import assert_that, equal_to, instance_of
 
-import pururu.infrastructure.adapters.google_sheets.mapper as mapper
-from pururu.domain.entities import BotEvent, Attendance, Clocking, AttendanceEventType
-from pururu.infrastructure.adapters.google_sheets.entities import BotEventSheet, AttendanceSheet, ClockingSheet
-from tests.test_infrastructure.test_adapters.test_google_sheets.test_entities import bot_event_sheet, \
-    attendance_sheet, clocking_sheet
-from tests.test_domain.test_entities import bot_event, attendance, clocking
-from unittest.mock import patch
+from pururu.domain.entities.session import Session, Type
+from pururu.infrastructure.adapters.google_sheets.entities import AttendanceSheet, ClockingSheet
+from pururu.infrastructure.adapters.google_sheets.mapper import GoogleSheetsMapper
 
 
-@pytest.mark.usefixtures("bot_event", "bot_event_sheet")
-def test_bot_event_to_sheet(bot_event: BotEvent, bot_event_sheet: BotEventSheet):
-    actual = mapper.bot_event_to_sheet(bot_event)
-    assert_that(actual.event_type, equal_to(bot_event_sheet.event_type))
-    assert_that(actual.date, equal_to(bot_event_sheet.date))
-    assert_that(actual.description, equal_to(bot_event_sheet.description))
+@pytest.fixture
+def mock_settings():
+    """Create mock settings"""
+    with patch('pururu.infrastructure.adapters.google_sheets.mapper.settings') as mock:
+        mock.google_sheets.general.player_order.get = MagicMock(
+            side_effect=lambda x, default: {"player1": 0, "player2": 1}.get(x, default))
+        mock.general.min_attendance_time = 300
+        mock.general.min_attendance_members = 2
+        yield mock
 
 
-@pytest.mark.usefixtures("attendance", "attendance_sheet")
-def test_attendance_to_sheet(attendance: Attendance, attendance_sheet: AttendanceSheet):
-    actual = mapper.attendance_to_sheet(attendance)
-    assert_that(actual.game_id, equal_to(attendance_sheet.game_id))
-    assert_that(actual.absence, equal_to(attendance_sheet.absence))
-    assert_that(actual.unjustified, equal_to(attendance_sheet.unjustified))
-    assert_that(actual.motives, equal_to(attendance_sheet.motives))
-    assert_that(actual.date, equal_to(attendance_sheet.date))
-    assert_that(actual.description, equal_to(attendance_sheet.description))
+@pytest.fixture
+def mock_session():
+    """Create a mock session"""
+    session = MagicMock(spec=Session)
+    session.id = "session123"
+    session.type = Type.OFFICIAL_GAME
+
+    # Mock player sessions
+    player1 = MagicMock()
+    player1.player_id = "player1"
+    player1.attended = True
+    player1.justified_absence = False
+    player1.motive = ""
+    player1.get_total_time.return_value = 600
+
+    player2 = MagicMock()
+    player2.player_id = "player2"
+    player2.attended = False
+    player2.justified_absence = True
+    player2.motive = "sick"
+    player2.get_total_time.return_value = 0
+
+    session.players = [player1, player2]
+    session.get_official_start_time.return_value = datetime(2025, 10, 1, 10, 0, 0, 123)
+    session.get_official_end_time.return_value = datetime(2025, 10, 1, 12, 0, 0)
+
+    return session
 
 
-@pytest.mark.usefixtures("clocking", "clocking_sheet")
-def test_clocking_to_sheet(clocking: Clocking, clocking_sheet: ClockingSheet):
-    actual = mapper.clocking_to_sheet(clocking)
-    assert_that(actual.game_id, equal_to(clocking_sheet.game_id))
-    assert_that(actual.playtimes, equal_to(clocking_sheet.playtimes))
+@pytest.mark.unit
+def test_to_attendance(mock_settings, mock_session):
+    """Test converting Session to AttendanceSheet"""
+    # Act
+    result = GoogleSheetsMapper.to_attendance(mock_session)
+
+    # Assert
+    assert_that(result, instance_of(AttendanceSheet))
+    assert_that(result.session_id, equal_to("session123"))
+    assert_that(result.date, equal_to("2025-10-01 10:00:00"))
+    assert_that(result.description, equal_to("Juegueo Oficial"))
+    assert_that(len(result.absence), equal_to(2))
+    assert_that(len(result.unjustified), equal_to(2))
 
 
-@pytest.mark.usefixtures("attendance_sheet", "attendance")
-@patch("pururu.config.settings.google_sheets.attendance_player_mapping", {"member1": "C", "member2": "F", "member3": "I"})
-def test_sheet_to_attendance(attendance_sheet: AttendanceSheet, attendance: Attendance):
-    actual = mapper.sheet_to_attendance(attendance_sheet)
-    assert_that(actual.game_id, equal_to(attendance.game_id))
-    for idx, member in enumerate(attendance.members):
-        assert_that(actual.members[idx].member, equal_to(member.member))
-        assert_that(actual.members[idx].attendance, equal_to(member.attendance))
-        assert_that(actual.members[idx].justified, equal_to(member.justified))
-        assert_that(actual.members[idx].motive, equal_to(member.motive))
-    assert_that(actual.date, equal_to(attendance.date))
-    assert_that(actual.event_type.value, equal_to(attendance.event_type.value))
+@pytest.mark.unit
+def test_to_attendance_absence_logic(mock_settings, mock_session):
+    """Test to_attendance absence and unjustified logic"""
+    # Act
+    result = GoogleSheetsMapper.to_attendance(mock_session)
+
+    # Assert
+    # Player1 attended -> absence=FALSE
+    assert_that(result.absence[0], equal_to("FALSE"))
+    # Player2 did not attend -> absence=TRUE
+    assert_that(result.absence[1], equal_to("TRUE"))
+
+    # Player1 attended -> unjustified=FALSE
+    assert_that(result.unjustified[0], equal_to("FALSE"))
+    # Player2 did not attend but justified -> unjustified=FALSE
+    assert_that(result.unjustified[1], equal_to("FALSE"))
 
 
-@pytest.mark.usefixtures("attendance_sheet")
-@patch("pururu.config.settings.google_sheets.attendance_player_mapping", {"member1": "C", "member2": "F", "member3": "I"})
-def test_gs_to_attendance_sheet(attendance_sheet: AttendanceSheet):
-    row = attendance_sheet.to_row_values()
-    actual = mapper.gs_to_attendance_sheet(attendance_sheet.game_id, row)
-    assert_that(actual.game_id, equal_to(attendance_sheet.game_id))
-    assert_that(actual.absence, equal_to(attendance_sheet.absence))
-    assert_that(actual.unjustified, equal_to(attendance_sheet.unjustified))
-    assert_that(actual.motives, equal_to(attendance_sheet.motives))
-    assert_that(actual.date, equal_to(attendance_sheet.date))
-    assert_that(actual.description, equal_to(attendance_sheet.description))
+@pytest.mark.unit
+def test_to_attendance_unjustified_absence(mock_settings):
+    """Test to_attendance with unjustified absence"""
+    # Arrange
+    session = MagicMock(spec=Session)
+    session.id = "session123"
+    session.type = Type.OFFICIAL_GAME
+
+    player = MagicMock()
+    player.player_id = "player1"
+    player.attended = False
+    player.justified_absence = False  # Not justified
+    player.motive = ""
+
+    session.players = [player]
+    session.get_official_start_time.return_value = datetime(2025, 10, 1, 10, 0, 0)
+    session.get_official_end_time.return_value = datetime(2025, 10, 1, 12, 0, 0)
+
+    # Act
+    result = GoogleSheetsMapper.to_attendance(session)
+
+    # Assert
+    assert_that(result.absence[0], equal_to("TRUE"))
+    assert_that(result.unjustified[0], equal_to("TRUE"))
 
 
-@pytest.mark.usefixtures("attendance_sheet")
-@patch("pururu.config.settings.google_sheets.attendance_player_mapping", {"member1": "C", "member2": "F", "member3": "I"})
-def test_gs_to_attendance_sheet_empty_motive_column(attendance_sheet: AttendanceSheet):
-    row = attendance_sheet.to_row_values()
-    row.pop()
-    actual = mapper.gs_to_attendance_sheet(attendance_sheet.game_id, row)
-    assert_that(actual.game_id, equal_to(attendance_sheet.game_id))
-    assert_that(actual.absence, equal_to(attendance_sheet.absence))
-    assert_that(actual.unjustified, equal_to(attendance_sheet.unjustified))
-    assert_that(actual.motives, equal_to(attendance_sheet.motives))
-    assert_that(actual.date, equal_to(attendance_sheet.date))
-    assert_that(actual.description, equal_to(attendance_sheet.description))
+@pytest.mark.unit
+def test_to_clocking(mock_settings, mock_session):
+    """Test converting Session to ClockingSheet"""
+    # Act
+    result = GoogleSheetsMapper.to_clocking(mock_session, 42)
+
+    # Assert
+    assert_that(result, instance_of(ClockingSheet))
+    assert_that(result.game_id, equal_to(42))
+    assert_that(len(result.playtimes), equal_to(2))
+    assert_that(result.playtimes[0], equal_to(600))
+    assert_that(result.playtimes[1], equal_to(0))
 
 
-def test_parse_str_to_bool():
-    assert_that(mapper.__parse_str_to_bool('FALSE'))
-    assert_that(mapper.__parse_str_to_bool('TRUE'), is_not(True))
+@pytest.mark.unit
+def test_to_clocking_player_ordering(mock_settings):
+    """Test to_clocking respects player ordering"""
+    # Arrange
+    session = MagicMock(spec=Session)
+
+    player1 = MagicMock()
+    player1.player_id = "player1"
+    player1.get_total_time.return_value = 100
+
+    player2 = MagicMock()
+    player2.player_id = "player2"
+    player2.get_total_time.return_value = 200
+
+    # Add in reverse order
+    session.players = [player2, player1]
+    session.get_official_start_time.return_value = datetime(2025, 10, 1, 10, 0, 0)
+    session.get_official_end_time.return_value = datetime(2025, 10, 1, 12, 0, 0)
+
+    # Act
+    result = GoogleSheetsMapper.to_clocking(session, 1)
+
+    # Assert - should be sorted by player_order
+    assert_that(result.playtimes[0], equal_to(100))  # player1 first
+    assert_that(result.playtimes[1], equal_to(200))  # player2 second
 
 
-def test_parse_bool_to_str():
-    assert_that(mapper.__parse_bool_to_str(True), equal_to("FALSE"))
-    assert_that(mapper.__parse_bool_to_str(False), equal_to("TRUE"))
+@pytest.mark.unit
+def test_parse_bool_to_str_true():
+    """Test _parse_bool_to_str with True"""
+    # Act
+    result = GoogleSheetsMapper._parse_bool_to_str(True)
+
+    # Assert
+    assert_that(result, equal_to("TRUE"))
 
 
-def test_column_to_index():
-    assert_that(mapper.__column_to_index("F"), equal_to(5))
+@pytest.mark.unit
+def test_parse_bool_to_str_false():
+    """Test _parse_bool_to_str with False"""
+    # Act
+    result = GoogleSheetsMapper._parse_bool_to_str(False)
+
+    # Assert
+    assert_that(result, equal_to("FALSE"))
 
 
-def test_index_to_column():
-    assert_that(mapper.__index_to_column(5), equal_to("F"))
+@pytest.mark.unit
+def test_parse_type_from_str_official_game():
+    """Test _parse_type_from_str for official game"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_from_str("Juegueo Oficial")
+
+    # Assert
+    assert_that(result, equal_to(Type.OFFICIAL_GAME))
+
+
+@pytest.mark.unit
+def test_parse_type_from_str_additional_game():
+    """Test _parse_type_from_str for additional game"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_from_str("Juegueo Adicional Oficial")
+
+    # Assert
+    assert_that(result, equal_to(Type.ADDITIONAL_GAME))
+
+
+@pytest.mark.unit
+def test_parse_type_from_str_official_meeting():
+    """Test _parse_type_from_str for official meeting"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_from_str("Quedada Oficial")
+
+    # Assert
+    assert_that(result, equal_to(Type.OFFICIAL_MEETING))
+
+
+@pytest.mark.unit
+def test_parse_type_from_str_unknown_defaults_to_official_game():
+    """Test _parse_type_from_str with unknown value defaults to OFFICIAL_GAME"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_from_str("Unknown Type")
+
+    # Assert
+    assert_that(result, equal_to(Type.OFFICIAL_GAME))
+
+
+@pytest.mark.unit
+def test_parse_type_to_str_official_game():
+    """Test _parse_type_to_str for OFFICIAL_GAME"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_to_str(Type.OFFICIAL_GAME)
+
+    # Assert
+    assert_that(result, equal_to("Juegueo Oficial"))
+
+
+@pytest.mark.unit
+def test_parse_type_to_str_additional_game():
+    """Test _parse_type_to_str for ADDITIONAL_GAME"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_to_str(Type.ADDITIONAL_GAME)
+
+    # Assert
+    assert_that(result, equal_to("Juegueo Adicional Oficial"))
+
+
+@pytest.mark.unit
+def test_parse_type_to_str_official_meeting():
+    """Test _parse_type_to_str for OFFICIAL_MEETING"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_to_str(Type.OFFICIAL_MEETING)
+
+    # Assert
+    assert_that(result, equal_to("Quedada Oficial"))
+
+
+@pytest.mark.unit
+def test_parse_type_to_str_unknown_defaults():
+    """Test _parse_type_to_str with unknown Type defaults to 'Juegueo Oficial'"""
+    # Act
+    result = GoogleSheetsMapper._parse_type_to_str(999)  # Invalid type
+
+    # Assert
+    assert_that(result, equal_to("Juegueo Oficial"))

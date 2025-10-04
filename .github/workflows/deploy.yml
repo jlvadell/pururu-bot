@@ -22,14 +22,14 @@ jobs:
 
     env:
       APP_NAME: pururu-bot
-      APP_HOME: /home/jlvadell/pururu/
+      APP_HOME: /home/jlvadell/pururu
       APP_DIR: /home/jlvadell/pururu/app
       CONFIG_DIR: /home/jlvadell/pururu/config
       DATA_VOLUME: pururu_data
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Compute version
       id: ver

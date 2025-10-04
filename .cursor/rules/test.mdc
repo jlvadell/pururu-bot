@@ -1,0 +1,160 @@
+---
+globs: test_*.py
+alwaysApply: false
+---
+
+# Pytest Testing Standards
+
+This ruleset enforces consistent testing practices across the codebase, ensuring all tests are properly marked, documented, and structured.
+
+## Test Markers & Organization
+
+### Require pytest markers on all test functions
+
+All test functions must be categorized with appropriate pytest markers (e.g., `@pytest.mark.unit`, `@pytest.mark.integration`). This allows for selective test execution and better test organization.
+
+rule("All test functions must be marked with pytest.mark (unit, integration, etc...)") {
+    select: function_declaration
+    where: |
+        node.name.text.match(/^test_/) &&
+        !node.decorators.some(d => d.expression.text.startsWith("pytest.mark"))
+    message: "All test functions must be marked with pytest.mark (unit, integration, etc...)"
+    fix: |
+        insertBefore(node, "@pytest.mark.unit\n")
+}
+
+### Mark async tests appropriately
+
+Async test functions must include the `@pytest.mark.asyncio` decorator to ensure pytest-asyncio can properly execute them.
+
+rule("Use pytest.mark.asyncio for async test functions") {
+    select: function_declaration
+    where: |
+        node.isAsync &&
+        !node.decorators.some(d => d.expression.text == "pytest.mark.asyncio")
+    message: "Async test functions must be marked with pytest.mark.asyncio"
+    fix: |
+        insertBefore(node, "@pytest.mark.asyncio\n")
+}
+
+## Documentation
+
+### Document test purpose with docstrings
+
+Every test function should begin with a docstring that clearly explains what is being tested and why. This improves maintainability and helps others understand test intent.
+
+rule("Test function must have a three-quote summary comment inside") {
+    select: function_declaration
+    where: |
+        node.name.text.match(/^test_/) &&
+        !node.body.statements[0]?.leadingComments?.some(c => c.text.trim().startsWith('"""'))
+    message: "Test function must have a three-quote summary comment as the first statement"
+    fix: |
+        insertAt(node.body.statements[0], '    """Summary of the test."""\n')
+}
+
+## Test Structure
+
+### Use Arrange-Act-Assert pattern
+
+Tests should follow the AAA pattern with clear comment sections:
+- `# Arrange` - Set up test data and preconditions
+- `# Act` - Execute the code under test
+- `# Assert` - Verify the expected outcomes
+
+This pattern makes tests easier to read and understand.
+
+rule("Test functions must use Arrange, Act, Assert comments") {
+    select: function_declaration
+    where: |
+        node.name.text.match(/^test_/) &&
+        !node.body.getText().includes("# Arrange") &&
+        !node.body.getText().includes("# Act") &&
+        !node.body.getText().includes("# Assert")
+    message: "Test functions must use # Arrange, # Act, # Assert comments"
+    suggestion: "Add # Arrange, # Act, # Assert comments to structure your test"
+}
+
+## Assertions
+
+### Use Hamcrest matchers for assertions
+
+All assertions should use Hamcrest's `assert_that()` for more readable and expressive test assertions. Hamcrest provides better error messages and more flexible matching.
+
+Example:
+```python
+# Good ✅
+assert_that(result, equal_to(expected))
+
+# Avoid ❌
+assert result == expected
+```
+
+rule("All assertions must use Hamcrest") {
+    select: call_expression
+    where: |
+        node.expression.text.match(/assert/) &&
+        !node.expression.text.match(/assert_that/)
+    message: "Use Hamcrest's assert_that for assertions"
+    suggestion: "Replace with assert_that from Hamcrest"
+}
+
+## Best Practices
+
+### Keep conftest.py focused
+
+`conftest.py` files should only contain pytest fixtures and configuration. Test functions belong in regular test files, not in conftest.
+
+rule("Do not overload conftest.py, only keep meaningful fixtures") {
+    select: file
+    where: |
+        node.path.endsWith("conftest.py") &&
+        node.body.some(stmt =>
+            stmt.type == "function_declaration" &&
+            stmt.name.text.startsWith("test_")
+        )
+    message: "Do not put test functions in conftest.py; only keep meaningful fixtures"
+    suggestion: "Move test functions out of conftest.py"
+}
+
+### Avoid debug statements in tests
+
+Print statements and other debug code should be removed from tests. Tests should be clean and focus on logic and assertions.
+
+rule("Focus on simplicity and logic in tests") {
+    select: function_declaration
+    where: |
+        node.name.text.match(/^test_/) &&
+        node.body.getText().includes("print(")
+    message: "Avoid print statements in tests; focus on logic and assertions"
+    suggestion: "Remove print statements from test functions"
+}
+
+### Don't test logging directly
+
+Tests should verify business logic and behavior, not the fact that logging calls were made. Testing logging directly creates brittle tests that break when log messages change.
+
+rule("Do not test logging directly") {
+    select: function_declaration
+    where: |
+        node.name.text.match(/^test_/) &&
+        node.body.getText().match(/assert.*logger/)
+    message: "Do not test logging directly; focus on logic and outcomes"
+    suggestion: "Remove assertions on logger calls"
+}
+
+## Coverage
+
+### Test all code paths
+
+Strive for comprehensive test coverage by creating tests for all logical branches, edge cases, and error conditions. This ensures robustness and catches regressions early.
+
+rule("Test every path for coverage") {
+    description: "Suggest creating tests for uncovered branches or paths"
+    select: function_declaration
+    where: |
+        node.name.text.match(/^test_/) &&
+        node.body.getText().match(/# TODO: test other path/)
+    message: "There are uncovered paths; consider adding more tests for full coverage"
+    suggestion: "Add tests for all logical branches"
+}

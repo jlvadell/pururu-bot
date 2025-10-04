@@ -1,3 +1,4 @@
+name: pururu-local-docker-development
 services:
   localstack:
     image: localstack/localstack:latest
@@ -15,8 +16,8 @@ services:
 
       # Named resources
       - SNS_TOPIC_NAME=pururu_test_topic.fifo
-      - SQS_GAME_QUEUE_NAME=pururu_test_game_queue
-      - SQS_POLL_QUEUE_NAME=pururu_test_poll_queue
+      - SQS_PRIMARY_QUEUE_NAME=pururu_test_primary_queue
+      - SQS_SECONDARY_QUEUE_NAME=pururu_test_secondary_queue
     volumes:
       - ./localstack:/etc/localstack/init/ready.d
       - /var/run/docker.sock:/var/run/docker.sock

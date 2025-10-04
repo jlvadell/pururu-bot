@@ -1,23 +1,26 @@
 import os
-
-from pururu.application.services.pururu_handler import PururuHandler
-from pururu.common import logger
 import threading
-from watchdog.observers import Observer
+
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+from pururu.application.handlers.background_event_handler import BackgroundEventHandler
+from pururu.common import logger
 from pururu.config import settings
 
+
 class ConfigFilesWatcher(FileSystemEventHandler):
-    def __init__(self, pururu_handler: 'PururuHandler'):
+    def __init__(self, event_handler: BackgroundEventHandler):
         super().__init__()
         self.logger = logger.get_logger(__name__)
-        self.pururu_handler = pururu_handler
+        self.event_handler = event_handler
         self.config_observer = None
         self.config_observer_thread = None
+
     def on_modified(self, event):
         if event.src_path.endswith(".toml"):
             self.logger.info(f"Detected config change: {event.src_path}")
-            self.pururu_handler.on_configuration_files_changed()
+            self.event_handler.on_configuration_files_changed()
             self.logger.info("Configuration reloaded successfully.")
 
     def start_config_watcher(self):
@@ -30,6 +33,7 @@ class ConfigFilesWatcher(FileSystemEventHandler):
             observer.schedule(self, path=path, recursive=False)
             self.logger.info(f"Started watching config files in: {path}")
         self.config_observer = observer
+
         def _start():
             observer.start()
             observer.join()
