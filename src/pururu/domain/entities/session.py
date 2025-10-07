@@ -77,6 +77,13 @@ class PlayerSession:
         """
         return self.get_total_time(start_time, end_time) >= min_time
 
+    def is_online(self) -> bool:
+        """
+        Returns True if the player is currently online (i.e., has an open interval)
+        :return: bool
+        """
+        return self.intervals and self.intervals[-1].end is None
+
 
 @dataclass
 class Session:
@@ -101,7 +108,28 @@ class Session:
         Returns True if any player is currently connected (i.e., has an open interval)
         :return: bool
         """
-        return any(ps.intervals and ps.intervals[-1].end is None for ps in self.players)
+        return any(ps.is_online() for ps in self.players)
+
+    def get_offline_players(self) -> list[PlayerSession]:
+        """
+        Returns the list of players who are currently offline (i.e., have no open interval)
+        :return: list of PlayerSession
+        """
+        return [ps for ps in self.players if not ps.is_online()]
+
+    def get_absent_players(self) -> list[PlayerSession]:
+        """
+        Returns the list of players who did not attend the session (i.e., attended is False)
+        :return: list of PlayerSession
+        """
+        return [ps for ps in self.players if not ps.attended]
+
+    def get_online_players(self) -> list[PlayerSession]:
+        """
+        Returns the list of players who are currently online (i.e., have an open interval)
+        :return: list of PlayerSession
+        """
+        return [ps for ps in self.players if ps.is_online()]
 
     def get_player(self, player_id: str) -> PlayerSession | None:
         """
@@ -238,6 +266,17 @@ class Session:
         :return: None
         """
         self.version += 1
+
+    def get_first_joiner(self) -> PlayerSession:
+        """
+        Returns the player session of the first player who joined the session (i.e., with the earliest join time)
+        :return: PlayerSession
+        :raises ValueError: if no players have joined the session
+        """
+        players_ordered = self._get_players_session_join_ordered()
+        if not players_ordered:
+            raise ValueError(f"No players have joined session '{self.id}'")
+        return players_ordered[0]
 
     def _get_players_session_join_ordered(self) -> list[PlayerSession]:
         """

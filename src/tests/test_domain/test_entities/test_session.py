@@ -159,6 +159,48 @@ def test_player_session_has_attended_false():
     assert_that(result, is_(False))
 
 
+@pytest.mark.unit
+def test_player_session_is_online_true():
+    """Test PlayerSession.is_online returns True when there is an open interval"""
+    # Arrange
+    player_session = PlayerSession(
+        player_id="player123",
+        attended=False,
+        justified_absence=False,
+        motive=None,
+        intervals=[
+            Interval(datetime(2025, 10, 1, 10, 0, 0), None)  # Open interval
+        ]
+    )
+
+    # Act
+    result = player_session.is_online()
+
+    # Assert
+    assert_that(result, is_(True))
+
+
+@pytest.mark.unit
+def test_player_session_is_online_false():
+    """Test PlayerSession.is_online returns False when all intervals are closed"""
+    # Arrange
+    player_session = PlayerSession(
+        player_id="player123",
+        attended=True,
+        justified_absence=False,
+        motive=None,
+        intervals=[
+            Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))  # Closed interval
+        ]
+    )
+
+    # Act
+    result = player_session.is_online()
+
+    # Assert
+    assert_that(result, is_(False))
+
+
 # ============================================================================
 # Session Tests
 # ============================================================================
@@ -786,3 +828,122 @@ def test_session_increment_version():
 
     # Assert
     assert_that(session.version, equal_to(6))
+
+
+@pytest.mark.unit
+def test_session_get_offline_players():
+    """Test Session.get_offline_players returns correct offline players"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),  # online
+            PlayerSession("p2", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),  # offline
+            PlayerSession("p3", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),  # offline
+            PlayerSession("p4", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])  # online
+        ]
+    )
+
+    # Act
+    result = session.get_offline_players()
+
+    # Assert
+    assert_that(len(result), equal_to(2))
+    assert_that(result[0].player_id, equal_to("p2"))
+    assert_that(result[1].player_id, equal_to("p3"))
+
+
+@pytest.mark.unit
+def test_session_get_online_players():
+    """Test Session.get_offline_players returns correct online players"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),  # online
+            PlayerSession("p2", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),  # offline
+            PlayerSession("p3", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),  # offline
+            PlayerSession("p4", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])  # online
+        ]
+    )
+
+    # Act
+    result = session.get_online_players()
+
+    # Assert
+    assert_that(len(result), equal_to(2))
+    assert_that(result[0].player_id, equal_to("p1"))
+    assert_that(result[1].player_id, equal_to("p4"))
+
+
+@pytest.mark.unit
+def test_session_get_absent_players():
+    """Test Session.get_absent_players returns correct absent players"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", True, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),  # attended
+            PlayerSession("p2", False, True, "sick",
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),  # absent
+            PlayerSession("p3", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),  # absent
+            PlayerSession("p4", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])  # online
+        ]
+    )
+
+    # Act
+    result = session.get_absent_players()
+
+    # Assert
+    assert_that(len(result), equal_to(3))
+    assert_that(result[0].player_id, equal_to("p2"))
+    assert_that(result[1].player_id, equal_to("p3"))
+    assert_that(result[2].player_id, equal_to("p4"))
+
+
+@pytest.mark.unit
+def test_session_get_first_joiner():
+    """Test Session.get_first_joiner returns player who joined first"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", True, False, None, [Interval(datetime(2025, 10, 1, 10, 5, 0), None)]),
+            # joined at 10:05
+            PlayerSession("p2", True, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
+            # joined at 10:00
+            PlayerSession("p3", True, False, None, [Interval(datetime(2025, 10, 1, 10, 10, 0), None)])
+            # joined at 10:10
+        ]
+    )
+
+    # Act
+    result = session.get_first_joiner()
+
+    # Assert
+    assert_that(result.player_id, equal_to("p2"))
