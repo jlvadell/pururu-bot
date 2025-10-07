@@ -1,16 +1,21 @@
+from domain.entities.session import SessionMetadataKey
 from pururu.common import logger
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
-                                                           SessionConcludeRequestedEvent, SessionConcludedEvent)
+                                                           SessionConcludeRequestedEvent, SessionConcludedEvent,
+                                                           SessionTypeChangedEvent, SessionAttendanceEditedEvent)
 from pururu.domain.services.data_sync_service import DataSyncService
+from pururu.domain.services.discord_service import DiscordService
 from pururu.domain.services.session_service import SessionService
 
 
 class SessionEventsHandler:
-    def __init__(self, session_service: SessionService, data_sync_service: DataSyncService, event_bus: EventBus):
+    def __init__(self, session_service: SessionService, data_sync_service: DataSyncService, event_bus: EventBus,
+                 discord_service: DiscordService):
         self.session_service = session_service
         self.data_sync_service = data_sync_service
         self.event_bus = event_bus
+        self.discord_service = discord_service
         self.logger = logger.get_logger(__name__)
         self._subscribe_events()
 
@@ -19,6 +24,8 @@ class SessionEventsHandler:
         self.event_bus.subscribe(PlayerLeftSessionEvent.event_type, self.handle_player_left)
         self.event_bus.subscribe(SessionConcludeRequestedEvent.event_type, self.handle_session_conclude_requested)
         self.event_bus.subscribe(SessionConcludedEvent.event_type, self.handle_session_concluded)
+        self.event_bus.subscribe(SessionTypeChangedEvent.event_type, self.handle_session_type_changed)
+        self.event_bus.subscribe(SessionAttendanceEditedEvent.event_type, self.handle_session_attendance_edited)
 
     def handle_player_joined(self, event: PlayerJoinedSessionEvent) -> None:
         self.logger.info(
@@ -59,4 +66,29 @@ class SessionEventsHandler:
                     "session_id": event.session_id,
                 })
             return
+        self.data_sync_service.sync_session(session)
+
+    async def handle_session_type_changed(self, event: SessionTypeChangedEvent) -> None:
+        self.logger.info(
+            f"Handling SessionTypeChangedEvent for session {event.session_id} to new type {event.new_type}",
+            extra={
+                "session_id": event.session_id,
+                "new_type": event.new_type
+            })
+        session = self.session_service.find_session_by_id(event.session_id)
+        channel_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID)
+        message_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID)
+        await self.discord_service.update_session_info_view_message(channel_id, message_id, session)
+        self.data_sync_service.sync_session(session)
+
+    async def handle_session_attendance_edited(self, event: SessionAttendanceEditedEvent) -> None:
+        self.logger.info(
+            f"Handling SessionAttendanceEditedEvent for session {event.session_id}",
+            extra={
+                "session_id": event.session_id,
+            })
+        session = self.session_service.find_session_by_id(event.session_id)
+        channel_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID)
+        message_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID)
+        await self.discord_service.update_session_info_view_message(channel_id, message_id, session)
         self.data_sync_service.sync_session(session)

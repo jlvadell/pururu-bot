@@ -1,16 +1,20 @@
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 from hamcrest import assert_that, equal_to
 
 from pururu.application.handlers.session_events_handler import SessionEventsHandler
+from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (
     PlayerJoinedSessionEvent,
     PlayerLeftSessionEvent,
     SessionConcludeRequestedEvent,
-    SessionConcludedEvent
+    SessionConcludedEvent,
+    SessionTypeChangedEvent,
+    SessionAttendanceEditedEvent
 )
+from pururu.domain.services.discord_service import DiscordService
 
 
 @pytest.fixture
@@ -28,13 +32,19 @@ def mock_data_sync_service():
 @pytest.fixture
 def mock_event_bus():
     """Create a mock EventBus for testing"""
-    return MagicMock()
+    return MagicMock(spec=EventBus)
 
 
 @pytest.fixture
-def handler(mock_session_service, mock_data_sync_service, mock_event_bus):
+def mock_discord_service():
+    """Create a mock DiscordService for testing"""
+    return AsyncMock(spec=DiscordService)
+
+
+@pytest.fixture
+def handler(mock_session_service, mock_data_sync_service, mock_event_bus, mock_discord_service):
     """Create a SessionEventsHandler instance with mocked dependencies"""
-    return SessionEventsHandler(mock_session_service, mock_data_sync_service, mock_event_bus)
+    return SessionEventsHandler(mock_session_service, mock_data_sync_service, mock_event_bus, mock_discord_service)
 
 
 @pytest.mark.unit
@@ -45,7 +55,9 @@ def test_subscriptions(handler, mock_event_bus):
         ((PlayerJoinedSessionEvent.event_type, handler.handle_player_joined),),
         ((PlayerLeftSessionEvent.event_type, handler.handle_player_left),),
         ((SessionConcludeRequestedEvent.event_type, handler.handle_session_conclude_requested),),
-        ((SessionConcludedEvent.event_type, handler.handle_session_concluded),)
+        ((SessionConcludedEvent.event_type, handler.handle_session_concluded),),
+        ((SessionTypeChangedEvent.event_type, handler.handle_session_type_changed),),
+        ((SessionAttendanceEditedEvent.event_type, handler.handle_session_attendance_edited),),
     ]
     # Assert
     mock_event_bus.subscribe.assert_has_calls(expected_calls, any_order=True)
@@ -130,3 +142,42 @@ def test_handle_session_concluded_with_negative_conclusion(handler, mock_session
     mock_session_service.find_session_by_id.assert_called_once_with("session123")
     mock_session.was_concluded_positively.assert_called_once()
     mock_data_sync_service.sync_session.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_handle_session_type_changed(handler, mock_session_service, mock_data_sync_service, mock_discord_service):
+    """Test handle_session_type_changed"""
+    # Arrange
+    mock_session = MagicMock()
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    event = SessionTypeChangedEvent(datetime.now(), "session123", "new_type")
+
+    # Act
+    await handler.handle_session_type_changed(event)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with("session123")
+    mock_discord_service.update_session_info_view_message.assert_awaited_once()
+    mock_data_sync_service.sync_session.assert_called_once_with(mock_session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_handle_session_attendance_edited(handler, mock_session_service, mock_data_sync_service,
+                                                mock_discord_service):
+    """Test handle_session_attendance_edited"""
+    # Arrange
+    mock_session = MagicMock()
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    event = SessionAttendanceEditedEvent(datetime.now(), "session123")
+
+    # Act
+    await handler.handle_session_attendance_edited(event)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with("session123")
+    mock_discord_service.update_session_info_view_message.assert_awaited_once()
+    mock_data_sync_service.sync_session.assert_called_once_with(mock_session)
