@@ -41,12 +41,13 @@ def test_postgres_engine_initialization(mock_create_engine, mock_base, mock_sett
     password = "testpass"
     host = "localhost"
     port = 5432
+    db_name = "postgres_db"
 
     # Act
-    engine = PostgresDBEngine(protocol, user, password, host, port)
+    engine = PostgresDBEngine(protocol, user, password, host, port, db_name)
 
     # Assert
-    expected_url = f"{protocol}://{user}:{password}@{host}:{port}/postgres"
+    expected_url = f"{protocol}://{user}:{password}@{host}:{port}/{db_name}"
     mock_create_engine.assert_called_once()
     call_args = mock_create_engine.call_args[0]
     assert_that(call_args[0], equal_to(expected_url))
@@ -56,7 +57,7 @@ def test_postgres_engine_initialization(mock_create_engine, mock_base, mock_sett
 def test_postgres_engine_loads_metadata(mock_create_engine, mock_base, mock_settings):
     """Test PostgresDBEngine loads metadata on initialization"""
     # Act
-    engine = PostgresDBEngine("postgresql+psycopg2", "user", "pass", "localhost", 5432)
+    engine = PostgresDBEngine("postgresql+psycopg2", "user", "pass", "localhost", 5432, "postgres")
 
     # Assert
     mock_base.metadata.create_all.assert_called_once_with(engine.engine)
@@ -66,7 +67,7 @@ def test_postgres_engine_loads_metadata(mock_create_engine, mock_base, mock_sett
 def test_get_engine_returns_engine(mock_create_engine, mock_base, mock_settings):
     """Test get_engine returns SQLAlchemy engine"""
     # Arrange
-    engine = PostgresDBEngine("postgresql+psycopg2", "user", "pass", "localhost", 5432)
+    engine = PostgresDBEngine("postgresql+psycopg2", "user", "pass", "localhost", 5432, "postgres")
 
     # Act
     result = engine.get_engine()
@@ -79,7 +80,7 @@ def test_get_engine_returns_engine(mock_create_engine, mock_base, mock_settings)
 def test_load_metadata_creates_tables(mock_create_engine, mock_base, mock_settings):
     """Test load_metadata creates all tables"""
     # Arrange
-    engine = PostgresDBEngine("postgresql+psycopg2", "user", "pass", "localhost", 5432)
+    engine = PostgresDBEngine("postgresql+psycopg2", "user", "pass", "localhost", 5432, "postgres")
     mock_base.metadata.create_all.reset_mock()
 
     # Act

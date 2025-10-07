@@ -83,7 +83,8 @@ class Application:
                                                 settings.secrets.postgres_user,
                                                 settings.secrets.postgres_password,
                                                 settings.database.postgres.host,
-                                                settings.database.postgres.port)
+                                                settings.database.postgres.port,
+                                                settings.database.postgres.database)
 
         # Messaging
         self.event_bus = AWSEventBus(self.sns_adapter, self.sqs_adapter)
@@ -137,7 +138,6 @@ class Application:
         # --------------------------------
         self.logger.info("Starting application.......")
 
-        self.postgres_engine.load_metadata() # create tables if not exist
         self.scheduler.start() # start scheduled jobs
         self.config_watcher.start_config_watcher() # start config file watcher
         self.sqs_adapter.start_polling() # start SQS polling
