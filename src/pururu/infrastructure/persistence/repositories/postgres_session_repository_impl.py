@@ -2,7 +2,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session as OrmSession
 
 from pururu.common import logger
-from pururu.domain.entities.session import Session, Status
+from pururu.domain.entities.session import Session, Status, Type
 from pururu.domain.exceptions import OptimisticLockingFailureException
 from pururu.domain.repositories.session_repository import SessionRepository
 from pururu.infrastructure.adapters.postgres.engine import PostgresDBEngine
@@ -53,6 +53,14 @@ class PostgresSessionRepositoryImpl(SessionRepository):
         with OrmSession(self.postgres_engine) as orm_session:
             record = orm_session.query(SessionRecord).filter(and_(
                 SessionRecord.status == Status.DRAFT.value, SessionRecord.end_time.is_(None))).one_or_none()
+            if record:
+                return PostgresMapper.map_record_to_session(record)
+            return None
+
+    def find_latest_by_type(self, session_type: Type) -> Session | None:
+        with OrmSession(self.postgres_engine) as orm_session:
+            record = orm_session.query(SessionRecord).filter(SessionRecord.type == session_type.value).order_by(
+                SessionRecord.start_time.desc()).one_or_none()
             if record:
                 return PostgresMapper.map_record_to_session(record)
             return None

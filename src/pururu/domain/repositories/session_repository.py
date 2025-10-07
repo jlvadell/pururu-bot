@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from pururu.domain.entities.session import Session
+from pururu.domain.entities.session import Session, Type
 
 
 class SessionRepository(ABC):
@@ -36,5 +36,13 @@ class SessionRepository(ABC):
         """
         Gets the currently active session (status != COMPLETED and != DISCARDED)
         :return: the active session if found, None otherwise
+        """
+        pass
+
+    def find_latest_by_type(self, session_type: Type) -> Session | None:
+        """
+        Gets the latest session of a given type
+        :param session_type: the type of the session
+        :return: the latest session of the given type if found, None otherwise
         """
         pass

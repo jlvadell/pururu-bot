@@ -199,3 +199,43 @@ def test_find_active_session_returns_none(mock_orm_session_class, repository):
 
     # Assert
     assert_that(result, none())
+
+@pytest.mark.unit
+@patch('pururu.infrastructure.persistence.repositories.postgres_session_repository_impl.OrmSession')
+@patch('pururu.infrastructure.persistence.repositories.postgres_session_repository_impl.PostgresMapper')
+def test_find_latest_by_type(mock_mapper, mock_orm_session_class, repository):
+    """Test find_latest_by_type returns session when found"""
+    # Arrange
+    mock_session_context = MagicMock()
+    mock_orm_session_class.return_value.__enter__.return_value = mock_session_context
+
+    mock_record = MagicMock(spec=SessionRecord)
+    mock_query = mock_session_context.query.return_value
+    mock_query.filter.return_value.order_by.return_value.one_or_none.return_value = mock_record
+    expected_session = MagicMock(spec=Session)
+    mock_mapper.map_record_to_session.return_value = expected_session
+
+    # Act
+    result = repository.find_latest_by_type(Type.OFFICIAL_GAME)
+
+    # Assert
+    mock_mapper.map_record_to_session.assert_called_once_with(mock_record)
+    assert_that(result, equal_to(expected_session))
+
+@pytest.mark.unit
+@patch('pururu.infrastructure.persistence.repositories.postgres_session_repository_impl.OrmSession')
+def test_find_latest_by_type_not_found(mock_orm_session_class, repository):
+    """Test find_latest_by_type returns None when nothing found"""
+    # Arrange
+    mock_session_context = MagicMock()
+    mock_orm_session_class.return_value.__enter__.return_value = mock_session_context
+
+    mock_record = MagicMock(spec=SessionRecord)
+    mock_query = mock_session_context.query.return_value
+    mock_query.filter.return_value.order_by.return_value.one_or_none.return_value = None
+
+    # Act
+    result = repository.find_latest_by_type(Type.OFFICIAL_GAME)
+
+    # Assert
+    assert_that(result, none())
