@@ -27,7 +27,7 @@ class DiscordEventHandler:
         self.logger.info(f"Player voice state changed, player: {player_id}, from {before_channel} to {after_channel}",
                          extra={"player_id": player_id, "before_channel": before_channel,
                                 "after_channel": after_channel})
-        if player_name not in settings.general.players.keys():
+        if player_id not in settings.general.players.keys():
             self.logger.debug(f"Non-tracked player ignored: {player_id}", extra={"player_id": player_id})
             return
         event = None
