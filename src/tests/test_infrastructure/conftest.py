@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 
+from pururu.infrastructure.adapters.postgres.entities import SessionMetadataRecord
+
 
 # Google Sheets fixtures
 @pytest.fixture
@@ -83,3 +85,12 @@ def mock_discord_member():
     mock.name = "TestUser"
     mock.display_name = "Test User"
     return mock
+
+@pytest.fixture
+def session_metadata_record():
+    """Create a sample SessionMetadataRecord"""
+    return SessionMetadataRecord(
+        session_id="session123",
+        key="discord_info_message_id",
+        value="1234"
+    )

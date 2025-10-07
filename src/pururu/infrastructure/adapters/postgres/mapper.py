@@ -3,10 +3,10 @@ from datetime import datetime
 from pururu.domain.entities.player import Player
 from pururu.domain.entities.poll import PollReference, PollResolutionType
 from pururu.domain.entities.season import Season
-from pururu.domain.entities.session import (Session, Status, Type, PlayerSession, Interval)
+from pururu.domain.entities.session import (Session, Status, Type, PlayerSession, Interval, SessionMetadataKey)
 from pururu.infrastructure.adapters.postgres.entities import (SessionRecord, PlayerSessionRecord,
                                                               PlayerSessionIntervalRecord, PlayerRecord, SeasonRecord,
-                                                              PollRecord)
+                                                              PollRecord, SessionMetadataRecord)
 
 
 class PostgresMapper:
@@ -24,6 +24,8 @@ class PostgresMapper:
             status=session.status.value,
             version=session.version,
             last_updated=datetime.now(),
+            custom_metadata=[PostgresMapper.map_metadata_to_record(key.value, value, session.id) for (key, value) in
+                             session.metadata.items()]
         )
         session_record.players = [PostgresMapper.map_player_session_to_record(ps, session.id) for ps in session.players]
         return session_record
@@ -90,6 +92,14 @@ class PostgresMapper:
         )
 
     @staticmethod
+    def map_metadata_to_record(key: str, value: str, session_id: str) -> SessionMetadataRecord:
+        return SessionMetadataRecord(
+            session_id=session_id,
+            key=key,
+            value=value
+        )
+
+    @staticmethod
     def map_record_to_session(record: SessionRecord) -> Session:
         session = Session(
             id=record.session_id,
@@ -99,7 +109,8 @@ class PostgresMapper:
             type=Type(record.type),
             status=Status(record.status),
             players=[PostgresMapper.map_record_to_player_session(ps) for ps in record.players],
-            version=record.version
+            version=record.version,
+            metadata={SessionMetadataKey(md.key): md.value for md in record.custom_metadata}
         )
         return session
 

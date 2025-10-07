@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -18,6 +18,14 @@ class Status(Enum):
     DRAFT = "Draft"
     COMPLETED = "Completed"
     DISCARDED = "Discarded"
+
+    def __str__(self):
+        return self.value
+
+
+class SessionMetadataKey(Enum):
+    DISCORD_INFO_MESSAGE_ID = "discord_info_message_id"
+    DISCORD_INFO_MESSAGE_CHANNEL_ID = "discord_info_message_channel_id"
 
     def __str__(self):
         return self.value
@@ -94,6 +102,7 @@ class Session:
     type: Type
     status: Status
     players: list[PlayerSession]
+    metadata: dict[SessionMetadataKey, str] = field(default_factory=dict)
     version: int = 1  # For optimistic locking
 
     def was_concluded_positively(self) -> bool:
