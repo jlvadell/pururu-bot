@@ -1,12 +1,14 @@
+import random
 from datetime import datetime
 
 from pururu.common import logger
 from pururu.config import settings
-from pururu.domain.entities.session import (Session, Status, Type)
+from pururu.domain.entities.session import (Session, Status, Type, PlayerSession)
 from pururu.domain.exceptions import (SessionNotFoundException, SessionAlreadyConcludedException,
                                       CannotConcludeSessionException)
 from pururu.domain.messaging.event_bus import EventBus
-from pururu.domain.messaging.events.session_events import SessionConcludeRequestedEvent, SessionConcludedEvent
+from pururu.domain.messaging.events.session_events import (SessionConcludeRequestedEvent, SessionConcludedEvent,
+                                                           SessionTypeChangedEvent, SessionAttendanceEditedEvent)
 from pururu.domain.repositories.session_repository import SessionRepository
 from pururu.domain.services.id_generator_service import IdGeneratorService
 from pururu.domain.services.player_service import PlayerService
@@ -75,11 +77,7 @@ class SessionService:
         """
         self.logger.debug(f"Concluding session '{session_id}' at '{end_time}'",
                           extra={'session_id': session_id, 'end_time': end_time.isoformat()})
-        session = self.session_repository.find_by_id(session_id)
-        if not session:
-            self.logger.error(f"Cannot conclude session '{session_id}' because it does not exist",
-                              extra={'session_id': session_id})
-            raise SessionNotFoundException(f"Session with id '{session_id}' not found")
+        session = self.find_session_by_id(session_id)
         try:
             session.conclude(end_time, settings.general.min_attendance_members, settings.general.min_attendance_time)
         except SessionAlreadyConcludedException:
@@ -107,6 +105,51 @@ class SessionService:
             raise SessionNotFoundException(f"Session with id '{session_id}' not found")
         return session
 
+    def change_session_type(self, session_id: str, new_type: Type) -> None:
+        """
+        Changes the type of the session with the given id to new_type
+        :param session_id: the id of the session to change
+        :param new_type: the new type to set
+        :return: None
+        :raises SessionNotFoundException: if no session with the given id exists
+        """
+        self.logger.debug(f"Changing session '{session_id}' type to '{new_type.value}'",
+                          extra={'session_id': session_id})
+        session = self.find_session_by_id(session_id)
+        if session.type == new_type:
+            self.logger.debug(f"Session '{session_id}' type is already '{new_type.value}', no change made",
+                              extra={'session_id': session_id, 'type': new_type.value})
+            return
+        session.type = new_type
+        session.increment_version()
+        self.session_repository.update(session)
+        self.event_bus.publish(SessionTypeChangedEvent(datetime.now(), session.id, session.type.value))
+
+    def edit_session_attendance(self, session_id: str, player_sessions: list[PlayerSession]) -> bool:
+        """
+        Edits the player attendance data for the session with the given id. Just updates the justification and motive.
+        :param session_id: the id of the session to edit
+        :param player_sessions: ignoring intervals, the updated player sessions to set
+        :return: bool indicating if any attendance was changed; True if changed, False if no changes
+        """
+        self.logger.debug(f"Editing session '{session_id}' attendance", extra={'session_id': session_id})
+        any_changes = False
+        session = self.find_session_by_id(session_id)
+        for player in player_sessions:
+            player_to_update = session.get_player(player.player_id)
+            if player_to_update.attended:
+                # Attendance is calculated based on domain rules, no manual changes allowed.
+                continue
+            if (player_to_update.justified_absence != player.justified_absence or
+                    player_to_update.motive != player.motive):
+                any_changes = True
+                player_to_update.justified_absence = player.justified_absence
+                player_to_update.motive = player.motive
+        if any_changes:
+            session.increment_version()
+            self.session_repository.update(session)
+            self.event_bus.publish(SessionAttendanceEditedEvent(datetime.now(), session.id))
+
     def _create_session(self, player_id: str, start_time: datetime) -> Session:
         """
         Creates a new session with the given player as attended from start_time
@@ -122,7 +165,7 @@ class SessionService:
             season_id=season.id,
             start_time=start_time,
             end_time=None,
-            type=Type.OFFICIAL_GAME,
+            type=self._determine_session_type(start_time),
             status=Status.DRAFT,
             players=[],
             version=1
@@ -131,3 +174,38 @@ class SessionService:
             session.register_player_connection(player.id, start_time if player.id == player_id else None, True)
         self.logger.info(f"Created session '{session_id}' started by '{player_id}'", extra={'session_id': session_id})
         return self.session_repository.save(session)
+
+    def _determine_session_type(self, start_time: datetime) -> Type:
+        """
+        Determines the session type based on domain rules
+        :param start_time: the start time of the session; can be used to infer the type
+        :return: the determined session type
+        """
+        session_type = Type.ADDITIONAL_GAME
+        last_official_game = self.session_repository.find_latest_by_type(Type.OFFICIAL_GAME)
+        if last_official_game:
+            self.logger.debug(f"Last official game found at '{last_official_game.start_time}'", )
+            last_official_game_week = last_official_game.start_time.isocalendar()[1]
+            current_week = start_time.isocalendar()[1]
+            if last_official_game_week != current_week:
+                session_type = self._infer_session_type_from_start_time(start_time)
+        return session_type
+
+    def _infer_session_type_from_start_time(self, start_time: datetime) -> Type:
+        """
+        Infers the session type based on the start time
+        :param start_time: the start time of the session
+        :return: the inferred session type
+        """
+        inferred_type = Type.ADDITIONAL_GAME
+        if start_time.weekday() == 3:  # Thursday is the de facto day for official games
+            inferred_type = Type.OFFICIAL_GAME
+        elif start_time.hour >= 21:  # After 9 PM
+            if start_time.weekday() in [0, 1]:  # Monday or Tuesday
+                if random.random() < 0.25:  # 25% chance
+                    inferred_type = Type.OFFICIAL_GAME
+            else:
+                if random.random() < 0.15:  # 15% chance
+                    inferred_type = Type.OFFICIAL_GAME
+        self.logger.debug(f"Session type: {inferred_type.value} was inferred from start time '{start_time}'")
+        return inferred_type

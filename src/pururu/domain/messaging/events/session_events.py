@@ -41,3 +41,22 @@ class SessionConcludedEvent(PrimaryDomainEvent):
     """
     event_type = "SessionConcludedEvent"
     session_id: str
+
+
+@dataclass(frozen=True)
+class SessionTypeChangedEvent(PrimaryDomainEvent):
+    """
+    Event representing a change in the type of a game session.
+    """
+    event_type = "SessionTypeChangedEvent"
+    session_id: str
+    new_type: str
+
+
+@dataclass(frozen=True)
+class SessionAttendanceEditedEvent(PrimaryDomainEvent):
+    """
+    Event representing an edit in the attendance of a game session.
+    """
+    event_type = "SessionAttendanceEditedEvent"
+    session_id: str

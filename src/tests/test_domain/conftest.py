@@ -35,6 +35,28 @@ def player_session():
     )
 
 @pytest.fixture
+def player_session_absent():
+    """Create  PlayerSession absent unjustified"""
+    return PlayerSession(
+        player_id="player456",
+        justified_absence=False,
+        attended=False,
+        motive=None,
+        intervals=[]
+    )
+
+@pytest.fixture
+def player_session_justified():
+    """Create  PlayerSession absent justified"""
+    return PlayerSession(
+        player_id="player456",
+        justified_absence=True,
+        attended=False,
+        motive="He's away on a trip.",
+        intervals=[]
+    )
+
+@pytest.fixture
 def player_session_online():
     """Create a sample PlayerSession"""
     return PlayerSession(
