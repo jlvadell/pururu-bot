@@ -1,4 +1,4 @@
-name: pururu-local-docker-development
+name: pururu-dev
 services:
   localstack:
     image: localstack/localstack:latest
@@ -21,3 +21,18 @@ services:
     volumes:
       - ./localstack:/etc/localstack/init/ready.d
       - /var/run/docker.sock:/var/run/docker.sock
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=pururu
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

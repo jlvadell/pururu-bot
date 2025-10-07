@@ -25,12 +25,11 @@ dynamic = ["version"]
 
 # Core dependencies
 dependencies = [
-    "discord.py~=2.5.2",
-    "google-auth~=2.34.0",
+    "discord.py~=2.6.3",
+    "google-auth~=2.41.1",
     "gspread~=6.2.1",
     "APScheduler~=3.11.0",
-    "boto3~=1.37.3",
-    "aioboto3~=14.3.0",
+    "aioboto3~=15.1.0",
     "dynaconf~=3.2.11",
     "watchdog~=6.0.0",
     "ulid-py~=1.1.0",
@@ -41,13 +40,12 @@ dependencies = [
 [project.optional-dependencies]
 # Development and testing dependencies
 dev = [
-    "pytest~=8.4.0",
-    "pytest-cov~=6.2.1",
-    "pytest-asyncio~=1.0.0",
-    "coverage~=7.9.1",
+    "pytest~=8.4.2",
+    "pytest-cov~=7.0.0",
+    "pytest-asyncio~=1.2.0",
+    "coverage~=7.10.7",
     "pyhamcrest~=2.1.0",
-    "freezegun~=1.5.2",
-    "moto~=5.1.6",
+    "moto~=5.1.13",
 ]
 
 [project.urls]
