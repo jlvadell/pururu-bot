@@ -8,7 +8,9 @@ from pururu.domain.entities.session import (
 )
 from pururu.domain.exceptions import (
     SessionAlreadyConcludedException,
-    CannotConcludeSessionException
+    CannotConcludeSessionException,
+    PlayerNotConnectedException,
+    NoPlayerIntervalsException
 )
 
 
@@ -123,7 +125,7 @@ def test_player_session_has_attended_true():
     # Arrange
     player_session = PlayerSession(
         player_id="player123",
-        attended=None,
+        attended=False,
         justified_absence=False,
         motive=None,
         intervals=[
@@ -227,8 +229,29 @@ def test_session_was_concluded_positively_true():
 
 
 @pytest.mark.unit
-def test_session_was_concluded_positively_false():
-    """Test Session.was_concluded_positively returns False when not COMPLETED"""
+def test_session_was_concluded_positively_discarded():
+    """Test Session.was_concluded_positively returns False when session is discarded"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=datetime(2025, 10, 1, 10, 5, 0),
+        type=Type.OFFICIAL_GAME,
+        status=Status.DISCARDED,
+        players=[]
+    )
+
+    # Act
+    result = session.was_concluded_positively()
+
+    # Assert
+    assert_that(result, is_(False))
+
+
+@pytest.mark.unit
+def test_session_was_concluded_positively_false_ongoing():
+    """Test Session.was_concluded_positively returns False when session is on going"""
     # Arrange
     session = Session(
         id="session123",
@@ -261,7 +284,7 @@ def test_session_any_player_connected_true():
         players=[
             PlayerSession(
                 player_id="player123",
-                attended=None,
+                attended=False,
                 justified_absence=False,
                 motive=None,
                 intervals=[Interval(datetime(2025, 10, 1, 10, 0, 0), None)]
@@ -290,7 +313,7 @@ def test_session_any_player_connected_false():
         players=[
             PlayerSession(
                 player_id="player123",
-                attended=None,
+                attended=False,
                 justified_absence=False,
                 motive=None,
                 intervals=[Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]
@@ -309,7 +332,7 @@ def test_session_any_player_connected_false():
 def test_session_get_player_found():
     """Test Session.get_player returns player when found"""
     # Arrange
-    player_session = PlayerSession("player123", None, False, None, [])
+    player_session = PlayerSession("player123", False, False, None, [])
     session = Session(
         id="session123",
         season_id="season456",
@@ -377,7 +400,7 @@ def test_session_add_player_new():
 def test_session_add_player_existing():
     """Test Session.add_player returns existing player if already added"""
     # Arrange
-    existing_player = PlayerSession("player123", None, False, None, [])
+    existing_player = PlayerSession("player123", False, False, None, [])
     session = Session(
         id="session123",
         season_id="season456",
@@ -434,7 +457,7 @@ def test_session_register_player_connection_closes_previous():
         players=[
             PlayerSession(
                 "player123",
-                None,
+                False,
                 False,
                 None,
                 [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]
@@ -464,7 +487,7 @@ def test_session_register_player_disconnection():
         players=[
             PlayerSession(
                 "player123",
-                None,
+                False,
                 False,
                 None,
                 [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]
@@ -478,6 +501,33 @@ def test_session_register_player_disconnection():
     # Assert
     assert_that(session.players[0].intervals[0].end, equal_to(datetime(2025, 10, 1, 11, 0, 0)))
     assert_that(session.version, equal_to(2))
+
+
+@pytest.mark.unit
+def test_session_register_player_disconnection_not_online():
+    """Test Session.register_player_disconnection raises PlayerNotConnectedException when player does not have an open interval"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession(
+                "player123",
+                False,
+                False,
+                None,
+                [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 10, 30, 0))]
+            )
+        ]
+    )
+
+    # Act & Assert
+    with pytest.raises(PlayerNotConnectedException):
+        session.register_player_disconnection("player123", datetime(2025, 10, 1, 11, 0, 0))
 
 
 @pytest.mark.unit
@@ -534,9 +584,9 @@ def test_session_get_official_start_time_enough_players():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", None, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
-            PlayerSession("p2", None, False, None, [Interval(datetime(2025, 10, 1, 10, 5, 0), None)]),
-            PlayerSession("p3", None, False, None, [Interval(datetime(2025, 10, 1, 10, 10, 0), None)])
+            PlayerSession("p1", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
+            PlayerSession("p2", False, False, None, [Interval(datetime(2025, 10, 1, 10, 5, 0), None)]),
+            PlayerSession("p3", False, False, None, [Interval(datetime(2025, 10, 1, 10, 10, 0), None)])
         ]
     )
 
@@ -559,7 +609,7 @@ def test_session_get_official_start_time_not_enough_players():
         type=Type.OFFICIAL_GAME,
         status=Status.DRAFT,
         players=[
-            PlayerSession("p1", None, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
+            PlayerSession("p1", False, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)])
         ]
     )
 
@@ -891,6 +941,40 @@ def test_session_get_online_players():
 
 
 @pytest.mark.unit
+def test_session_get_checked_in_players():
+    """Test Session.get_checked_in_players returns correct attended players"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", True, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
+            # online - check-in done
+            PlayerSession("p2", False, True, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),
+            # offline - check-in done
+            PlayerSession("p3", True, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 11, 0, 0))]),
+            # attended - check-in done
+            PlayerSession("p4", False, False, None, [])  # offline
+        ]
+    )
+
+    # Act
+    result = session.get_checked_in_players()
+
+    # Assert
+    assert_that(len(result), equal_to(3))
+    assert_that(result[0].player_id, equal_to("p1"))
+    assert_that(result[1].player_id, equal_to("p2"))
+    assert_that(result[2].player_id, equal_to("p3"))
+
+
+@pytest.mark.unit
 def test_session_get_absent_players():
     """Test Session.get_absent_players returns correct absent players"""
     # Arrange
@@ -947,3 +1031,75 @@ def test_session_get_first_joiner():
 
     # Assert
     assert_that(result.player_id, equal_to("p2"))
+
+
+@pytest.mark.unit
+def test_session_get_first_joiner_no_players():
+    """Test Session.get_first_joiner raises NoPlayerIntervalsException"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=datetime(2025, 10, 1, 12, 0, 0),
+        type=Type.OFFICIAL_MEETING,
+        status=Status.COMPLETED,
+        players=[
+            PlayerSession("p1", True, False, None, []),
+            PlayerSession("p2", True, False, None, [])
+        ]
+    )
+
+    # Act & Assert
+    with pytest.raises(NoPlayerIntervalsException):
+        session.get_first_joiner()
+
+
+@pytest.mark.unit
+def test_session_get_last_joiner():
+    """Test Session.get_last_joiner returns player who joined last"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", True, False, None, [Interval(datetime(2025, 10, 1, 10, 5, 0), None)]),
+            # joined at 10:05
+            PlayerSession("p2", True, False, None, [Interval(datetime(2025, 10, 1, 10, 0, 0), None)]),
+            # joined at 10:00
+            PlayerSession("p3", True, False, None, [Interval(datetime(2025, 10, 1, 10, 10, 0), None)])
+            # joined at 10:10
+        ]
+    )
+
+    # Act
+    result = session.get_last_joiner()
+
+    # Assert
+    assert_that(result.player_id, equal_to("p3"))
+
+
+@pytest.mark.unit
+def test_session_get_last_joiner_no_players():
+    """Test Session.get_last_joiner raises NoPlayerIntervalsException"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=datetime(2025, 10, 1, 12, 0, 0),
+        type=Type.OFFICIAL_MEETING,
+        status=Status.COMPLETED,
+        players=[
+            PlayerSession("p1", True, False, None, []),
+            PlayerSession("p2", True, False, None, [])
+        ]
+    )
+
+    # Act & Assert
+    with pytest.raises(NoPlayerIntervalsException):
+        session.get_last_joiner()

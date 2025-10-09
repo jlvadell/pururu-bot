@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from pururu.domain.exceptions import (SessionAlreadyConcludedException, CannotConcludeSessionException)
+from pururu.domain.exceptions import (SessionAlreadyConcludedException, CannotConcludeSessionException,
+                                      PlayerNotConnectedException, NoPlayerIntervalsException)
 
 
 class Type(Enum):
@@ -110,7 +111,7 @@ class Session:
         Returns True if the session was concluded positively (i.e., status is COMPLETED)
         :return: bool
         """
-        return self.status == Status.COMPLETED
+        return self.is_concluded() and self.status == Status.COMPLETED
 
     def any_player_connected(self) -> bool:
         """
@@ -139,6 +140,13 @@ class Session:
         :return: list of PlayerSession
         """
         return [ps for ps in self.players if ps.is_online()]
+
+    def get_checked_in_players(self) -> list[PlayerSession]:
+        """
+        Returns the list of players who have attended or have at least one interval
+        :return: list of PlayerSession
+        """
+        return [ps for ps in self.players if ps.attended or ps.intervals]
 
     def get_player(self, player_id: str) -> PlayerSession | None:
         """
@@ -192,11 +200,11 @@ class Session:
         :param player_id: the player id
         :param disconnection_time: datetime of the disconnection
         :return: None
+        :raises PlayerNotConnectedException: if the player is not connected
         """
         player_session = self.get_player(player_id)
         if player_session is None or not player_session.intervals or player_session.intervals[-1].end is not None:
-            # player not found or not connected
-            return
+            raise PlayerNotConnectedException(f"Player '{player_id}' is not connected to session '{self.id}'")
         player_session.intervals[-1].end = disconnection_time
         self.increment_version()
 
@@ -280,12 +288,25 @@ class Session:
         """
         Returns the player session of the first player who joined the session (i.e., with the earliest join time)
         :return: PlayerSession
-        :raises ValueError: if no players have joined the session
+        :raises NoPlayerIntervalsException: if can't get the info to rank players by join time
         """
         players_ordered = self._get_players_session_join_ordered()
         if not players_ordered:
-            raise ValueError(f"No players have joined session '{self.id}'")
+            raise NoPlayerIntervalsException(
+                f"Unavailable to rank players by time, not enough info, session: '{self.id}'")
         return players_ordered[0]
+
+    def get_last_joiner(self) -> PlayerSession:
+        """
+        Returns the player session of the last player who joined the session (i.e., with the latest join time)
+        :return: PlayerSession
+        :raises NoPlayerIntervalsException: if can't get the info to rank players by join time
+        """
+        players_ordered = self._get_players_session_join_ordered()
+        if not players_ordered:
+            raise NoPlayerIntervalsException(
+                f"Unavailable to rank players by time, not enough info, session: '{self.id}'")
+        return players_ordered[-1]
 
     def _get_players_session_join_ordered(self) -> list[PlayerSession]:
         """
