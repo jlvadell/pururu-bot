@@ -85,7 +85,8 @@ def session():
         status=Status.DRAFT,
         players=[],
         start_time=datetime(2025, 10, 1, 10, 0, 0),
-        end_time=None
+        end_time=None,
+        metadata={}
     )
 
 

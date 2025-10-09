@@ -3,12 +3,12 @@ from datetime import datetime
 
 from pururu.common import logger
 from pururu.config import settings
-from pururu.domain.entities.session import (Session, Status, Type, PlayerSession)
+from pururu.domain.entities.session import (Session, Status, Type, PlayerSession, SessionMetadataKey)
 from pururu.domain.exceptions import (SessionNotFoundException, SessionAlreadyConcludedException,
-                                      CannotConcludeSessionException)
+                                      CannotConcludeSessionException, PlayerNotConnectedException)
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (SessionConcludeRequestedEvent, SessionConcludedEvent,
-                                                           SessionTypeChangedEvent, SessionAttendanceEditedEvent)
+                                                           SessionUpdatedEvent, SessionCreatedEvent)
 from pururu.domain.repositories.session_repository import SessionRepository
 from pururu.domain.services.id_generator_service import IdGeneratorService
 from pururu.domain.services.player_service import PlayerService
@@ -61,12 +61,16 @@ class SessionService:
             return
         self.logger.debug(f"Active session '{session.id}' found, registering player '{player_id}' disconnection",
                           extra={'session_id': session.id, 'player_id': player_id})
-        session.register_player_disconnection(player_id, time)
-        session = self.session_repository.update(session)
-        if not session.any_player_connected():
-            self.logger.info(f"No players connected in session '{session.id}', concluding session",
-                             extra={'session_id': session.id})
-            self.event_bus.publish(SessionConcludeRequestedEvent(datetime.now(), session.id, time))
+        try:
+            session.register_player_disconnection(player_id, time)
+            session = self.session_repository.update(session)
+            if not session.any_player_connected():
+                self.logger.info(f"No players connected in session '{session.id}', concluding session",
+                                 extra={'session_id': session.id})
+                self.event_bus.publish(SessionConcludeRequestedEvent(datetime.now(), session.id, time))
+        except PlayerNotConnectedException:
+            self.logger.warning(
+                f"player '{player_id}' disconnection from session {session.id} at '{time}' but player was not connected")
 
     def conclude_session(self, session_id: str, end_time: datetime) -> None:
         """
@@ -105,6 +109,21 @@ class SessionService:
             raise SessionNotFoundException(f"Session with id '{session_id}' not found")
         return session
 
+    def add_session_metadata(self, session_id: str, updates: dict[SessionMetadataKey, str]) -> None:
+        """
+        Adds metadata to the session with the given id
+        :param session_id: the id of the session to add metadata to
+        :param updates: dictionary of metadata keys and values to update
+        :return: None
+        :raises SessionNotFoundException: if no session with the given id exists
+        """
+        self.logger.debug(f"Adding metadata updates to session '{session_id}'",
+                          extra={'session_id': session_id, 'updates': {k.value: v for k, v in updates.items()}})
+        session = self.find_session_by_id(session_id)
+        session.metadata.update({k: v for k, v in updates.items()})
+        session.increment_version()
+        self.session_repository.update(session)
+
     def change_session_type(self, session_id: str, new_type: Type) -> None:
         """
         Changes the type of the session with the given id to new_type
@@ -123,14 +142,14 @@ class SessionService:
         session.type = new_type
         session.increment_version()
         self.session_repository.update(session)
-        self.event_bus.publish(SessionTypeChangedEvent(datetime.now(), session.id, session.type.value))
+        self.event_bus.publish(SessionUpdatedEvent(datetime.now(), session.id))
 
-    def edit_session_attendance(self, session_id: str, player_sessions: list[PlayerSession]) -> bool:
+    def edit_session_attendance(self, session_id: str, player_sessions: list[PlayerSession]) -> None:
         """
         Edits the player attendance data for the session with the given id. Just updates the justification and motive.
         :param session_id: the id of the session to edit
         :param player_sessions: ignoring intervals, the updated player sessions to set
-        :return: bool indicating if any attendance was changed; True if changed, False if no changes
+        :return: None
         """
         self.logger.debug(f"Editing session '{session_id}' attendance", extra={'session_id': session_id})
         any_changes = False
@@ -138,7 +157,7 @@ class SessionService:
         for player in player_sessions:
             player_to_update = session.get_player(player.player_id)
             if player_to_update.attended:
-                # Attendance is calculated based on domain rules, no manual changes allowed.
+                # Already attended players don't need justification or motive
                 continue
             if (player_to_update.justified_absence != player.justified_absence or
                     player_to_update.motive != player.motive):
@@ -148,7 +167,7 @@ class SessionService:
         if any_changes:
             session.increment_version()
             self.session_repository.update(session)
-            self.event_bus.publish(SessionAttendanceEditedEvent(datetime.now(), session.id))
+            self.event_bus.publish(SessionUpdatedEvent(datetime.now(), session.id))
 
     def _create_session(self, player_id: str, start_time: datetime) -> Session:
         """
@@ -173,7 +192,9 @@ class SessionService:
         for player in players:
             session.register_player_connection(player.id, start_time if player.id == player_id else None, True)
         self.logger.info(f"Created session '{session_id}' started by '{player_id}'", extra={'session_id': session_id})
-        return self.session_repository.save(session)
+        created_session = self.session_repository.save(session)
+        self.event_bus.publish(SessionCreatedEvent(datetime.now(), created_session.id, created_session.start_time))
+        return created_session
 
     def _determine_session_type(self, start_time: datetime) -> Type:
         """
@@ -182,7 +203,8 @@ class SessionService:
         :return: the determined session type
         """
         session_type = Type.ADDITIONAL_GAME
-        last_official_game = self.session_repository.find_latest_by_type_and_status(Type.OFFICIAL_GAME, Status.COMPLETED)
+        last_official_game = self.session_repository.find_latest_by_type_and_status(Type.OFFICIAL_GAME,
+                                                                                    Status.COMPLETED)
         if last_official_game:
             self.logger.debug(f"Last official game found at '{last_official_game.start_time}'", )
             last_official_game_week = last_official_game.start_time.isocalendar()[1]
