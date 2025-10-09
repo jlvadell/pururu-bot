@@ -7,12 +7,7 @@ import aioboto3
 from pururu.common import logger
 from pururu.config import settings
 from pururu.domain.messaging.events.base_events import DomainEvent
-from pururu.domain.messaging.events.secondary_events import (CheckExpiredPollsEvent,
-                                                             FinalizePollEvent)
-from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent,
-                                                           PlayerLeftSessionEvent,
-                                                           SessionConcludeRequestedEvent,
-                                                           SessionConcludedEvent)
+from pururu.domain.messaging.events import secondary_events, session_events
 from pururu.infrastructure.exceptions import (SQSDeserializationException, SQSHandlerNotFoundException)
 
 
@@ -54,14 +49,17 @@ class SQSClientAdapter:
 
 
 class EventRouter:
-    EVENT_REGISTRY = {
-        "PlayerJoinedSessionEvent": PlayerJoinedSessionEvent,
-        "PlayerLeftSessionEvent": PlayerLeftSessionEvent,
-        "SessionConcludeRequestedEvent": SessionConcludeRequestedEvent,
-        "SessionConcludedEvent": SessionConcludedEvent,
-        "CheckExpiredPollsEvent": CheckExpiredPollsEvent,
-        "FinalizePollEvent": FinalizePollEvent
-    }
+    EVENT_REGISTRY = {}
+
+    @staticmethod
+    def _register_events_from_module(module) -> dict:
+        return {
+            name: obj for name, obj in module.__dict__.items()
+            if isinstance(obj, type) and issubclass(obj, DomainEvent) and obj != DomainEvent
+        }
+
+    EVENT_REGISTRY.update(_register_events_from_module(secondary_events))
+    EVENT_REGISTRY.update(_register_events_from_module(session_events))
 
     def __init__(self):
         self._routes = {}
