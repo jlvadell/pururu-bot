@@ -40,6 +40,9 @@ class PostgresMapper:
         existing_record.status = session.status.value
         existing_record.version = session.version
         existing_record.last_updated = datetime.now()
+        existing_record.custom_metadata = [PostgresMapper.map_metadata_to_record(key.value, value, session.id) for
+                                           (key, value) in
+                                           session.metadata.items()]
         for existing_player_session in existing_record.players:
             player_session = next((ps for ps in session.players if ps.player_id == existing_player_session.player_id),
                                   None)
