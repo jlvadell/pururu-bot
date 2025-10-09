@@ -15,6 +15,8 @@ class PururuDiscordBot(commands.Bot):
         self.event_handler = None
 
     def set_event_handler(self, event_handler: DiscordEventHandler):
+        # code smell: we should find a way to inject this dependency in the constructor
+        # possible solution: create a new event bus with application events
         self.event_handler = event_handler
 
     async def setup_hook(self) -> None:
