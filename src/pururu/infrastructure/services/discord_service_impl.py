@@ -48,3 +48,10 @@ class DiscordServiceImpl(DiscordService):
             result.answers.append(answer.text)
             result.results[answer.text] = answer.vote_count
         return result
+
+    async def send_session_info_view_message(self, channel_id: str, session) -> str:
+        self.logger.debug(f"Sending session info view message to channel {channel_id} for session {session.id}")
+        return await self.bot.send_session_info_view_message(channel_id, session)
+
+    async def update_session_info_view_message(self, channel_id: str, message_id: str, session) -> None:
+        await self.bot.edit_session_info_view_message(channel_id, message_id, session)
