@@ -470,13 +470,13 @@ def test_determine_session_type_returns_additional(service, mock_session_reposit
     """Test determine_session_type returns ADDITIONAL_GAME when there was an OFFICIAL GAME this week"""
     # Arrange
     completed_session.type = Type.ADDITIONAL_GAME
-    mock_session_repository.find_latest_by_type.return_value = completed_session
+    mock_session_repository.find_latest_by_type_and_status.return_value = completed_session
 
     # Act
     result = service._determine_session_type(player_session_online.intervals[0].start)
 
     # Assert
-    mock_session_repository.find_latest_by_type.assert_called_once_with(Type.OFFICIAL_GAME)
+    mock_session_repository.find_latest_by_type_and_status.assert_called_once_with(Type.OFFICIAL_GAME, Status.COMPLETED)
     assert_that(result, equal_to(Type.ADDITIONAL_GAME))
 
 @pytest.mark.unit

@@ -182,7 +182,7 @@ class SessionService:
         :return: the determined session type
         """
         session_type = Type.ADDITIONAL_GAME
-        last_official_game = self.session_repository.find_latest_by_type(Type.OFFICIAL_GAME)
+        last_official_game = self.session_repository.find_latest_by_type_and_status(Type.OFFICIAL_GAME, Status.COMPLETED)
         if last_official_game:
             self.logger.debug(f"Last official game found at '{last_official_game.start_time}'", )
             last_official_game_week = last_official_game.start_time.isocalendar()[1]

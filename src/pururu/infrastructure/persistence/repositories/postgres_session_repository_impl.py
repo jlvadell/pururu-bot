@@ -24,7 +24,7 @@ class PostgresSessionRepositoryImpl(SessionRepository):
             return PostgresMapper.map_record_to_session(record)
 
     def update(self, session: Session) -> Session:
-        self.logger.warning(
+        self.logger.debug(
             f"Update session {session.id} with version {session.version - 1} to version {session.version}")
         with OrmSession(self.postgres_engine) as orm_session:
             existing_record = orm_session.query(SessionRecord).filter(and_(
@@ -57,10 +57,11 @@ class PostgresSessionRepositoryImpl(SessionRepository):
                 return PostgresMapper.map_record_to_session(record)
             return None
 
-    def find_latest_by_type(self, session_type: Type) -> Session | None:
+    def find_latest_by_type_and_status(self, session_type: Type, session_status: Status) -> Session | None:
         with OrmSession(self.postgres_engine) as orm_session:
-            record = orm_session.query(SessionRecord).filter(SessionRecord.type == session_type.value).order_by(
-                SessionRecord.start_time.desc()).one_or_none()
+            record = orm_session.query(SessionRecord).filter(
+                and_(SessionRecord.type == session_type.value, SessionRecord.status == session_status.value)).order_by(
+                SessionRecord.start_time.desc()).first()
             if record:
                 return PostgresMapper.map_record_to_session(record)
             return None
