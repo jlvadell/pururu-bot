@@ -222,6 +222,31 @@ async def test_handle_session_created(mock_settings, handler, mock_session_servi
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_created_message_fail(mock_settings, handler, mock_session_service, mock_discord_service):
+    """Test handle_session_created do not set metadata if message sending fails"""
+    # Arrange
+    session_id = "session123"
+    channel_id = "channel123"
+    message_id = None
+    mock_session = MagicMock(id=session_id)
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.discord_communication_channel_id = channel_id
+    mock_discord_service.send_session_info_view_message.return_value = message_id
+
+    event = SessionCreatedEvent(datetime.now(), session_id, datetime.now())
+
+    # Act
+    await handler.handle_session_created(event)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    mock_discord_service.send_session_info_view_message.assert_awaited_once_with(channel_id, mock_session)
+    mock_session_service.add_session_metadata.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_handle_session_updated(handler, mock_session_service, mock_data_sync_service, mock_discord_service):
     """Test handle_session_updated"""
     # Arrange

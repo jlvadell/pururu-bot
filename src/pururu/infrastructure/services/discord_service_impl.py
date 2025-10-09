@@ -4,6 +4,7 @@ from pururu.common import logger
 from pururu.domain.entities.poll import PollReference, Poll
 from pururu.domain.services.discord_service import DiscordService
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
+from pururu.infrastructure.exceptions import InfrastructureException
 
 
 class DiscordServiceImpl(DiscordService):
@@ -49,9 +50,21 @@ class DiscordServiceImpl(DiscordService):
             result.results[answer.text] = answer.vote_count
         return result
 
-    async def send_session_info_view_message(self, channel_id: str, session) -> str:
+    async def send_session_info_view_message(self, channel_id: str, session) -> str | None:
         self.logger.debug(f"Sending session info view message to channel {channel_id} for session {session.id}")
-        return await self.bot.send_session_info_view_message(channel_id, session)
+        try:
+            return await self.bot.send_session_info_view_message(channel_id, session)
+        except InfrastructureException:
+            self.logger.error(f"Failed to send session info view message to channel {channel_id}",
+                              extra={"channel_id": channel_id}, exc_info=True)
+            return None
 
     async def update_session_info_view_message(self, channel_id: str, message_id: str, session) -> None:
-        await self.bot.edit_session_info_view_message(channel_id, message_id, session)
+        self.logger.debug(
+            f"Updating session info view message {message_id} in channel {channel_id} for session {session.id}",
+            extra={"channel_id": channel_id, "message_id": message_id})
+        try:
+            await self.bot.edit_session_info_view_message(channel_id, message_id, session)
+        except InfrastructureException:
+            self.logger.error(f"Failed to update session info view message {message_id} in channel {channel_id}",
+                              extra={"channel_id": channel_id, "message_id": message_id}, exc_info=True)

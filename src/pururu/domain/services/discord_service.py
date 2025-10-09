@@ -24,12 +24,12 @@ class DiscordService(ABC):
         """
         pass
 
-    async def send_session_info_view_message(self, channel_id: str, session: Session) -> str:
+    async def send_session_info_view_message(self, channel_id: str, session: Session) -> str | None:
         """
         Send a session view message to a Discord channel.
         :param channel_id: the ID of the channel where to send the message
         :param session: the session domain entity
-        :return: str: the ID of the sent message
+        :return: str: the ID of the sent message or None if sending failed
         """
         pass
 

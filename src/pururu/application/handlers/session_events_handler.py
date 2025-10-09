@@ -102,6 +102,10 @@ class SessionEventsHandler:
         session = self.session_service.find_session_by_id(event.session_id)
         channel_id = settings.discord.discord_communication_channel_id
         message_id = await self.discord_service.send_session_info_view_message(channel_id, session)
+        if not message_id:
+            self.logger.error(f"Failed to send session info view message for session {event.session_id}",
+                              extra={"session_id": event.session_id})
+            return
         metadata = {SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
                     SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id}
         self.session_service.add_session_metadata(event.session_id, metadata)
