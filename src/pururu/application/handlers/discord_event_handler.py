@@ -3,7 +3,8 @@ from datetime import datetime
 from pururu.common import logger
 from pururu.config import settings
 from pururu.domain.messaging.event_bus import EventBus
-from pururu.domain.messaging.events.session_events import PlayerJoinedSessionEvent, PlayerLeftSessionEvent
+from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
+                                                           SessionTypeChangeEvent, SessionAttendanceEditEvent)
 
 
 class DiscordEventHandler:
@@ -24,11 +25,13 @@ class DiscordEventHandler:
         :param after_channel: after_state channel name
         :return: None
         """
-        self.logger.info(f"Player voice state changed, player: {player_id}, from {before_channel} to {after_channel}",
-                         extra={"player_id": player_id, "before_channel": before_channel,
-                                "after_channel": after_channel})
+        self.logger.info(
+            f"Player voice state changed, player: {player_id} [{player_name}], from {before_channel} to {after_channel}",
+            extra={"player_id": player_id, "before_channel": before_channel,
+                   "after_channel": after_channel})
         if player_id not in settings.general.players.keys():
-            self.logger.debug(f"Non-tracked player ignored: {player_id}", extra={"player_id": player_id})
+            self.logger.debug(f"Non-tracked player ignored: {player_id} [{player_name}]",
+                              extra={"player_id": player_id})
             return
         event = None
         if before_channel is None:
@@ -50,3 +53,32 @@ class DiscordEventHandler:
     # ------------------------
     # COMMANDS
     # -----------------------
+
+    # ------------------------
+    # UI Components Callbacks
+    # ------------------------
+    def handle_session_type_change_modal_submit(self, session_id: str, new_type: str) -> None:
+        """
+        Handles the session type change modal submit event
+        :param session_id: session id
+        :param new_type: new session type
+        :return: None
+        """
+        self.logger.info(f"Session type change requested for session {session_id} to type {new_type}",
+                         extra={"session_id": session_id, "new_type": new_type})
+        event = SessionTypeChangeEvent(datetime.now(), session_id, new_type)
+        self.event_bus.publish(event)
+
+    def handle_session_attendance_edit_modal_submit(self, session_id: str, justifications: dict[str, bool],
+                                                    motives: dict[str, str]) -> None:
+        """
+        Handles the session attendance edit modal submit event
+        :param session_id: session id
+        :param justifications: player_id -> justified_absence
+        :param motives: player_id -> motive
+        :return: None
+        """
+        self.logger.info(f"Session attendance edit requested for session {session_id}",
+                         extra={"session_id": session_id, "justifications": justifications, "motives": motives})
+        event = SessionAttendanceEditEvent(datetime.now(), session_id, justifications, motives)
+        self.event_bus.publish(event)
