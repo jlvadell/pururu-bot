@@ -115,10 +115,13 @@ def test_handle_session_conclude_requested(handler, mock_session_service):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_handle_session_concluded_with_positive_conclusion(handler, mock_session_service, mock_data_sync_service,
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_concluded_with_positive_conclusion(mock_settings, handler, mock_session_service,
+                                                                 mock_data_sync_service,
                                                                  mock_discord_service):
     """Test handle_session_concluded when the session was concluded positively"""
     # Arrange
+    mock_settings.discord.enable_communication_channel = True
     session_id = "session123"
     channel_id = "channel123"
     message_id = "message123"
@@ -143,10 +146,82 @@ async def test_handle_session_concluded_with_positive_conclusion(handler, mock_s
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_handle_session_concluded_with_negative_conclusion(handler, mock_session_service, mock_data_sync_service):
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_concluded_comms_disables(mock_settings, handler, mock_session_service,
+                                                       mock_data_sync_service,
+                                                       mock_discord_service):
+    """Test handle_session_concluded do not update message when comms are disabled"""
+    # Arrange
+    mock_settings.discord.enable_communication_channel = False
+    session_id = "session123"
+    channel_id = "channel123"
+    message_id = "message123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id
+    }
+    mock_session.was_concluded_positively.return_value = True
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    event = SessionConcludedEvent(datetime.now(), session_id)
+
+    # Act
+    await handler.handle_session_concluded(event)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    assert_sync_session(mock_data_sync_service, mock_session)
+    mock_discord_service.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_concluded_with_positive_conclusion(mock_settings, handler, mock_session_service,
+                                                                 mock_data_sync_service,
+                                                                 mock_discord_service):
+    """Test handle_session_concluded when the session was concluded positively"""
+    # Arrange
+    mock_settings.discord.enable_communication_channel = True
+    session_id = "session123"
+    channel_id = "channel123"
+    message_id = "message123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id
+    }
+    mock_session.was_concluded_positively.return_value = True
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    event = SessionConcludedEvent(datetime.now(), session_id)
+
+    # Act
+    await handler.handle_session_concluded(event)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    assert_sync_session(mock_data_sync_service, mock_session)
+    assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_concluded_with_negative_conclusion(mock_settings, handler, mock_session_service,
+                                                                 mock_data_sync_service, mock_discord_service):
     """Test handle_session_concluded when the session was not concluded positively"""
     # Arrange
-    mock_session = MagicMock()
+    mock_settings.discord.enable_communication_channel = True
+    session_id = "session123"
+    channel_id = "channel123"
+    message_id = "message123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id
+    }
     mock_session.was_concluded_positively.return_value = False
     mock_session_service.find_session_by_id.return_value = mock_session
 
@@ -159,6 +234,7 @@ async def test_handle_session_concluded_with_negative_conclusion(handler, mock_s
     mock_session_service.find_session_by_id.assert_called_once_with("session123")
     mock_session.was_concluded_positively.assert_called_once()
     mock_data_sync_service.sync_session.assert_not_called()
+    assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
 
 
 @pytest.mark.unit
@@ -194,6 +270,24 @@ def test_handle_session_attendance_edit(handler, mock_session_service, mock_data
 @pytest.mark.unit
 @pytest.mark.asyncio
 @patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_created_comms_disables(mock_settings, handler, mock_session_service,
+                                                     mock_discord_service):
+    """Test handle_session_created communication is disabled"""
+    # Arrange
+    mock_settings.discord.enable_communication_channel = False
+    event = SessionCreatedEvent(datetime.now(), "1234", datetime.now())
+
+    # Act
+    await handler.handle_session_created(event)
+
+    # Assert
+    mock_session_service.assert_not_called()
+    mock_discord_service.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
 async def test_handle_session_created(mock_settings, handler, mock_session_service, mock_discord_service):
     """Test handle_session_created"""
     # Arrange
@@ -203,6 +297,7 @@ async def test_handle_session_created(mock_settings, handler, mock_session_servi
     mock_session = MagicMock(id=session_id)
     mock_session_service.find_session_by_id.return_value = mock_session
     mock_settings.discord.discord_communication_channel_id = channel_id
+    mock_settings.discord.enable_communication_channel = True
     mock_discord_service.send_session_info_view_message.return_value = message_id
     expected_metadata = {
         SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
@@ -247,9 +342,12 @@ async def test_handle_session_created_message_fail(mock_settings, handler, mock_
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_handle_session_updated(handler, mock_session_service, mock_data_sync_service, mock_discord_service):
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_updated(mock_settings, handler, mock_session_service, mock_data_sync_service,
+                                      mock_discord_service):
     """Test handle_session_updated"""
     # Arrange
+    mock_settings.discord.enable_communication_channel = True
     session_id = "session123"
     mock_session = MagicMock(id=session_id)
     channel_id = "channel123"
@@ -268,6 +366,56 @@ async def test_handle_session_updated(handler, mock_session_service, mock_data_s
     # Assert
     assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
     assert_sync_session(mock_data_sync_service, mock_session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_updated_comms_disabled(mock_settings, handler, mock_session_service,
+                                                     mock_data_sync_service, mock_discord_service):
+    """Test handle_session_updated cooms disabled"""
+    # Arrange
+    mock_settings.discord.enable_communication_channel = False
+    session_id = "session123"
+    mock_session = MagicMock(id=session_id)
+    channel_id = "channel123"
+    message_id = "message123"
+    mock_session.metadata = {
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id
+    }
+
+    mock_session_service.find_session_by_id.return_value = mock_session
+    event = SessionUpdatedEvent(datetime.now(), session_id)
+
+    # Act
+    await handler.handle_session_updated(event)
+
+    # Assert
+    assert_sync_session(mock_data_sync_service, mock_session)
+    mock_discord_service.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_updated_on_going_session(mock_settings, handler, mock_session_service,
+                                                       mock_data_sync_service):
+    """Test handle_session_updated ongoing/discarded session should not sync"""
+    # Arrange
+    mock_settings.discord.enable_communication_channel = False
+    session_id = "session123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.was_concluded_positively.return_value = False
+
+    mock_session_service.find_session_by_id.return_value = mock_session
+    event = SessionUpdatedEvent(datetime.now(), session_id)
+
+    # Act
+    await handler.handle_session_updated(event)
+
+    # Assert
+    mock_data_sync_service.assert_not_called()
 
 
 # ==================================================================

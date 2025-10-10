@@ -99,16 +99,17 @@ class SessionEventsHandler:
             extra={
                 "session_id": event.session_id,
             })
-        session = self.session_service.find_session_by_id(event.session_id)
-        channel_id = settings.discord.discord_communication_channel_id
-        message_id = await self.discord_service.send_session_info_view_message(channel_id, session)
-        if not message_id:
-            self.logger.error(f"Failed to send session info view message for session {event.session_id}",
-                              extra={"session_id": event.session_id})
-            return
-        metadata = {SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
-                    SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id}
-        self.session_service.add_session_metadata(event.session_id, metadata)
+        if settings.discord.enable_communication_channel:
+            session = self.session_service.find_session_by_id(event.session_id)
+            channel_id = settings.discord.discord_communication_channel_id
+            message_id = await self.discord_service.send_session_info_view_message(channel_id, session)
+            if not message_id:
+                self.logger.error(f"Failed to send session info view message for session {event.session_id}",
+                                  extra={"session_id": event.session_id})
+                return
+            metadata = {SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
+                        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id}
+            self.session_service.add_session_metadata(event.session_id, metadata)
 
     async def handle_session_updated(self, event: SessionUpdatedEvent) -> None:
         self.logger.info(
@@ -121,9 +122,10 @@ class SessionEventsHandler:
         self._sync_session(session)
 
     async def _update_session_info_view(self, session: Session) -> None:
-        channel_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID)
-        message_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID)
-        await self.discord_service.update_session_info_view_message(channel_id, message_id, session)
+        if settings.discord.enable_communication_channel:
+            channel_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID)
+            message_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID)
+            await self.discord_service.update_session_info_view_message(channel_id, message_id, session)
 
     def _sync_session(self, session: Session) -> None:
         if session.was_concluded_positively():
