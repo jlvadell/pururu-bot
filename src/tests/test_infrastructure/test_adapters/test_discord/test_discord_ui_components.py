@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import Mock, MagicMock, AsyncMock, patch
 
 import discord
 import pytest
@@ -103,19 +103,62 @@ def test_edit_attendance_button_initialization():
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_edit_attendance_button_callback():
+@patch("pururu.infrastructure.adapters.discord.discord_ui_components.settings")
+async def test_edit_attendance_button_callback(mock_settings):
     """Test EditAttendanceButton callback sends modal"""
     # Arrange
     mock_modal = Mock(spec=discord.ui.Modal)
     button = EditAttendanceButton(modal=mock_modal)
     mock_interaction = Mock(spec=discord.Interaction)
     mock_interaction.response.send_modal = AsyncMock()
+    mock_interaction.user.id = 654321
+    mock_settings.general.players = {"654321": Mock(is_admin=True)}
 
     # Act
     await button.callback(mock_interaction)
 
     # Assert
     mock_interaction.response.send_modal.assert_called_once_with(mock_modal)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch("pururu.infrastructure.adapters.discord.discord_ui_components.settings")
+async def test_edit_attendance_button_callback_unknown_user(mock_settings):
+    """Test EditAttendanceButton callback unknown user"""
+    # Arrange
+    mock_modal = Mock(spec=discord.ui.Modal)
+    button = EditAttendanceButton(modal=mock_modal)
+    mock_interaction = Mock(spec=discord.Interaction)
+    mock_interaction.user.id = 123456
+    mock_interaction.response.send_message = AsyncMock()
+    mock_settings.general.players = {"654321": Mock(is_admin=False)}
+
+    # Act
+    await button.callback(mock_interaction)
+
+    # Assert
+    mock_interaction.response.send_modal.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch("pururu.infrastructure.adapters.discord.discord_ui_components.settings")
+async def test_edit_attendance_button_callback_non_admin_user(mock_settings):
+    """Test EditAttendanceButton callback non admin user"""
+    # Arrange
+    mock_modal = Mock(spec=discord.ui.Modal)
+    button = EditAttendanceButton(modal=mock_modal)
+    mock_interaction = Mock(spec=discord.Interaction)
+    mock_interaction.user.id = 654321
+    mock_interaction.response.send_message = AsyncMock()
+    mock_settings.general.players = {"654321": Mock(is_admin=False)}
+
+    # Act
+    await button.callback(mock_interaction)
+
+    # Assert
+    mock_interaction.response.send_modal.assert_not_called()
 
 
 @pytest.mark.unit
