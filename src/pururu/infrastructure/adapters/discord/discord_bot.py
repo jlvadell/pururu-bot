@@ -5,7 +5,8 @@ from pururu.__version__ import get_version
 from pururu.application.handlers.discord_event_handler import DiscordEventHandler
 from pururu.common import logger
 from pururu.config import settings
-from pururu.infrastructure.adapters.discord.discord_ui_views import SessionInfoLayoutView
+from pururu.infrastructure.adapters.discord.discord_ui_views import SessionInfoLayoutView, EditSessionTypeModal, \
+    EditAttendanceModal
 from pururu.infrastructure.exceptions import (DiscordChannelNotFoundException, DiscordMessageNotFoundException,
                                               DiscordUnExpectedException)
 
@@ -15,7 +16,7 @@ class PururuDiscordBot(commands.Bot):
         intents = discord.Intents.default()
         super().__init__(command_prefix="/", intents=intents)
         self.logger = logger.get_logger(__name__)
-        self.event_handler = None
+        self.event_handler: DiscordEventHandler | None = None
 
     def set_event_handler(self, event_handler: DiscordEventHandler):
         # code smell: we should find a way to inject this dependency in the constructor
@@ -63,6 +64,45 @@ class PururuDiscordBot(commands.Bot):
             })
             await interaction.response.send_message(
                 f"Pong! Pururu {get_version()} is watching! :3")
+
+        @self.tree.command(
+            name="type",
+            description="Change the type of the session"
+        )
+        async def change_type_command(interaction: discord.Interaction, session_id: str):
+            self.logger.info(f"Change type command received, requester {interaction.user.name} ({interaction.user.id})",
+                             extra={
+                                 "player_id": interaction.user.id,
+                                 "player_name": interaction.user.name,
+                                 "session_id": session_id
+                             })
+            session = self.event_handler.handle_change_type_command(session_id)  # just to validate the session exists
+            if not session:
+                await interaction.response.send_message(f"Session with ID `{session_id}` not found :dumb:.",
+                                                        ephemeral=True)
+                return
+            modal = EditSessionTypeModal(session, self.event_handler.handle_session_type_change_modal_submit)
+            await interaction.response.send_modal(modal)
+
+        @self.tree.command(
+            name="attendance",
+            description="Edits the attendance of the session"
+        )
+        async def edit_attendance_command(interaction: discord.Interaction, session_id: str):
+            self.logger.info(
+                f"Edit attendance command received, requester {interaction.user.name} ({interaction.user.id})", extra={
+                    "player_id": interaction.user.id,
+                    "player_name": interaction.user.name,
+                    "session_id": session_id
+                })
+            session = self.event_handler.handle_edit_attendance_command(
+                session_id)  # just to validate the session exists
+            if not session:
+                await interaction.response.send_message(f"Session with ID `{session_id}` not found :dumb:.",
+                                                        ephemeral=True)
+                return
+            modal = EditAttendanceModal(session, self.event_handler.handle_session_attendance_edit_modal_submit)
+            await interaction.response.send_modal(modal)
 
     async def send_session_info_view_message(self, channel_id: str, session) -> str:
         channel = self.get_channel(int(channel_id))

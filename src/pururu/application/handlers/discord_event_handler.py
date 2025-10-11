@@ -2,14 +2,18 @@ from datetime import datetime
 
 from pururu.common import logger
 from pururu.config import settings
+from pururu.domain.entities.session import Session
+from pururu.domain.exceptions import SessionNotFoundException
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
                                                            SessionTypeChangeEvent, SessionAttendanceEditEvent)
+from pururu.domain.services.session_service import SessionService
 
 
 class DiscordEventHandler:
-    def __init__(self, event_bus: EventBus):
+    def __init__(self, event_bus: EventBus, session_service: SessionService):
         self.event_bus = event_bus
+        self.session_service = session_service
         self.logger = logger.get_logger(__name__)
 
     # ------------------------
@@ -53,6 +57,35 @@ class DiscordEventHandler:
     # ------------------------
     # COMMANDS
     # -----------------------
+
+    def handle_change_type_command(self, session_id: str) -> Session | None:
+        """
+        Handles the change type command
+        :param session_id: session id
+        :return: Session if found, None otherwise
+        """
+        self.logger.debug(f"Change type command received for session {session_id}", extra={"session_id": session_id})
+        try:
+            return self.session_service.find_session_by_id(session_id)
+        except SessionNotFoundException:
+            self.logger.warning(f"Session not found for change type command: {session_id}",
+                                extra={"session_id": session_id})
+            return None
+
+    def handle_edit_attendance_command(self, session_id: str) -> Session | None:
+        """
+        Handles the edit attendance command
+        :param session_id: session id
+        :return: Session if found, None otherwise
+        """
+        self.logger.debug(f"Edit attendance command received for session {session_id}",
+                          extra={"session_id": session_id})
+        try:
+            return self.session_service.find_session_by_id(session_id)
+        except SessionNotFoundException:
+            self.logger.warning(f"Session not found for edit attendance command: {session_id}",
+                                extra={"session_id": session_id})
+            return None
 
     # ------------------------
     # UI Components Callbacks
