@@ -1,7 +1,4 @@
 from datetime import datetime
-import discord
-from pururu.domain.entities.session import Session, Status, Type
-from datetime import datetime
 
 import discord
 
@@ -91,7 +88,7 @@ class NotifyMissingUsersButton(discord.ui.Button):
 
 class SessionTypeSelectorLabel(discord.ui.Label):
     def __init__(self, current_type: Type):
-        super().__init__(text="Tipo de sessión", description="Qué tipo de sessión es?",
+        super().__init__(text="Tipo de sesión", description="Qué tipo de sesión es?",
                          component=SessionTypeSelector(current_type))
 
 
