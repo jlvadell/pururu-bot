@@ -7,10 +7,10 @@ from hamcrest import assert_that, equal_to, instance_of
 from pururu.domain.entities.player import Player
 from pururu.domain.entities.poll import PollReference, PollResolutionType
 from pururu.domain.entities.season import Season
-from pururu.domain.entities.session import Session, Status, Type, PlayerSession, Interval
+from pururu.domain.entities.session import Session, Status, Type, PlayerSession, Interval, SessionMetadataKey
 from pururu.infrastructure.adapters.postgres.entities import (
     SessionRecord, PlayerSessionRecord, PlayerSessionIntervalRecord,
-    PlayerRecord, SeasonRecord, SessionMetadataKey
+    PlayerRecord, SeasonRecord
 )
 from pururu.infrastructure.adapters.postgres.mapper import PostgresMapper
 from tests.test_domain.conftest import session, player_session, player, season
