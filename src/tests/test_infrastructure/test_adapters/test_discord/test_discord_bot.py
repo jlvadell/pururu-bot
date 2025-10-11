@@ -214,7 +214,7 @@ async def test_send_session_view_message_no_channel():
 @pytest.mark.asyncio
 @pytest.mark.unit
 async def test_send_session_view_message_exception():
-    """Test send_session_info_view_message raises DiscordUnExpectedException Act something goes wrong"""
+    """Test send_session_info_view_message raises DiscordUnExpectedException when something goes wrong"""
     # Arrange
     channel_id = '123456'
     session = Mock()
