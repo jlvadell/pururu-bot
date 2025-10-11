@@ -76,7 +76,7 @@ class DiscordEventHandler:
         """
         Handles the edit attendance command
         :param session_id: session id
-        :return: Sesssion if found, None otherwise
+        :return: Session if found, None otherwise
         """
         self.logger.debug(f"Edit attendance command received for session {session_id}",
                           extra={"session_id": session_id})
