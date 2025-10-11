@@ -117,7 +117,7 @@ class Application:
         # --------------------------------
         # Handlers
         self.background_event_handler = BackgroundEventHandler(self.event_bus)
-        self.discord_event_handler = DiscordEventHandler(self.event_bus)
+        self.discord_event_handler = DiscordEventHandler(self.event_bus, self.session_service)
         self.poll_event_handler = PollEventHandler(self.event_bus, self.poll_system_service)
         self.session_events_handler = SessionEventsHandler(self.session_service, self.data_sync_service, self.event_bus, self.discord_service)
 

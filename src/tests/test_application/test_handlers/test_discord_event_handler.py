@@ -2,23 +2,31 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from hamcrest import assert_that, instance_of, equal_to
+from hamcrest import assert_that, instance_of, equal_to, none
 
 from pururu.application.handlers.discord_event_handler import DiscordEventHandler
+from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
                                                            SessionTypeChangeEvent, SessionAttendanceEditEvent)
+from pururu.domain.services.session_service import SessionService
 
 
 @pytest.fixture
 def mock_event_bus():
     """Create a mock EventBus for testing"""
-    return MagicMock()
+    return MagicMock(spec=EventBus)
 
 
 @pytest.fixture
-def handler(mock_event_bus):
+def mock_session_service():
+    """Create a mock SessionService for testing"""
+    return MagicMock(spec=SessionService)
+
+
+@pytest.fixture
+def handler(mock_event_bus, mock_session_service):
     """Create a DiscordEventHandler instance with mocked dependencies"""
-    return DiscordEventHandler(mock_event_bus)
+    return DiscordEventHandler(mock_event_bus, mock_session_service)
 
 
 # Test handle_on_voice_state_update_event
@@ -82,6 +90,70 @@ def test_handle_voice_state_update_non_tracked_player(mock_settings, handler, mo
 
     # Assert
     mock_event_bus.publish.assert_not_called()
+
+
+@pytest.mark.unit
+def test_handle_on_ready_event(handler):
+    # Act & Assert
+    handler.handle_on_ready_event()  # Just ensure it runs without error
+
+
+@pytest.mark.unit
+def test_handle_change_type_command_found(handler, mock_session_service):
+    # Arrange
+    session_id = "session123"
+    mock_session = MagicMock()
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    # Act
+    result = handler.handle_change_type_command(session_id)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    assert_that(result, equal_to(mock_session))
+
+
+@pytest.mark.unit
+def test_handle_change_type_command_not_found(handler, mock_session_service):
+    # Arrange
+    session_id = "session123"
+    mock_session_service.find_session_by_id.return_value = None
+
+    # Act
+    result = handler.handle_change_type_command(session_id)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    assert_that(result, none())
+
+
+@pytest.mark.unit
+def test_handle_edit_attendance_command_found(handler, mock_session_service):
+    # Arrange
+    session_id = "session123"
+    mock_session = MagicMock()
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    # Act
+    result = handler.handle_edit_attendance_command(session_id)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    assert_that(result, equal_to(mock_session))
+
+
+@pytest.mark.unit
+def test_handle_edit_attendance_command_not_found(handler, mock_session_service):
+    # Arrange
+    session_id = "session123"
+    mock_session_service.find_session_by_id.return_value = None
+
+    # Act
+    result = handler.handle_edit_attendance_command(session_id)
+
+    # Assert
+    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
+    assert_that(result, none())
 
 
 @pytest.mark.unit
