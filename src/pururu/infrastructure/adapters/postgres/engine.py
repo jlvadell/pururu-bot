@@ -6,7 +6,7 @@ from .entities import Base
 
 
 class PostgresDBEngine:
-    def __init__(self, protocol: str, user: str, password: str, host: str, port: int):
+    def __init__(self, protocol: str, user: str, password: str, host: str, port: int, db_name: str):
         """
         Initializes the PostgresDBEngine with an SQLAlchemy engine.
         Async note: using sync for simplicity, as in the current implementation, async would not bring benefits and would make the testing and querying more complex.
@@ -15,8 +15,9 @@ class PostgresDBEngine:
         :param password: the database password, e.g., 'password'
         :param host: the database host, e.g., 'localhost'
         :param port: the database port, e.g., 5432
+        :param db_name: the database name, e.g., 'mydatabase'
         """
-        db_url = f"{protocol}://{user}:{password}@{host}:{port}/postgres"
+        db_url = f"{protocol}://{user}:{password}@{host}:{port}/{db_name}"
         # Ref: https://supabase.com/docs/guides/troubleshooting/using-sqlalchemy-with-supabase-FUqebT
         self.engine = create_engine(db_url, echo=settings.database.postgres.echo, poolclass=NullPool)
         self.logger = logger.get_logger(__name__)

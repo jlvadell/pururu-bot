@@ -5,6 +5,7 @@ import pytest
 from hamcrest import assert_that, equal_to, none, instance_of, is_
 
 from pururu.domain.entities.poll import PollReference, Poll, PollResolutionType
+from pururu.infrastructure.exceptions import InfrastructureException
 from pururu.infrastructure.services.discord_service_impl import DiscordServiceImpl
 
 
@@ -147,3 +148,72 @@ async def test_fetch_poll_message_not_found(service, mock_discord_bot, poll_refe
     assert_that(result, none())
     mock_discord_bot.get_channel.assert_called_once_with(123456)
     mock_channel.fetch_message.assert_called_once_with(987654)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_send_session_info_view_message(service, mock_discord_bot):
+    """Test send_session_info_view_message calls the bot method and returns message ID"""
+    # Arrange
+    channel_id = "123456"
+    session = MagicMock()
+    expected_message_id = "message_123"
+    mock_discord_bot.send_session_info_view_message = AsyncMock(return_value=expected_message_id)
+
+    # Act
+    result = await service.send_session_info_view_message(channel_id, session)
+
+    # Assert
+    assert_that(result, equal_to(expected_message_id))
+    mock_discord_bot.send_session_info_view_message.assert_called_once_with(channel_id, session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_send_session_info_view_message_handles_error(service, mock_discord_bot):
+    """Test send_session_info_view_message handles infrastructure error and returns None"""
+    # Arrange
+    channel_id = "123456"
+    session = MagicMock()
+    mock_discord_bot.send_session_info_view_message = AsyncMock(side_effect=InfrastructureException("Test exception"))
+
+    # Act
+    result = await service.send_session_info_view_message(channel_id, session)
+
+    # Assert
+    assert_that(result, is_(None))
+    mock_discord_bot.send_session_info_view_message.assert_called_once_with(channel_id, session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_session_info_view_message(service, mock_discord_bot):
+    """Test update_session_info_view_message calls the bot method"""
+    # Arrange
+    channel_id = "123456"
+    message_id = "message_123"
+    session = MagicMock()
+    mock_discord_bot.edit_session_info_view_message = AsyncMock()
+
+    # Act
+    await service.update_session_info_view_message(channel_id, message_id, session)
+
+    # Assert
+    mock_discord_bot.edit_session_info_view_message.assert_called_once_with(channel_id, message_id, session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_session_info_view_message_handle_error(service, mock_discord_bot):
+    """Test update_session_info_view_message handles infrastructure exception"""
+    # Arrange
+    channel_id = "123456"
+    message_id = "message_123"
+    session = MagicMock()
+    mock_discord_bot.edit_session_info_view_message = AsyncMock(side_effect=InfrastructureException("Test exception"))
+
+    # Act
+    await service.update_session_info_view_message(channel_id, message_id, session)
+
+    # Assert
+    mock_discord_bot.edit_session_info_view_message.assert_called_once_with(channel_id, message_id, session)

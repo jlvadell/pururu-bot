@@ -83,7 +83,8 @@ class Application:
                                                 settings.secrets.postgres_user,
                                                 settings.secrets.postgres_password,
                                                 settings.database.postgres.host,
-                                                settings.database.postgres.port)
+                                                settings.database.postgres.port,
+                                                settings.database.postgres.database)
 
         # Messaging
         self.event_bus = AWSEventBus(self.sns_adapter, self.sqs_adapter)
@@ -118,7 +119,7 @@ class Application:
         self.background_event_handler = BackgroundEventHandler(self.event_bus)
         self.discord_event_handler = DiscordEventHandler(self.event_bus)
         self.poll_event_handler = PollEventHandler(self.event_bus, self.poll_system_service)
-        self.session_events_handler = SessionEventsHandler(self.session_service, self.data_sync_service, self.event_bus)
+        self.session_events_handler = SessionEventsHandler(self.session_service, self.data_sync_service, self.event_bus, self.discord_service)
 
         # Schedulers
         self.scheduler = ScheduledJobs(self.background_event_handler)
@@ -137,7 +138,6 @@ class Application:
         # --------------------------------
         self.logger.info("Starting application.......")
 
-        self.postgres_engine.load_metadata() # create tables if not exist
         self.scheduler.start() # start scheduled jobs
         self.config_watcher.start_config_watcher() # start config file watcher
         self.sqs_adapter.start_polling() # start SQS polling

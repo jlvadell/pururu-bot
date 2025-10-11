@@ -44,6 +44,9 @@ class SessionRecord(Base):
     connections: Mapped[list["PlayerSessionIntervalRecord"]] = relationship("PlayerSessionIntervalRecord",
                                                                             back_populates="session",
                                                                             cascade=CASCADE_ALL_DELETE_ORPHAN)
+    custom_metadata: Mapped[list["SessionMetadataRecord"]] = relationship("SessionMetadataRecord",
+                                                                          back_populates="session",
+                                                                          cascade=CASCADE_ALL_DELETE_ORPHAN)
 
 
 class PlayerRecord(Base):
@@ -63,8 +66,10 @@ class PlayerRecord(Base):
 class PlayerSessionRecord(Base):
     __tablename__ = "player_session"
 
-    session_id: Mapped[str] = mapped_column(String, ForeignKey(SESSION_TABLE_PK, ondelete=ON_DELETE_CASCADE), primary_key=True)
-    player_id: Mapped[str] = mapped_column(String, ForeignKey(PLAYER_TABLE_PK, ondelete=ON_DELETE_CASCADE), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String, ForeignKey(SESSION_TABLE_PK, ondelete=ON_DELETE_CASCADE),
+                                            primary_key=True)
+    player_id: Mapped[str] = mapped_column(String, ForeignKey(PLAYER_TABLE_PK, ondelete=ON_DELETE_CASCADE),
+                                           primary_key=True)
     attended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     justified_absence: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     motive: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -82,7 +87,7 @@ class PlayerSessionRecord(Base):
 
 class PlayerSessionIntervalRecord(Base):
     __tablename__ = "player_session_interval"
-    
+
     __table_args__ = (
         ForeignKeyConstraint(
             ['session_id', 'player_id'],
@@ -91,8 +96,10 @@ class PlayerSessionIntervalRecord(Base):
         ),
     )
 
-    session_id: Mapped[str] = mapped_column(String, ForeignKey(SESSION_TABLE_PK, ondelete=ON_DELETE_CASCADE), primary_key=True)
-    player_id: Mapped[str] = mapped_column(String, ForeignKey(PLAYER_TABLE_PK, ondelete=ON_DELETE_CASCADE), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String, ForeignKey(SESSION_TABLE_PK, ondelete=ON_DELETE_CASCADE),
+                                            primary_key=True)
+    player_id: Mapped[str] = mapped_column(String, ForeignKey(PLAYER_TABLE_PK, ondelete=ON_DELETE_CASCADE),
+                                           primary_key=True)
     join_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, primary_key=True)
     leave_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -124,3 +131,14 @@ class PollRecord(Base):
     channel_id: Mapped[str] = mapped_column(String, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     resolution_type: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class SessionMetadataRecord(Base):
+    __tablename__ = "session_metadata"
+
+    session_id: Mapped[str] = mapped_column(String, ForeignKey(SESSION_TABLE_PK, ondelete=ON_DELETE_CASCADE),
+                                            primary_key=True)
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[str] = mapped_column(String, nullable=False)
+
+    session: Mapped["SessionRecord"] = relationship("SessionRecord", back_populates="custom_metadata", cascade="all")

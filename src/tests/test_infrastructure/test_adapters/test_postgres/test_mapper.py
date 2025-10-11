@@ -7,13 +7,14 @@ from hamcrest import assert_that, equal_to, instance_of
 from pururu.domain.entities.player import Player
 from pururu.domain.entities.poll import PollReference, PollResolutionType
 from pururu.domain.entities.season import Season
-from pururu.domain.entities.session import Session, Status, Type, PlayerSession, Interval
+from pururu.domain.entities.session import Session, Status, Type, PlayerSession, Interval, SessionMetadataKey
 from pururu.infrastructure.adapters.postgres.entities import (
     SessionRecord, PlayerSessionRecord, PlayerSessionIntervalRecord,
     PlayerRecord, SeasonRecord
 )
 from pururu.infrastructure.adapters.postgres.mapper import PostgresMapper
 from tests.test_domain.conftest import session, player_session, player, season
+from tests.test_infrastructure.conftest import session_metadata_record
 
 
 # ============================================================================
@@ -28,6 +29,7 @@ def test_map_session_to_record(mock_datetime, session, player_session):
     fixed_time = datetime(2025, 10, 2, 12, 0, 0)
     mock_datetime.now.return_value = fixed_time
     session.players = [player_session]
+    session.metadata = {SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: "1234"}
 
     # Act
     result = PostgresMapper.map_session_to_record(session)
@@ -40,6 +42,12 @@ def test_map_session_to_record(mock_datetime, session, player_session):
     assert_that(result.status, equal_to("Draft"))
     assert_that(result.version, equal_to(1))
     assert_that(len(result.players), equal_to(1))
+    assert_that(result.last_updated, equal_to(fixed_time))
+    assert_that(len(result.custom_metadata), equal_to(1))
+    metadata = result.custom_metadata[0]
+    assert_that(metadata.key, equal_to(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID.value))
+    assert_that(metadata.value, equal_to("1234"))
+    assert_that(metadata.session_id, equal_to("session123"))
 
 
 @pytest.mark.unit
@@ -86,14 +94,15 @@ def test_update_record_from_session(mock_datetime):
         type="Official Game",
         status="Draft",
         version=1,
-        last_updated=datetime(2025, 10, 1, 10, 0, 0)
+        last_updated=datetime(2025, 10, 1, 10, 0, 0),
+        custom_metadata=[]
     )
     existing_record.players = [
         PlayerSessionRecord(
             session_id="session123",
             player_id="player123",
             justified_absence=True,
-            attended=None,
+            attended=False,
             motive=None,
             intervals=[
                 PlayerSessionIntervalRecord(
@@ -116,6 +125,7 @@ def test_update_record_from_session(mock_datetime):
             PlayerSession("player123", True, False, "some motive",
                           [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0), )])
         ],
+        metadata={SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: "5678"},
         version=2
     )
 
@@ -141,6 +151,10 @@ def test_update_record_from_session(mock_datetime):
     interval = player.intervals[0]
     assert_that(interval.join_time, equal_to(datetime(2025, 10, 1, 10, 0, 0)))
     assert_that(interval.leave_time, equal_to(datetime(2025, 10, 1, 12, 0, 0)))
+
+    metadata = result.custom_metadata[0]
+    assert_that(metadata.key, equal_to(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID.value))
+    assert_that(metadata.value, equal_to("5678"))
 
 
 # ============================================================================
@@ -229,6 +243,23 @@ def test_map_record_to_interval():
     assert_that(result, instance_of(Interval))
     assert_that(result.start, equal_to(datetime(2025, 10, 1, 10, 0, 0)))
     assert_that(result.end, equal_to(datetime(2025, 10, 1, 11, 0, 0)))
+
+
+# ============================================================================
+# SessionMetadata Mapping Tests
+# ============================================================================
+
+@pytest.mark.unit
+def test_map_metadata_to_record(session_metadata_record):
+    """Test mapping SessionMetadata to SessionMetadataRecord"""
+    # Act
+    result = PostgresMapper.map_metadata_to_record(session_metadata_record.key, session_metadata_record.value,
+                                                   session_metadata_record.session_id)
+
+    # Assert
+    assert_that(result.session_id, equal_to(session_metadata_record.session_id))
+    assert_that(result.key, equal_to(session_metadata_record.key))
+    assert_that(result.value, equal_to(session_metadata_record.value))
 
 
 # ============================================================================

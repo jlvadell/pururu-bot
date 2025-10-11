@@ -4,15 +4,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 from hamcrest import assert_that, equal_to, instance_of
 
-from pururu.domain.entities.session import Session, Status, Type
+from pururu.domain.entities.session import Session, Status, Type, PlayerSession, SessionMetadataKey
 from pururu.domain.exceptions import (
     SessionNotFoundException,
     SessionAlreadyConcludedException,
-    CannotConcludeSessionException
+    CannotConcludeSessionException, PlayerNotConnectedException
 )
 from pururu.domain.messaging.events.session_events import (
     SessionConcludeRequestedEvent,
-    SessionConcludedEvent
+    SessionConcludedEvent,
+    SessionUpdatedEvent,
+    SessionCreatedEvent
 )
 from pururu.domain.services.session_service import SessionService
 from tests.test_domain.conftest import session, season, player
@@ -83,7 +85,7 @@ def test_register_player_connection_with_active_session(service, mock_session_re
 
 @pytest.mark.unit
 def test_register_player_connection_creates_new_session(
-        service, mock_session_repository, mock_season_service, mock_player_service, season, player
+        service, mock_session_repository, mock_season_service, mock_player_service, mock_event_bus, season, player
 ):
     """Test register_player_connection creates new session when none active"""
     # Arrange
@@ -109,6 +111,9 @@ def test_register_player_connection_creates_new_session(
     # Assert
     mock_session_repository.find_active_session.assert_called_once()
     mock_session_repository.save.assert_called_once()
+    mock_event_bus.publish.assert_called_once()
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionCreatedEvent))
 
 
 # ============================================================================
@@ -116,12 +121,12 @@ def test_register_player_connection_creates_new_session(
 # ============================================================================
 
 @pytest.mark.unit
-def test_register_player_disconnection_with_active_session(service, mock_session_repository, session):
+def test_register_player_disconnection_with_active_session(service, mock_session_repository, on_going_session):
     """Test register_player_disconnection updates session"""
     # Arrange
-    session.any_player_connected = MagicMock(return_value=True)
-    mock_session_repository.find_active_session.return_value = session
-    mock_session_repository.update.return_value = session
+    on_going_session.any_player_connected = MagicMock(return_value=True)
+    mock_session_repository.find_active_session.return_value = on_going_session
+    mock_session_repository.update.return_value = on_going_session
     disconnection_time = datetime(2025, 10, 1, 12, 0, 0)
 
     # Act
@@ -129,21 +134,21 @@ def test_register_player_disconnection_with_active_session(service, mock_session
 
     # Assert
     mock_session_repository.find_active_session.assert_called_once()
-    mock_session_repository.update.assert_called_once_with(session)
+    mock_session_repository.update.assert_called_once_with(on_going_session)
 
 
 @pytest.mark.unit
 @patch('pururu.domain.services.session_service.datetime')
 def test_register_player_disconnection_publishes_conclude_event(
-        mock_datetime, service, mock_session_repository, mock_event_bus, session
+        mock_datetime, service, mock_session_repository, mock_event_bus, on_going_session
 ):
     """Test register_player_disconnection publishes conclude event when no players connected"""
     # Arrange
     fixed_time = datetime(2025, 10, 1, 12, 0, 0)
     mock_datetime.now.return_value = fixed_time
-    session.any_player_connected = MagicMock(return_value=False)
-    mock_session_repository.find_active_session.return_value = session
-    mock_session_repository.update.return_value = session
+    on_going_session.any_player_connected = MagicMock(return_value=False)
+    mock_session_repository.find_active_session.return_value = on_going_session
+    mock_session_repository.update.return_value = on_going_session
     disconnection_time = datetime(2025, 10, 1, 12, 0, 0)
 
     # Act
@@ -153,7 +158,7 @@ def test_register_player_disconnection_publishes_conclude_event(
     mock_event_bus.publish.assert_called_once()
     published_event = mock_event_bus.publish.call_args[0][0]
     assert_that(published_event, instance_of(SessionConcludeRequestedEvent))
-    assert_that(published_event.session_id, equal_to(session.id))
+    assert_that(published_event.session_id, equal_to(on_going_session.id))
 
 
 @pytest.mark.unit
@@ -161,6 +166,23 @@ def test_register_player_disconnection_no_active_session(service, mock_session_r
     """Test register_player_disconnection returns early when no active session"""
     # Arrange
     mock_session_repository.find_active_session.return_value = None
+    disconnection_time = datetime(2025, 10, 1, 12, 0, 0)
+
+    # Act
+    service.register_player_disconnection("player123", disconnection_time)
+
+    # Assert
+    mock_session_repository.find_active_session.assert_called_once()
+    mock_session_repository.update.assert_not_called()
+
+
+@pytest.mark.unit
+def test_register_player_disconnection_player_offline(service, mock_session_repository):
+    """Test register_player_disconnection dismisses player offline exception"""
+    # Arrange
+    mock_session = MagicMock()
+    mock_session.register_player_disconnection.side_effect = PlayerNotConnectedException("PlayerNotConnectedException")
+    mock_session_repository.find_active_session.return_value = mock_session
     disconnection_time = datetime(2025, 10, 1, 12, 0, 0)
 
     # Act
@@ -275,3 +297,299 @@ def test_find_session_by_id_raises_not_found(service, mock_session_repository):
     # Act & Assert
     with pytest.raises(SessionNotFoundException):
         service.find_session_by_id("nonexistent")
+
+
+# ============================================================================
+# add_session_metadata
+# ============================================================================
+@pytest.mark.unit
+def test_add_session_metadata_success(service, mock_session_repository, mock_event_bus, session):
+    """Test add_session_metadata successfully adds metadata"""
+    # Arrange
+    mock_session_repository.find_by_id.return_value = session
+    metadata = {
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: "value",
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: "value_message"
+    }
+    expected = Session(
+        id=session.id,
+        season_id=session.season_id,
+        type=session.type,
+        status=session.status,
+        players=session.players,
+        start_time=session.start_time,
+        end_time=session.end_time,
+        version=session.version + 1,
+        metadata=metadata
+    )
+
+    # Act
+    service.add_session_metadata(session.id, metadata)
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(session.id)
+    mock_session_repository.update.assert_called_once_with(expected)
+    mock_event_bus.publish.assert_not_called()
+
+
+# ============================================================================
+# change_session_type
+# ============================================================================
+
+@pytest.mark.unit
+def test_change_session_type_success(service, mock_session_repository, mock_event_bus, session):
+    """Test change_session_type successfully changes session type"""
+    # Arrange
+    mock_session_repository.find_by_id.return_value = session
+    expected = Session(
+        id=session.id,
+        season_id=session.season_id,
+        type=Type.ADDITIONAL_GAME,
+        status=session.status,
+        players=session.players,
+        start_time=session.start_time,
+        end_time=session.end_time,
+        version=session.version + 1
+    )
+
+    # Act
+    service.change_session_type(session.id, Type.ADDITIONAL_GAME)
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(session.id)
+    mock_session_repository.update.assert_called_once_with(expected)
+    mock_event_bus.publish.assert_called_once()
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))
+
+
+@pytest.mark.unit
+def test_change_session_type_same_type(service, mock_session_repository, mock_event_bus, session):
+    """Test change_session_type does not update when type is the same"""
+    # Arrange
+    mock_session_repository.find_by_id.return_value = session
+
+    # Act
+    service.change_session_type(session.id, session.type)
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(session.id)
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.assert_not_called()
+
+
+@pytest.mark.unit
+def test_change_session_type_raises_not_found(service, mock_session_repository):
+    """Test change_session_type raises SessionNotFoundException when session not found"""
+    # Arrange
+    mock_session_repository.find_by_id.return_value = None
+
+    # Act & Assert
+    with pytest.raises(SessionNotFoundException):
+        service.change_session_type("nonexistent", Type.ADDITIONAL_GAME)
+    mock_session_repository.update.assert_not_called()
+
+
+# ============================================================================
+# edit_session_attendance
+# ============================================================================
+
+@pytest.mark.unit
+def test_edit_session_attendance_success(service, mock_session_repository, mock_event_bus, completed_session,
+                                         player_session_absent, player_session_justified):
+    """Test edit_session_attendance successfully edits attendance"""
+    # Arrange
+    completed_session.players = [player_session_absent]
+    mock_session_repository.find_by_id.return_value = completed_session
+
+    expected = Session(
+        id=completed_session.id,
+        season_id=completed_session.season_id,
+        type=completed_session.type,
+        status=completed_session.status,
+        players=[player_session_justified],
+        start_time=completed_session.start_time,
+        end_time=completed_session.end_time,
+        version=completed_session.version + 1
+    )
+
+    # Act
+    service.edit_session_attendance(completed_session.id, [player_session_justified])
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(completed_session.id)
+    mock_session_repository.update.assert_called_once_with(expected)
+    mock_event_bus.publish.assert_called_once()
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))
+    assert_that(published_event.session_id, equal_to(completed_session.id))
+
+
+@pytest.mark.unit
+def test_edit_session_attendance_edit_specific_fields(service, mock_session_repository, mock_event_bus,
+                                                      completed_session,
+                                                      player_session_absent, player_session_justified):
+    """Test edit_session_attendance does not edit other fields than justified and motive"""
+    # Arrange
+    completed_session.players = [player_session_absent]
+    mock_session_repository.find_by_id.return_value = completed_session
+
+    player_session_updated = PlayerSession(
+        player_id=player_session_justified.player_id,
+        justified_absence=player_session_justified.justified_absence,
+        attended=not player_session_absent.attended,  # This field should not be changed by edit_session_attendance
+        motive=player_session_justified.motive,
+        intervals=[]  # This field should not be changed by edit_session_attendance
+    )
+
+    expected = Session(
+        id=completed_session.id,
+        season_id=completed_session.season_id,
+        type=completed_session.type,
+        status=completed_session.status,
+        players=[player_session_justified],
+        start_time=completed_session.start_time,
+        end_time=completed_session.end_time,
+        version=completed_session.version + 1
+    )
+
+    # Act
+    service.edit_session_attendance(completed_session.id, [player_session_updated])
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(completed_session.id)
+    mock_session_repository.update.assert_called_once_with(expected)
+    mock_event_bus.publish.assert_called_once()
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))
+    assert_that(published_event.session_id, equal_to(completed_session.id))
+
+
+@pytest.mark.unit
+def test_edit_session_attendance_no_changes(service, mock_session_repository, mock_event_bus, completed_session,
+                                            player_session_absent):
+    """Test edit_session_attendance does not update when no changes"""
+    # Arrange
+    completed_session.players = [player_session_absent]
+    mock_session_repository.find_by_id.return_value = completed_session
+
+    # Act
+    service.edit_session_attendance(completed_session.id, [player_session_absent])
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(completed_session.id)
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.assert_not_called()
+
+
+@pytest.mark.unit
+def test_edit_session_attendance_do_not_change_attended_players(service, mock_session_repository, mock_event_bus,
+                                                                completed_session,
+                                                                player_session):
+    """Test edit_session_attendance does not update when trying to change attended players"""
+    # Arrange
+    mock_session_repository.find_by_id.return_value = completed_session
+    modified_player = PlayerSession(player_session.player_id,
+                                    justified_absence=True,
+                                    attended=True,
+                                    motive="Changed",
+                                    intervals=player_session.intervals)
+
+    # Act
+    service.edit_session_attendance(completed_session.id, [modified_player])
+
+    # Assert
+    mock_session_repository.find_by_id.assert_called_once_with(completed_session.id)
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.assert_not_called()
+
+
+@pytest.mark.unit
+def test_edit_session_attendance_raises_not_found(service, mock_session_repository, player_session_absent):
+    """Test edit_session_attendance raises SessionNotFoundException when session not found"""
+    # Arrange
+    mock_session_repository.find_by_id.return_value = None
+
+    # Act & Assert
+    with pytest.raises(SessionNotFoundException):
+        service.edit_session_attendance("nonexistent", [player_session_absent])
+    mock_session_repository.update.assert_not_called()
+
+
+# ============================================================================
+# determine_session_type Tests
+# ============================================================================
+
+@pytest.mark.unit
+def test_determine_session_type_returns_additional(service, mock_session_repository, completed_session,
+                                                   player_session_online):
+    """Test determine_session_type returns ADDITIONAL_GAME when there was an OFFICIAL GAME this week"""
+    # Arrange
+    completed_session.type = Type.ADDITIONAL_GAME
+    mock_session_repository.find_latest_by_type_and_status.return_value = completed_session
+
+    # Act
+    result = service._determine_session_type(player_session_online.intervals[0].start)
+
+    # Assert
+    mock_session_repository.find_latest_by_type_and_status.assert_called_once_with(Type.OFFICIAL_GAME, Status.COMPLETED)
+    assert_that(result, equal_to(Type.ADDITIONAL_GAME))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("start_time,mocked_random,description", [
+    (datetime(2025, 10, 2, 15, 0, 0), None, "Thursday at 3 PM - always official"),
+    (datetime(2025, 10, 2, 22, 0, 0), None, "Thursday at 10 PM - always official"),
+    (datetime(2025, 10, 6, 21, 0, 0), 0.24, "Monday at 9 PM with 24% random - 25% threshold"),
+    (datetime(2025, 10, 7, 22, 30, 0), 0.20, "Tuesday at 10:30 PM with 20% random - 25% threshold"),
+    (datetime(2025, 10, 1, 21, 0, 0), 0.14, "Wednesday at 9 PM with 14% random - 15% threshold"),
+    (datetime(2025, 10, 3, 23, 0, 0), 0.10, "Friday at 11 PM with 10% random - 15% threshold"),
+    (datetime(2025, 10, 4, 21, 30, 0), 0.05, "Saturday at 9:30 PM with 5% random - 15% threshold"),
+    (datetime(2025, 10, 5, 22, 0, 0), 0.0, "Sunday at 10 PM with 0% random - 15% threshold"),
+])
+@patch('pururu.domain.services.session_service.random')
+def test_infer_session_type_from_start_time_returns_official(
+        mock_random, service, start_time, mocked_random, description
+):
+    """Test _infer_session_type_from_start_time returns OFFICIAL_GAME for various conditions"""
+    # Arrange
+    if mocked_random is not None:
+        mock_random.random.return_value = mocked_random
+
+    # Act
+    result = service._infer_session_type_from_start_time(start_time)
+
+    # Assert
+    assert_that(result, equal_to(Type.OFFICIAL_GAME), description)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("start_time,mocked_random,description", [
+    (datetime(2025, 10, 6, 15, 0, 0), None, "Monday at 3 PM - before 9 PM always additional"),
+    (datetime(2025, 10, 7, 20, 59, 0), None, "Tuesday at 8:59 PM - before 9 PM always additional"),
+    (datetime(2025, 10, 1, 12, 0, 0), None, "Wednesday at noon - before 9 PM always additional"),
+    (datetime(2025, 10, 3, 10, 0, 0), None, "Friday at 10 AM - before 9 PM always additional"),
+    (datetime(2025, 10, 4, 18, 0, 0), None, "Saturday at 6 PM - before 9 PM always additional"),
+    (datetime(2025, 10, 5, 20, 0, 0), None, "Sunday at 8 PM - before 9 PM always additional"),
+    (datetime(2025, 10, 6, 21, 0, 0), 0.25, "Monday at 9 PM with 25% random - above 25% threshold"),
+    (datetime(2025, 10, 7, 22, 30, 0), 0.50, "Tuesday at 10:30 PM with 50% random - above 25% threshold"),
+    (datetime(2025, 10, 6, 23, 0, 0), 0.99, "Monday at 11 PM with 99% random - above 25% threshold"),
+    (datetime(2025, 10, 1, 21, 0, 0), 0.15, "Wednesday at 9 PM with 15% random - above 15% threshold"),
+    (datetime(2025, 10, 3, 23, 0, 0), 0.20, "Friday at 11 PM with 20% random - above 15% threshold"),
+    (datetime(2025, 10, 4, 21, 30, 0), 0.50, "Saturday at 9:30 PM with 50% random - above 15% threshold"),
+    (datetime(2025, 10, 5, 22, 0, 0), 0.99, "Sunday at 10 PM with 99% random - above 15% threshold"),
+])
+@patch('pururu.domain.services.session_service.random')
+def test_infer_session_type_from_start_time_returns_additional(
+        mock_random, service, start_time, mocked_random, description
+):
+    """Test _infer_session_type_from_start_time returns ADDITIONAL_GAME for various conditions"""
+    # Arrange
+    if mocked_random is not None:
+        mock_random.random.return_value = mocked_random
+
+    # Act
+    result = service._infer_session_type_from_start_time(start_time)
+
+    # Assert
+    assert_that(result, equal_to(Type.ADDITIONAL_GAME), description)

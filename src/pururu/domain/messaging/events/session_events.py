@@ -41,3 +41,43 @@ class SessionConcludedEvent(PrimaryDomainEvent):
     """
     event_type = "SessionConcludedEvent"
     session_id: str
+
+
+@dataclass(frozen=True)
+class SessionTypeChangeEvent(PrimaryDomainEvent):
+    """
+    Event representing an intention to change the type of a session.
+    """
+    event_type = "SessionTypeChangeEvent"
+    session_id: str
+    new_type: str
+
+
+@dataclass(frozen=True)
+class SessionAttendanceEditEvent(PrimaryDomainEvent):
+    """
+    Event representing the intention to update the attendance data of session.
+    """
+    event_type = "SessionAttendanceEditEvent"
+    session_id: str
+    justified_absences: dict[str, bool]  # player_id -> justified_absence
+    motives: dict[str, str]  # player_id -> motive
+
+
+@dataclass(frozen=True)
+class SessionCreatedEvent(PrimaryDomainEvent):
+    """
+    Event representing a session creation.
+    """
+    event_type = "SessionCreatedEvent"
+    session_id: str
+    date: datetime
+
+
+@dataclass(frozen=True)
+class SessionUpdatedEvent(PrimaryDomainEvent):
+    """
+    Event representing a session being updated outside the main flow.
+    """
+    event_type = "SessionUpdatedEvent"
+    session_id: str

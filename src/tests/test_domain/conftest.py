@@ -7,7 +7,8 @@ import pytest
 from pururu.domain.entities.player import Player
 from pururu.domain.entities.poll import Poll, PollResolutionType
 from pururu.domain.entities.season import Season
-from pururu.domain.entities.session import Session, PlayerSession, Interval, Type, Status
+from pururu.domain.entities.session import (Session, PlayerSession, Interval, Type, Status,
+                                            SessionMetadataKey)
 
 
 @pytest.fixture
@@ -34,6 +35,31 @@ def player_session():
         ]
     )
 
+
+@pytest.fixture
+def player_session_absent():
+    """Create  PlayerSession absent unjustified"""
+    return PlayerSession(
+        player_id="player456",
+        justified_absence=False,
+        attended=False,
+        motive=None,
+        intervals=[]
+    )
+
+
+@pytest.fixture
+def player_session_justified():
+    """Create  PlayerSession absent justified"""
+    return PlayerSession(
+        player_id="player456",
+        justified_absence=True,
+        attended=False,
+        motive="He's away on a trip.",
+        intervals=[]
+    )
+
+
 @pytest.fixture
 def player_session_online():
     """Create a sample PlayerSession"""
@@ -59,7 +85,8 @@ def session():
         status=Status.DRAFT,
         players=[],
         start_time=datetime(2025, 10, 1, 10, 0, 0),
-        end_time=None
+        end_time=None,
+        metadata={}
     )
 
 
@@ -75,6 +102,7 @@ def on_going_session(player_session_online):
         start_time=datetime(2025, 10, 1, 10, 0, 0),
         end_time=None
     )
+
 
 @pytest.fixture
 def completed_session(player_session):
@@ -139,5 +167,3 @@ def mock_season_service():
 def mock_poll_service():
     """Create a mock PollService"""
     return MagicMock()
-
-

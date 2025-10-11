@@ -1,10 +1,13 @@
-from unittest.mock import patch, AsyncMock, Mock
+from unittest.mock import patch, AsyncMock, Mock, MagicMock
 
 import discord
 import pytest
 from discord.app_commands import Command
+from hamcrest import assert_that, equal_to
 
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
+from pururu.infrastructure.exceptions import (DiscordChannelNotFoundException, DiscordMessageNotFoundException,
+                                              DiscordUnExpectedException)
 
 
 @patch('pururu.application.handlers.discord_event_handler.DiscordEventHandler')
@@ -96,3 +99,179 @@ async def test_ping_command_ok(get_Version_mock):
     await ping_command.callback(interaction=interaction)
     # Then
     interaction.response.send_message.assert_called_once_with('Pong! Pururu v1.0.0 is watching! :3')
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_send_session_view_message_no_channel():
+    """Test send_session_info_view_message raises DiscordChannelNotFoundException when channel is not found"""
+    # Arrange
+    channel_id = '999999'  # Non-existent channel ID
+    session = Mock()
+
+    discord_bot = set_up()
+
+    # Act & Assert
+    with pytest.raises(DiscordChannelNotFoundException):
+        await discord_bot.send_session_info_view_message(channel_id, session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_send_session_view_message_exception():
+    """Test send_session_info_view_message raises DiscordUnExpectedException when something goes wrong"""
+    # Arrange
+    channel_id = '123456'
+    session = Mock()
+    session.get_first_joiner.return_value.player_id = '123456'
+
+    discord_bot = set_up()
+    discord_bot.get_channel = Mock(return_value=Mock())  # Mock channel found
+    discord_bot.fetch_user = AsyncMock(side_effect=Exception("Test exception"))
+
+    # Act & Assert
+    with pytest.raises(DiscordUnExpectedException):
+        await discord_bot.send_session_info_view_message(channel_id, session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.SessionInfoLayoutView')
+async def test_send_session_view_message_ok(mock_view_class):
+    """Test send_session_info_view_message works correctly"""
+    # Arrange
+    channel_id = '123456'
+    expected_message_id = 'message_123'
+    session = Mock()
+    session.get_first_joiner.return_value.player_id = '123456'
+
+    discord_bot = set_up()
+
+    mock_channel = AsyncMock()
+    mock_channel.send = AsyncMock(return_value=Mock(id=expected_message_id))
+    discord_bot.get_channel = Mock(return_value=mock_channel)
+
+    mock_user = Mock()
+    mock_user.avatar.url = 'http://avatar.url'
+    discord_bot.fetch_user = AsyncMock(return_value=mock_user)
+
+    mock_view = MagicMock()
+    mock_view_class.return_value = mock_view
+
+    # Act
+    result = await discord_bot.send_session_info_view_message(channel_id, session)
+
+    # Assert
+    assert_that(result, equal_to(expected_message_id))
+    mock_view_class.assert_called_once_with(
+        session,
+        on_session_type_change=discord_bot.event_handler.handle_session_type_change_modal_submit,
+        on_attendance_edit=discord_bot.event_handler.handle_session_attendance_edit_modal_submit,
+        thumbnail_url=mock_user.avatar.url
+    )
+    discord_bot.get_channel.assert_called_once_with(123456)
+    discord_bot.fetch_user.assert_awaited_once_with(123456)
+    mock_channel.send.assert_awaited_once_with(view=mock_view)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_edit_session_info_view_message_no_channel():
+    """Test edit_session_info_view_message raises DiscordChannelNotFoundException when channel is not found"""
+    # Arrange
+    channel_id = '999999'  # Non-existent channel ID
+    message_id = '123456'
+    session = Mock()
+
+    discord_bot = set_up()
+
+    # Act & Assert
+    with pytest.raises(DiscordChannelNotFoundException):
+        await discord_bot.edit_session_info_view_message(channel_id, message_id, session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_edit_session_info_view_message_no_message():
+    """Test edit_session_info_view_message raises DiscordChannelNotFoundException when message is not found"""
+    # Arrange
+    channel_id = '123456'
+    message_id = '999999'  # Non-existent message ID
+    session = Mock()
+
+    discord_bot = set_up()
+
+    mock_channel = AsyncMock()
+    mock_channel.fetch_message = AsyncMock(return_value=None)  # Simulate message not found
+    discord_bot.get_channel = Mock(return_value=mock_channel)
+
+    # Act & Assert
+    with pytest.raises(DiscordMessageNotFoundException):
+        await discord_bot.edit_session_info_view_message(channel_id, message_id, session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_edit_session_info_view_message_exception():
+    """Test edit_session_info_view_message raises DiscordUnExpectedException when something goes wrong"""
+    # Arrange
+    channel_id = '123456'
+    message_id = '789012'
+    session = Mock()
+    session.get_last_joiner.return_value.player_id = '123456'
+
+    discord_bot = set_up()
+    message_mock = AsyncMock(name="MessageMock")
+
+    mock_channel = AsyncMock(name="MockChannel")
+    mock_channel.fetch_message.return_value = message_mock  # Simulate message not found
+    discord_bot.get_channel = Mock(return_value=mock_channel)
+
+    discord_bot.fetch_user = AsyncMock(side_effect=Exception("Test exception"))
+
+    # Act & Assert
+    with pytest.raises(DiscordUnExpectedException):
+        await discord_bot.edit_session_info_view_message(channel_id, message_id, session)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.SessionInfoLayoutView')
+async def test_edit_session_info_view_message_ok(mock_view_class):
+    """Test edit_session_info_view_message works correctly"""
+    # Arrange
+    channel_id = '123456'
+    message_id = '789012'
+    session = Mock()
+    session.get_last_joiner.return_value.player_id = '123456'
+
+    discord_bot = set_up()
+
+    mock_message = AsyncMock()
+    mock_message.edit = AsyncMock()
+
+    mock_channel = AsyncMock()
+    mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+    discord_bot.get_channel = Mock(return_value=mock_channel)
+
+    mock_user = Mock()
+    mock_user.avatar.url = 'http://avatar.url'
+    discord_bot.fetch_user = AsyncMock(return_value=mock_user)
+
+    mock_view = MagicMock()
+    mock_view_class.return_value = mock_view
+
+    # Act
+    result = await discord_bot.edit_session_info_view_message(channel_id, message_id, session)
+
+    # Assert
+    mock_view_class.assert_called_once_with(
+        session,
+        on_session_type_change=discord_bot.event_handler.handle_session_type_change_modal_submit,
+        on_attendance_edit=discord_bot.event_handler.handle_session_attendance_edit_modal_submit,
+        thumbnail_url=mock_user.avatar.url
+    )
+    discord_bot.get_channel.assert_called_once_with(123456)
+    mock_channel.fetch_message.assert_awaited_once_with(789012)
+    discord_bot.fetch_user.assert_awaited_once_with(123456)
+    mock_message.edit.assert_awaited_once_with(view=mock_view)
