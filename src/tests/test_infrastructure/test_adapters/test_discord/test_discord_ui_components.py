@@ -265,7 +265,7 @@ def test_session_type_selector_label_initialization():
 
     # Assert
     assert_that(label, is_(not_none()))
-    assert_that(label.text, equal_to("Tipo de sessión"))
+    assert_that(label.text, equal_to("Tipo de sesión"))
     assert_that(label.component, instance_of(SessionTypeSelector))
 
 
