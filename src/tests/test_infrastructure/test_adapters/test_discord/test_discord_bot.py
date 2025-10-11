@@ -272,7 +272,7 @@ async def test_send_session_view_message_ok(mock_view_class):
 @pytest.mark.asyncio
 @pytest.mark.unit
 async def test_edit_session_info_view_message_no_channel():
-    """Test edit_session_info_view_message raises DiscordChannelNotFoundException Act channel is not found"""
+    """Test edit_session_info_view_message raises DiscordChannelNotFoundException when channel is not found"""
     # Arrange
     channel_id = '999999'  # Non-existent channel ID
     message_id = '123456'
