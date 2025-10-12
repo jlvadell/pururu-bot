@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import pytest
-from hamcrest import assert_that, equal_to, is_, none
+from hamcrest import assert_that, equal_to, is_, none, not_none
 
 from pururu.domain.entities.session import (
     Session, PlayerSession, Interval, Type, Status
@@ -739,6 +739,39 @@ def test_session_conclude_success():
     assert_that(session.end_time, equal_to(datetime(2025, 10, 1, 12, 0, 0)))
     assert_that(session.status, equal_to(Status.COMPLETED))
     assert_that(session.version, equal_to(2))
+
+
+@pytest.mark.unit
+def test_session_conclude_type_additional_auto_justify():
+    """Test Session.conclude sets justify true and motive if player absent and type is ADDITIONAL"""
+    # Arrange
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.ADDITIONAL_GAME,
+        status=Status.DRAFT,
+        players=[
+            PlayerSession("p1", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 12, 0, 0))]),
+            PlayerSession("p2", False, False, None,
+                          [Interval(datetime(2025, 10, 1, 10, 0, 0), datetime(2025, 10, 1, 10, 29, 0))]),
+            # absent due time
+            PlayerSession("p3", False, False, None, [])  # absent due no intervals
+        ]
+    )
+
+    # Act
+    session.conclude(datetime(2025, 10, 1, 12, 0, 0), min_players=1, min_playtime=1800)
+
+    # Assert
+    assert_that(session.players[1].attended, is_(False))
+    assert_that(session.players[1].justified_absence, is_(True))
+    assert_that(session.players[1].motive, not_none())
+    assert_that(session.players[2].attended, is_(False))
+    assert_that(session.players[2].justified_absence, is_(True))
+    assert_that(session.players[2].motive, not_none())
 
 
 @pytest.mark.unit

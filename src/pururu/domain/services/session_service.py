@@ -120,7 +120,7 @@ class SessionService:
         self.logger.debug(f"Adding metadata updates to session '{session_id}'",
                           extra={'session_id': session_id, 'updates': {k.value: v for k, v in updates.items()}})
         session = self.find_session_by_id(session_id)
-        session.metadata.update({k: v for k, v in updates.items()})
+        session.metadata.update(updates)
         session.increment_version()
         self.session_repository.update(session)
 

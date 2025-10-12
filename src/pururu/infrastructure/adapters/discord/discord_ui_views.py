@@ -101,7 +101,7 @@ class EditAttendanceModal(discord.ui.Modal, title="Editar Asistencias"):
     async def on_submit(self, interaction: discord.Interaction):
         justification_dict = {}
         motives_dict = {}
-        justified_ids = [member for member in self.justify_user_selector.component.values]
+        justified_ids = self.justify_user_selector.component.values
         for player in self.session.players:
             justification_dict[player.player_id] = player.player_id in justified_ids
             motives_dict[player.player_id] = self.user_motive_dict[
