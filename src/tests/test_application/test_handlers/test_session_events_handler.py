@@ -399,6 +399,29 @@ async def test_handle_session_updated_comms_disabled(mock_settings, handler, moc
 @pytest.mark.unit
 @pytest.mark.asyncio
 @patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_session_updated_metadata_not_present(mock_settings, handler, mock_session_service,
+                                                           mock_data_sync_service, mock_discord_service):
+    """Test handle_session_updated metadata not present"""
+    # Arrange
+    mock_settings.discord.enable_communication_channel = True
+    session_id = "session123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {}
+
+    mock_session_service.find_session_by_id.return_value = mock_session
+    event = SessionUpdatedEvent(datetime.now(), session_id)
+
+    # Act
+    await handler.handle_session_updated(event)
+
+    # Assert
+    assert_sync_session(mock_data_sync_service, mock_session)
+    mock_discord_service.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
 async def test_handle_session_updated_on_going_session(mock_settings, handler, mock_session_service,
                                                        mock_data_sync_service):
     """Test handle_session_updated ongoing/discarded session should not sync"""

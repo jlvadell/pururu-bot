@@ -123,9 +123,10 @@ class SessionEventsHandler:
 
     async def _update_session_info_view(self, session: Session) -> None:
         if settings.discord.enable_communication_channel:
-            channel_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID)
-            message_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID)
-            await self.discord_service.update_session_info_view_message(channel_id, message_id, session)
+            channel_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID, None)
+            message_id = session.metadata.get(SessionMetadataKey.DISCORD_INFO_MESSAGE_ID, None)
+            if channel_id and message_id:
+                await self.discord_service.update_session_info_view_message(channel_id, message_id, session)
 
     def _sync_session(self, session: Session) -> None:
         if session.was_concluded_positively():
