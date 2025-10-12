@@ -262,7 +262,12 @@ class Session:
         official_start_time = self.get_official_start_time(min_players)
         official_end_time = self.get_official_end_time(min_players)
         for player in self.players:
-            player.attended = player.has_attended(min_playtime, official_start_time, official_end_time)
+            attended = player.has_attended(min_playtime, official_start_time, official_end_time)
+            player.attended = attended
+            if not attended and self.type == Type.ADDITIONAL_GAME:
+                player.justified_absence = True
+                player.motive = "Additional game absence"
+
         duration = int((official_end_time - official_start_time).total_seconds())
         attended_count = self.count_attended_players()
 
