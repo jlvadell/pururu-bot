@@ -18,10 +18,13 @@ class ConfigFilesWatcher(FileSystemEventHandler):
         self.config_observer_thread = None
 
     def on_modified(self, event):
-        if event.src_path.endswith(".toml"):
-            self.logger.info(f"Detected config change: {event.src_path}")
-            self.event_handler.on_configuration_files_changed()
-            self.logger.info("Configuration reloaded successfully.")
+        self._handle_configuration_change_event(event)
+
+    def on_created(self, event):
+        self._handle_configuration_change_event(event)
+
+    def on_moved(self, event):
+        self._handle_configuration_change_event(event)
 
     def start_config_watcher(self):
         files_to_watch = [os.path.abspath(f) for f in settings._loaded_files]
@@ -51,3 +54,9 @@ class ConfigFilesWatcher(FileSystemEventHandler):
         if self.config_observer_thread:
             self.config_observer_thread.join()
             self.logger.info("Config watcher thread joined.")
+
+    def _handle_configuration_change_event(self, event):
+        if event.src_path.endswith(".toml"):
+            self.logger.info(f"Detected config change: {event.src_path}")
+            self.event_handler.on_configuration_files_changed()
+            self.logger.info("Configuration reloaded successfully.")
