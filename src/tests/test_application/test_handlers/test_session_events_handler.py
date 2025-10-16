@@ -72,17 +72,31 @@ def test_subscriptions(handler, mock_event_bus):
 
 
 @pytest.mark.unit
-def test_handle_player_joined(handler, mock_session_service):
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_player_joined(mock_settings, handler, mock_session_service, mock_discord_service):
     """Test handle_player_joined"""
     # Arrange
+    mock_settings.discord.enable_communication_channel = True
     event_time = datetime(2025, 10, 1, 12, 0, 0)
     event = PlayerJoinedSessionEvent(datetime.now(), "player123", event_time)
+    session_id = "session123"
+    channel_id = "channel123"
+    message_id = "message123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
+        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id
+    }
+
+    mock_session_service.register_player_connection.return_value = mock_session
 
     # Act
-    handler.handle_player_joined(event)
+    await handler.handle_player_joined(event)
 
     # Assert
     mock_session_service.register_player_connection.assert_called_once_with("player123", event_time)
+    assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
 
 
 @pytest.mark.unit
