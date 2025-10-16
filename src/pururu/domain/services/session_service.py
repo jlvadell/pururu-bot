@@ -25,12 +25,12 @@ class SessionService:
         self.event_bus = event_bus
         self.logger = logger.get_logger(__name__)
 
-    def register_player_connection(self, player_id: str, time: datetime) -> None:
+    def register_player_connection(self, player_id: str, time: datetime) -> Session:
         """
         Registers a player connection at the given time. If there is no active session, creates a new one.
         :param player_id: the player who connected
         :param time: datetime of connection
-        :return: None
+        :return: the active session
         """
         self.logger.debug(f"Registering player '{player_id}' connection at '{time}'",
                           extra={'player_id': player_id, 'time': time.isoformat()})
@@ -38,12 +38,11 @@ class SessionService:
         if not session:
             self.logger.debug(f"No active session found, creating a new one for player '{player_id}'",
                               extra={'player_id': player_id})
-            self._create_session(player_id, time)
-            return
+            return self._create_session(player_id, time)
         self.logger.debug(f"Active session '{session.id}' found, registering player '{player_id}' connection",
                           extra={'session_id': session.id, 'player_id': player_id})
         session.register_player_connection(player_id, time)
-        self.session_repository.update(session)
+        return self.session_repository.update(session)
 
     def register_player_disconnection(self, player_id: str, time: datetime) -> None:
         """
