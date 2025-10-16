@@ -74,13 +74,15 @@ def test_register_player_connection_with_active_session(service, mock_session_re
     # Arrange
     mock_session_repository.find_active_session.return_value = session
     connection_time = datetime(2025, 10, 1, 10, 30, 0)
+    mock_session_repository.update.return_value = session
 
     # Act
-    service.register_player_connection("player123", connection_time)
+    actual = service.register_player_connection("player123", connection_time)
 
     # Assert
     mock_session_repository.find_active_session.assert_called_once()
     mock_session_repository.update.assert_called_once_with(session)
+    assert_that(actual, equal_to(session))
 
 
 @pytest.mark.unit

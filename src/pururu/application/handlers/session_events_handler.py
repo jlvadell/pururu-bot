@@ -31,13 +31,14 @@ class SessionEventsHandler:
         self.event_bus.subscribe(SessionAttendanceEditEvent.event_type, self.handle_session_attendance_edit)
         self.event_bus.subscribe(SessionUpdatedEvent.event_type, self.handle_session_updated)
 
-    def handle_player_joined(self, event: PlayerJoinedSessionEvent) -> None:
+    async def handle_player_joined(self, event: PlayerJoinedSessionEvent) -> None:
         self.logger.info(
             f"Handling PlayerJoinedSessionEvent for player {event.player_id} at time {event.time.isoformat()}", extra={
                 "player_id": event.player_id,
                 "time": event.time.isoformat()
             })
-        self.session_service.register_player_connection(event.player_id, event.time)
+        session = self.session_service.register_player_connection(event.player_id, event.time)
+        await self._update_session_info_view(session)
 
     def handle_player_left(self, event: PlayerLeftSessionEvent) -> None:
         self.logger.info(
