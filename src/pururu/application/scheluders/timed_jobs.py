@@ -37,5 +37,9 @@ class ScheduledJobs:
         Emits the CHECK_EXPIRED_POLLS event
         :return: None
         """
+        # Generate trace context for this scheduled job
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        
         self.logger.debug("Triggering check expired polls flow")
         self.event_handler.trigger_check_expired_polls_flow()

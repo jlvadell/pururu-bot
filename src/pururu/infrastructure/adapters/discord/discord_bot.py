@@ -37,6 +37,10 @@ class PururuDiscordBot(commands.Bot):
 
     async def on_voice_state_update(self, member: discord.Member, before_state: discord.VoiceState,
                                     after_state: discord.VoiceState):
+        # Set trace context for this voice state update
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        
         before_name = before_state.channel.name if before_state.channel else None
         after_name = after_state.channel.name if after_state.channel else None
         self.logger.info(f"Voice state changed for member {member.name}, from {before_name} to {after_name}", extra={
@@ -47,6 +51,10 @@ class PururuDiscordBot(commands.Bot):
         self.event_handler.handle_on_voice_state_update_event(str(member.id), member.name, before_name, after_name)
 
     async def on_ready(self):
+        # Set trace context for bot ready event
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        
         self.logger.info("Pururu Discord Bot is ready!")
         self.event_handler.handle_on_ready_event()
 
@@ -58,6 +66,10 @@ class PururuDiscordBot(commands.Bot):
             description='Sends a ping to Pururu'
         )
         async def ping_command(interaction: discord.Interaction):
+            # Set trace context for this command
+            trace_id = logger.generate_trace_id()
+            logger.set_trace_context(trace_id)
+            
             self.logger.info("Ping command received", extra={
                 "user": interaction.user.name,
                 "guild": interaction.guild.name if interaction.guild else None
@@ -70,6 +82,10 @@ class PururuDiscordBot(commands.Bot):
             description="Change the type of the session"
         )
         async def change_type_command(interaction: discord.Interaction, session_id: str):
+            # Set trace context for this command
+            trace_id = logger.generate_trace_id()
+            logger.set_trace_context(trace_id)
+            
             self.logger.info(f"Change type command received, requester {interaction.user.name} ({interaction.user.id})",
                              extra={
                                  "player_id": interaction.user.id,
@@ -89,6 +105,10 @@ class PururuDiscordBot(commands.Bot):
             description="Edits the attendance of the session"
         )
         async def edit_attendance_command(interaction: discord.Interaction, session_id: str):
+            # Set trace context for this command
+            trace_id = logger.generate_trace_id()
+            logger.set_trace_context(trace_id)
+            
             self.logger.info(
                 f"Edit attendance command received, requester {interaction.user.name} ({interaction.user.id})", extra={
                     "player_id": interaction.user.id,
@@ -105,6 +125,10 @@ class PururuDiscordBot(commands.Bot):
             await interaction.response.send_modal(modal)
 
     async def send_session_info_view_message(self, channel_id: str, session) -> str:
+        # Set trace context for this action
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        
         channel = self.get_channel(int(channel_id))
         if not channel:
             self.logger.error(f"Failed to send session info view to channel {channel_id}", extra={
@@ -127,6 +151,10 @@ class PururuDiscordBot(commands.Bot):
             raise DiscordUnExpectedException(f"Failed to send session info view to channel {channel_id}") from e
 
     async def edit_session_info_view_message(self, channel_id: str, message_id: str, session) -> None:
+        # Set trace context for this action
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        
         channel = self.get_channel(int(channel_id))
         if not channel:
             self.logger.error(f"Failed to send session info view to channel {channel_id}", extra={

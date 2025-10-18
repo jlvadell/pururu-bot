@@ -19,11 +19,14 @@ def temp_toml_file():
 
 
 @pytest.mark.unit
-def test_config_files_watcher_triggers_on_modify(temp_toml_file, monkeypatch):
-    """Test trigger"""
+@mock.patch('pururu.application.watchers.config_watcher.logger')
+def test_config_files_watcher_triggers_on_modify(mock_logger, temp_toml_file, monkeypatch):
+    """Test trigger sets trace context"""
     # Arrange
     handler = mock.Mock()
     watcher = ConfigFilesWatcher(handler)
+    mock_logger.generate_trace_id.return_value = "test_trace_config_555"
+    mock_logger.set_trace_context = mock.Mock()
 
     # Patch settings._loaded_files to include our temp file
     monkeypatch.setattr("pururu.config.settings._loaded_files", [temp_toml_file])
@@ -47,6 +50,8 @@ def test_config_files_watcher_triggers_on_modify(temp_toml_file, monkeypatch):
     # Assert
     # not using assert_called_once because the event might be triggered multiple times due to file system events
     assert_that(handler.on_configuration_files_changed.called, equal_to(True))
+    mock_logger.generate_trace_id.assert_called()
+    mock_logger.set_trace_context.assert_called_with('test_trace_config_555')
 
 
 @pytest.mark.unit

@@ -23,15 +23,28 @@ class SNSClientAdapter:
         """
         try:
             payload = json.dumps(event.serialize())
+            
+            # Get current trace_id from context to propagate through SNS/SQS
+            trace_id = logger.trace_id_var.get()
+            
+            message_attributes = {
+                "queue_priority": {
+                    "DataType": "String",
+                    "StringValue": event.priority
+                }
+            }
+            
+            # Include trace_id for distributed tracing if available
+            if trace_id:
+                message_attributes["trace_id"] = {
+                    "DataType": "String",
+                    "StringValue": trace_id
+                }
+            
             response = self.sns.publish(
                 TopicArn=self.topic_arn,
                 Message=payload,
-                MessageAttributes={
-                    "queue_priority": {
-                        "DataType": "String",
-                        "StringValue": event.priority
-                    }
-                },
+                MessageAttributes=message_attributes,
                 MessageGroupId=event.event_type,
                 MessageDeduplicationId=event.idempotency_key()
             )

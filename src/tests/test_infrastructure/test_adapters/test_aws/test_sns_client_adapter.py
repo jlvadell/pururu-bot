@@ -50,9 +50,11 @@ def mock_event():
 
 
 @pytest.mark.unit
-def test_publish_success(adapter, mock_sns_client, mock_event):
-    """Test publish successfully sends event to SNS"""
+@patch('pururu.infrastructure.adapters.aws.sns_client_adapter.logger.trace_id_var')
+def test_publish_success_without_trace_context(mock_trace_var, adapter, mock_sns_client, mock_event):
+    """Test publish successfully sends event to SNS without trace context"""
     # Arrange
+    mock_trace_var.get.return_value = None
     mock_sns_client.publish.return_value = {"MessageId": "msg-123"}
     expected_payload = json.dumps({"key": "value", "data": "test"})
 
@@ -67,6 +69,38 @@ def test_publish_success(adapter, mock_sns_client, mock_event):
             "queue_priority": {
                 "DataType": "String",
                 "StringValue": "Primary"
+            }
+        },
+        MessageGroupId="TestEvent",
+        MessageDeduplicationId="test-idempotency-key-123"
+    )
+
+
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.aws.sns_client_adapter.logger.trace_id_var')
+def test_publish_success_with_trace_context(mock_trace_var, adapter, mock_sns_client, mock_event):
+    """Test publish successfully sends event to SNS with trace context propagated"""
+    # Arrange
+    test_trace_id = "abc123def456"
+    mock_trace_var.get.return_value = test_trace_id
+    mock_sns_client.publish.return_value = {"MessageId": "msg-123"}
+    expected_payload = json.dumps({"key": "value", "data": "test"})
+
+    # Act
+    adapter.publish(mock_event)
+
+    # Assert
+    mock_sns_client.publish.assert_called_once_with(
+        TopicArn="arn:aws:sns:us-east-1:000000000000:test-topic",
+        Message=expected_payload,
+        MessageAttributes={
+            "queue_priority": {
+                "DataType": "String",
+                "StringValue": "Primary"
+            },
+            "trace_id": {
+                "DataType": "String",
+                "StringValue": test_trace_id
             }
         },
         MessageGroupId="TestEvent",

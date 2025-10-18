@@ -112,12 +112,21 @@ class GenericSQSPoller:
             self.logger.error(f"Failed to deserialize message, {message}", exc_info=e, extra={"message_raw": message})
             raise SQSDeserializationException(f"Failed to deserialize message, raw: {message}") from e
 
-    async def _handle_event(self, event: DomainEvent) -> None:
+    async def _handle_event(self, event: DomainEvent, message_attributes: dict) -> None:
         """
         Handles the event by routing it to the appropriate handler
         :param event: a polled domain event
+        :param message_attributes: SQS message attributes (for trace context)
         :return: None
         """
+        # Extract or generate trace context
+        trace_id = message_attributes.get('trace_id', {}).get('StringValue') if message_attributes else None
+        if not trace_id:
+            trace_id = logger.generate_trace_id()
+        
+        # Set trace context for this message processing
+        logger.set_trace_context(trace_id)
+        
         await self.router.route(event)
 
     async def stop_polling(self) -> None:
@@ -157,12 +166,13 @@ class GenericSQSPoller:
 
                         for message in messages:
                             event = self._deserialize_event(message)
+                            message_attributes = message.get("MessageAttributes", {})
                             self.logger.info(f"Event polled, type {event.event_type}, age: {event.get_age()}", extra={
                                 "queue_url": self.queue_url,
                                 "event_type": event.event_type,
                                 "event_age": event.get_age()
                             })
-                            await self._handle_event(event)
+                            await self._handle_event(event, message_attributes)
 
                             await sqs_client.delete_message(
                                 QueueUrl=self.queue_url,
