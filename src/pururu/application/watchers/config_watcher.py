@@ -18,13 +18,16 @@ class ConfigFilesWatcher(FileSystemEventHandler):
         self.config_observer_thread = None
 
     def on_modified(self, event):
-        self._handle_configuration_change_event(event)
+        if not event.is_directory:
+            self._handle_configuration_change_event(event)
 
     def on_created(self, event):
-        self._handle_configuration_change_event(event)
+        if not event.is_directory:
+            self._handle_configuration_change_event(event)
 
     def on_moved(self, event):
-        self._handle_configuration_change_event(event)
+        if not event.is_directory:
+            self._handle_configuration_change_event(event)
 
     def start_config_watcher(self):
         files_to_watch = [os.path.abspath(f) for f in settings._loaded_files]
@@ -61,8 +64,11 @@ class ConfigFilesWatcher(FileSystemEventHandler):
             trace_id = logger.generate_trace_id()
             logger.set_trace_context(trace_id)
             
-            self.logger.info(f"Detected config change: {event.src_path}", extra={
-                "config_file": event.src_path
+            self.logger.info(f"Detected config change: {event.src_path} (event_type: {event.event_type})", extra={
+                "config_file": event.src_path,
+                "event_type": event.event_type
             })
             self.event_handler.on_configuration_files_changed()
             self.logger.info("Configuration reloaded successfully.")
+        else:
+            self.logger.debug(f"Ignoring non-toml file change: {event.src_path}")
