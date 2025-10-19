@@ -10,19 +10,16 @@ via prometheus_client's built-in collectors.
 from prometheus_client import (Counter, Histogram, Info, ProcessCollector, PlatformCollector, GCCollector,
                                CollectorRegistry, start_http_server)
 
-
-
-#Register built-in collectors for Python runtime metrics.
-#- process_* metrics (CPU, memory, file descriptors, etc.)
-#- python_* metrics (Python version, implementation)
-#- python_gc_* metrics (Garbage collector statistics)
+# Register built-in collectors for Python runtime metrics.
+# - process_* metrics (CPU, memory, file descriptors, etc.)
+# - python_* metrics (Python version, implementation)
+# - python_gc_* metrics (Garbage collector statistics)
 
 registry = CollectorRegistry()
 ProcessCollector(registry=registry)
 PlatformCollector(registry=registry)
 GCCollector(registry=registry)
 start_http_server(9090, registry=registry)
-
 
 # ============================================================================
 # SQS / Event Processing Metrics

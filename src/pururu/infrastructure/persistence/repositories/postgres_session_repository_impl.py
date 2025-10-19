@@ -20,8 +20,8 @@ class PostgresSessionRepositoryImpl(SessionRepository):
     def save(self, session: Session) -> Session:
         record = PostgresMapper.map_session_to_record(session)
         with OrmSession(self.postgres_engine) as orm_session:
-            start = time.time()
             self.logger.debug(f"Saving new session with id {session.id} and version {session.version}")
+            start = time.time()
             orm_session.add(record)
             orm_session.commit()
             orm_session.refresh(record)
