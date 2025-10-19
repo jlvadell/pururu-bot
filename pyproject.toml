@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=75", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -25,16 +25,17 @@ dynamic = ["version"]
 
 # Core dependencies
 dependencies = [
-    "discord.py~=2.6.3",
+    "discord.py~=2.6.4",
     "google-auth~=2.41.1",
     "gspread~=6.2.1",
     "APScheduler~=3.11.0",
-    "aioboto3~=15.1.0",
-    "dynaconf~=3.2.11",
+    "aioboto3~=15.2.0",
+    "dynaconf~=3.2.12",
     "watchdog~=6.0.0",
     "ulid-py~=1.1.0",
-    "sqlalchemy~=2.0.43",
-    "psycopg2-binary~=2.9.10",
+    "sqlalchemy~=2.0.44",
+    "psycopg2-binary~=2.9.11",
+    "prometheus-client~=0.23.1",
 ]
 
 [project.optional-dependencies]
@@ -43,9 +44,9 @@ dev = [
     "pytest~=8.4.2",
     "pytest-cov~=7.0.0",
     "pytest-asyncio~=1.2.0",
-    "coverage~=7.10.7",
+    "coverage~=7.11.0",
     "pyhamcrest~=2.1.0",
-    "moto~=5.1.13",
+    "moto~=5.1.15",
 ]
 
 [project.urls]

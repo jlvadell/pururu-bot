@@ -1,6 +1,8 @@
+import time
+
 import discord
 
-from pururu.common import logger
+from pururu.common import logger, metrics
 from pururu.domain.entities.poll import PollReference, Poll
 from pururu.domain.services.discord_service import DiscordService
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
@@ -53,7 +55,13 @@ class DiscordServiceImpl(DiscordService):
     async def send_session_info_view_message(self, channel_id: str, session) -> str | None:
         self.logger.debug(f"Sending session info view message to channel {channel_id} for session {session.id}")
         try:
-            return await self.bot.send_session_info_view_message(channel_id, session)
+            start = time.time()
+            message_id = await self.bot.send_session_info_view_message(channel_id, session)
+            process_duration = time.time() - start
+            metrics.discord_operation_duration_seconds.labels(
+                operation="send_session_info_view_message"
+            ).observe(process_duration)
+            return message_id
         except InfrastructureException:
             self.logger.error(f"Failed to send session info view message to channel {channel_id}",
                               extra={"channel_id": channel_id}, exc_info=True)
@@ -64,7 +72,12 @@ class DiscordServiceImpl(DiscordService):
             f"Updating session info view message {message_id} in channel {channel_id} for session {session.id}",
             extra={"channel_id": channel_id, "message_id": message_id})
         try:
+            start = time.time()
             await self.bot.edit_session_info_view_message(channel_id, message_id, session)
+            process_duration = time.time() - start
+            metrics.discord_operation_duration_seconds.labels(
+                operation="update_session_info_view_message"
+            ).observe(process_duration)
         except InfrastructureException:
             self.logger.error(f"Failed to update session info view message {message_id} in channel {channel_id}",
                               extra={"channel_id": channel_id, "message_id": message_id}, exc_info=True)

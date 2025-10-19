@@ -50,22 +50,33 @@ async def test_setup_hook(mock_sync, mock_copy_global, mock_clear_commands, mock
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_on_ready_ok():
-    """Test the on_ready event"""
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
+async def test_on_ready_ok(mock_logger):
+    """Test the on_ready event sets trace context"""
     # Arrange
     discord_bot = set_up()
+    mock_logger.generate_trace_id.return_value = "test_trace_123"
+    mock_logger.set_trace_context = Mock()
+    
     # Act
     await discord_bot.on_ready()
+    
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_123")
     discord_bot.event_handler.handle_on_ready_event.assert_called_once()
 
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_on_voice_state_update_ok():
-    """Test the on_voice_state_update event"""
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
+async def test_on_voice_state_update_ok(mock_logger):
+    """Test the on_voice_state_update event sets trace context"""
     # Arrange
     discord_bot = set_up()
+    mock_logger.generate_trace_id.return_value = "test_trace_voice_456"
+    mock_logger.set_trace_context = Mock()
+    
     member = Mock(spec=discord.Member)
     member.name = 'member'
     member.id = 123456
@@ -73,9 +84,13 @@ async def test_on_voice_state_update_ok():
     before_state.channel.name = 'before_state'
     after_state = Mock(spec=discord.VoiceState, channel=Mock())
     after_state.channel.name = 'after_state'
+    
     # Act
     await discord_bot.on_voice_state_update(member, before_state, after_state)
+    
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_voice_456")
     discord_bot.event_handler.handle_on_voice_state_update_event.assert_called_once_with('123456', 'member',
                                                                                          'before_state',
                                                                                          'after_state')
@@ -85,33 +100,44 @@ async def test_on_voice_state_update_ok():
 # SLASH COMMAND TESTS
 # ------------------------------
 
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
 @patch('pururu.infrastructure.adapters.discord.discord_bot.get_version', return_value='v1.0.0')
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_ping_command_ok(get_Version_mock):
-    """Test the ping command"""
+async def test_ping_command_ok(get_Version_mock, mock_logger):
+    """Test the ping command sets trace context"""
     # Arrange
     discord_bot = set_up()
+    mock_logger.generate_trace_id.return_value = "test_trace_ping_789"
+    mock_logger.set_trace_context = Mock()
     discord_bot.setup_commands()
 
     ping_command: Command = next(filter(lambda x: x.name == 'ping', discord_bot.tree.get_commands()))
     interaction = AsyncMock()
     interaction.response = AsyncMock()
+    
     # Act
     await ping_command.callback(interaction=interaction)
+    
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_ping_789")
     interaction.response.send_message.assert_called_once_with('Pong! Pururu v1.0.0 is watching! :3')
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
 @patch('pururu.infrastructure.adapters.discord.discord_bot.EditSessionTypeModal')
-async def test_change_type_command_ok(modal_mock):
-    """Test the type command session exists"""
+async def test_change_type_command_ok(modal_mock, mock_logger):
+    """Test the type command sets trace context and handles session"""
     # Arrange
     session_mock = Mock(spec=Session, id="123456")
     modal_instance = Mock(spec=EditSessionTypeModal)
     modal_mock.return_value = modal_instance
+    mock_logger.generate_trace_id.return_value = "test_trace_type_111"
+    mock_logger.set_trace_context = Mock()
+    
     discord_bot = set_up()
     discord_bot.event_handler.handle_change_type_command.return_value = session_mock
     discord_bot.setup_commands()
@@ -119,9 +145,13 @@ async def test_change_type_command_ok(modal_mock):
     type_command: Command = next(filter(lambda x: x.name == 'type', discord_bot.tree.get_commands()))
     interaction = AsyncMock()
     interaction.response = AsyncMock()
+    
     # Act
     await type_command.callback(interaction=interaction, session_id="123456")
+    
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_type_111")
     modal_mock.assert_called_once_with(session_mock, discord_bot.event_handler.handle_session_type_change_modal_submit)
     discord_bot.event_handler.handle_change_type_command.assert_called_once_with("123456")
     interaction.response.send_modal.assert_awaited_once_with(modal_instance)
@@ -149,13 +179,17 @@ async def test_change_type_command_not_found():
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
 @patch('pururu.infrastructure.adapters.discord.discord_bot.EditAttendanceModal')
-async def test_edit_attendance_command_ok(modal_mock):
-    """Test the attendance command session exists"""
+async def test_edit_attendance_command_ok(modal_mock, mock_logger):
+    """Test the attendance command sets trace context and handles session"""
     # Arrange
     session_mock = Mock(spec=Session, id="123456")
     modal_instance = Mock(spec=EditAttendanceModal)
     modal_mock.return_value = modal_instance
+    mock_logger.generate_trace_id.return_value = "test_trace_attendance_222"
+    mock_logger.set_trace_context = Mock()
+    
     discord_bot = set_up()
     discord_bot.event_handler.handle_edit_attendance_command.return_value = session_mock
     discord_bot.setup_commands()
@@ -163,9 +197,13 @@ async def test_edit_attendance_command_ok(modal_mock):
     type_command: Command = next(filter(lambda x: x.name == 'attendance', discord_bot.tree.get_commands()))
     interaction = AsyncMock()
     interaction.response = AsyncMock()
+    
     # Act
     await type_command.callback(interaction=interaction, session_id="123456")
+    
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_attendance_222")
     modal_mock.assert_called_once_with(session_mock,
                                        discord_bot.event_handler.handle_session_attendance_edit_modal_submit)
     discord_bot.event_handler.handle_edit_attendance_command.assert_called_once_with("123456")
@@ -231,14 +269,17 @@ async def test_send_session_view_message_exception():
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
 @patch('pururu.infrastructure.adapters.discord.discord_bot.SessionInfoLayoutView')
-async def test_send_session_view_message_ok(mock_view_class):
-    """Test send_session_info_view_message works correctly"""
+async def test_send_session_view_message_ok(mock_view_class, mock_logger):
+    """Test send_session_info_view_message sets trace context and works correctly"""
     # Arrange
     channel_id = '123456'
     expected_message_id = 'message_123'
     session = Mock()
     session.get_first_joiner.return_value.player_id = '123456'
+    mock_logger.generate_trace_id.return_value = "test_trace_send_333"
+    mock_logger.set_trace_context = Mock()
 
     discord_bot = set_up()
 
@@ -257,6 +298,8 @@ async def test_send_session_view_message_ok(mock_view_class):
     result = await discord_bot.send_session_info_view_message(channel_id, session)
 
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_send_333")
     assert_that(result, equal_to(expected_message_id))
     mock_view_class.assert_called_once_with(
         session,
@@ -331,14 +374,17 @@ async def test_edit_session_info_view_message_exception():
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.logger')
 @patch('pururu.infrastructure.adapters.discord.discord_bot.SessionInfoLayoutView')
-async def test_edit_session_info_view_message_ok(mock_view_class):
-    """Test edit_session_info_view_message works correctly"""
+async def test_edit_session_info_view_message_ok(mock_view_class, mock_logger):
+    """Test edit_session_info_view_message sets trace context and works correctly"""
     # Arrange
     channel_id = '123456'
     message_id = '789012'
     session = Mock()
     session.get_last_joiner.return_value.player_id = '123456'
+    mock_logger.generate_trace_id.return_value = "test_trace_edit_444"
+    mock_logger.set_trace_context = Mock()
 
     discord_bot = set_up()
 
@@ -360,6 +406,8 @@ async def test_edit_session_info_view_message_ok(mock_view_class):
     result = await discord_bot.edit_session_info_view_message(channel_id, message_id, session)
 
     # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_edit_444")
     mock_view_class.assert_called_once_with(
         session,
         on_session_type_change=discord_bot.event_handler.handle_session_type_change_modal_submit,

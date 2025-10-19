@@ -173,16 +173,49 @@ def test_poller_deserialize_event_missing_event_type(poller):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_poller_handle_event_routes_to_router(poller, mock_router):
-    """Test _handle_event routes event through router"""
+@patch('pururu.infrastructure.adapters.aws.sqs_client_adapter.logger')
+async def test_poller_handle_event_routes_to_router_with_trace(mock_logger_module, poller, mock_router):
+    """Test _handle_event routes event through router and sets trace context"""
     # Arrange
     mock_event = MagicMock()
+    mock_event.event_type = "TestEvent"
     mock_router.route = AsyncMock()
+    mock_logger_module.generate_trace_id.return_value = "generated_trace_123"
+    mock_logger_module.set_trace_context = MagicMock()
+    message_attributes = {}
 
     # Act
-    await poller._handle_event(mock_event)
+    await poller._handle_event(mock_event, message_attributes)
 
     # Assert
+    mock_logger_module.set_trace_context.assert_called_once()
+    mock_router.route.assert_awaited_once_with(mock_event)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.infrastructure.adapters.aws.sqs_client_adapter.logger')
+async def test_poller_handle_event_extracts_trace_from_attributes(mock_logger_module, poller, mock_router):
+    """Test _handle_event extracts trace_id from message attributes"""
+    # Arrange
+    mock_event = MagicMock()
+    mock_event.event_type = "TestEvent"
+    mock_router.route = AsyncMock()
+    mock_logger_module.set_trace_context = MagicMock()
+    
+    test_trace_id = "existing_trace_456"
+    message_attributes = {
+        "trace_id": {
+            "StringValue": test_trace_id,
+            "DataType": "String"
+        }
+    }
+
+    # Act
+    await poller._handle_event(mock_event, message_attributes)
+
+    # Assert
+    mock_logger_module.set_trace_context.assert_called_once_with(test_trace_id)
     mock_router.route.assert_awaited_once_with(mock_event)
 
 
@@ -256,6 +289,12 @@ async def test_poller_start_polling_processes_messages(poller, mock_router):
                             "player_id": "player123"
                         })
                     }),
+                    "MessageAttributes": {
+                        "trace_id": {
+                            "StringValue": "test_trace_123",
+                            "DataType": "String"
+                        }
+                    },
                     "ReceiptHandle": "receipt-123"
                 }]
             }
@@ -281,7 +320,11 @@ async def test_poller_start_polling_processes_messages(poller, mock_router):
 
     # Assert
     poller._deserialize_event.assert_called_once()
-    poller._handle_event.assert_awaited_once_with(mock_event)
+    # Verify _handle_event was called with event and message_attributes
+    assert_that(poller._handle_event.await_count, equal_to(1))
+    call_args = poller._handle_event.await_args
+    assert_that(call_args[0][0], equal_to(mock_event))
+    assert_that(call_args[0][1]["trace_id"]["StringValue"], equal_to("test_trace_123"))
     mock_sqs_client.delete_message.assert_awaited_once()
 
 

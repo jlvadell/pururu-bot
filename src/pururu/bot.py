@@ -1,13 +1,14 @@
 import asyncio
 import signal
 
+from pururu.__version__ import get_version
 from pururu.application.handlers.background_event_handler import BackgroundEventHandler
 from pururu.application.handlers.discord_event_handler import DiscordEventHandler
 from pururu.application.handlers.poll_event_handler import PollEventHandler
 from pururu.application.handlers.session_events_handler import SessionEventsHandler
 from pururu.application.scheluders.timed_jobs import ScheduledJobs
 from pururu.application.watchers.config_watcher import ConfigFilesWatcher
-from pururu.common import logger, utils
+from pururu.common import logger, utils, metrics
 from pururu.config import settings
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.repositories.player_repository import PlayerRepository
@@ -119,7 +120,8 @@ class Application:
         self.background_event_handler = BackgroundEventHandler(self.event_bus)
         self.discord_event_handler = DiscordEventHandler(self.event_bus, self.session_service)
         self.poll_event_handler = PollEventHandler(self.event_bus, self.poll_system_service)
-        self.session_events_handler = SessionEventsHandler(self.session_service, self.data_sync_service, self.event_bus, self.discord_service)
+        self.session_events_handler = SessionEventsHandler(self.session_service, self.data_sync_service, self.event_bus,
+                                                           self.discord_service)
 
         # Schedulers
         self.scheduler = ScheduledJobs(self.background_event_handler)
@@ -138,9 +140,12 @@ class Application:
         # --------------------------------
         self.logger.info("Starting application.......")
 
-        self.scheduler.start() # start scheduled jobs
-        self.config_watcher.start_config_watcher() # start config file watcher
-        self.sqs_adapter.start_polling() # start SQS polling
+        # prometheus metrics
+        metrics.app_info.info({'version': get_version()})
+
+        self.scheduler.start()  # start scheduled jobs
+        self.config_watcher.start_config_watcher()  # start config file watcher
+        self.sqs_adapter.start_polling()  # start SQS polling
 
         # start async processes
         try:

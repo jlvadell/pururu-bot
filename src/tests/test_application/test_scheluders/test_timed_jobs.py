@@ -33,12 +33,19 @@ def test_scheduler_start():
 
 
 @pytest.mark.unit
-def test_check_expired_polls_task_triggers_flow():
-    """Test check_expired_polls_task"""
-    # Given
+@patch('pururu.application.scheluders.timed_jobs.logger')
+def test_check_expired_polls_task_triggers_flow(mock_logger):
+    """Test check_expired_polls_task sets trace context"""
+    # Arrange
     handler_mock = Mock()
     scheduled_jobs = ScheduledJobs(handler_mock)
-    # When
+    mock_logger.generate_trace_id.return_value = "test_trace_job_666"
+    mock_logger.set_trace_context = Mock()
+    
+    # Act
     scheduled_jobs.check_expired_polls_task()
-    # Then
+    
+    # Assert
+    mock_logger.generate_trace_id.assert_called_once()
+    mock_logger.set_trace_context.assert_called_once_with("test_trace_job_666")
     handler_mock.trigger_check_expired_polls_flow.assert_called_once()

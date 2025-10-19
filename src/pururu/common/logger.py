@@ -1,6 +1,9 @@
 import json
 import logging
 import sys
+import uuid
+from contextvars import ContextVar
+from typing import Optional
 
 from pururu.__version__ import get_version
 from pururu.common import utils
@@ -10,16 +13,21 @@ _APP_LOGGER_NAME = "pururu"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 _initialized = False
-
+trace_id_var: ContextVar[Optional[str]] = ContextVar('trace_id', default=None)
+span_id_var: ContextVar[Optional[str]] = ContextVar('span_id', default=None)
 
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
+        trace_id = trace_id_var.get()
+        span_id = span_id_var.get()
         log_record = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
             "source": record.name,
             "message": record.getMessage(),
-            "app_version": get_version()
+            "app_version": get_version(),
+            "trace_id": trace_id,
+            "span_id": span_id,
         }
 
         # Include all promoted fields from record (extra fields injected)
@@ -66,3 +74,28 @@ def reset_logging():
 def get_logger(name: str) -> logging.Logger:
     setup_logging()
     return logging.getLogger(name)
+
+
+def generate_trace_id() -> str:
+    """Generate a new trace ID (hex format, compatible with OpenTelemetry)"""
+    return uuid.uuid4().hex
+
+
+def generate_span_id() -> str:
+    """Generate a new span ID (hex format, compatible with OpenTelemetry)"""
+    return uuid.uuid4().hex[:16]  # 16 character hex
+
+
+def set_trace_context(trace_id: str, span_id: Optional[str] = None):
+    """
+    Set the trace context for the current execution context
+
+    Args:
+        trace_id: The trace ID (usually from incoming request or generated)
+        span_id: Optional span ID (generated if not provided)
+    """
+    trace_id_var.set(trace_id)
+    if span_id:
+        span_id_var.set(span_id)
+    else:
+        span_id_var.set(generate_span_id())
