@@ -97,6 +97,8 @@ class DiscordEventHandler:
         :param new_type: new session type
         :return: None
         """
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
         self.logger.info(f"Session type change requested for session {session_id} to type {new_type}",
                          extra={"session_id": session_id, "new_type": new_type})
         event = SessionTypeChangeEvent(datetime.now(), session_id, new_type)
@@ -111,6 +113,8 @@ class DiscordEventHandler:
         :param motives: player_id -> motive
         :return: None
         """
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
         self.logger.info(f"Session attendance edit requested for session {session_id}",
                          extra={"session_id": session_id, "justifications": justifications, "motives": motives})
         event = SessionAttendanceEditEvent(datetime.now(), session_id, justifications, motives)

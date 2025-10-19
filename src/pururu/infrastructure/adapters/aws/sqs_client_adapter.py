@@ -1,13 +1,14 @@
 import asyncio
 import json
+import time
 from typing import Callable
 
 import aioboto3
 
-from pururu.common import logger
+from pururu.common import logger, metrics
 from pururu.config import settings
-from pururu.domain.messaging.events.base_events import DomainEvent
 from pururu.domain.messaging.events import secondary_events, session_events
+from pururu.domain.messaging.events.base_events import DomainEvent
 from pururu.infrastructure.exceptions import (SQSDeserializationException, SQSHandlerNotFoundException)
 
 
@@ -78,6 +79,7 @@ class EventRouter:
 class GenericSQSPoller:
     def __init__(self, consumer_name: str, region: str, queue_url: str, polling_time: int, endpoint_url: str,
                  router: EventRouter):
+        self.consumer_name = consumer_name
         self.logger = logger.get_logger(consumer_name)
         self.aws_session = aioboto3.Session(region_name=region)
         self.queue_url = queue_url
@@ -123,10 +125,10 @@ class GenericSQSPoller:
         trace_id = message_attributes.get('trace_id', {}).get('StringValue') if message_attributes else None
         if not trace_id:
             trace_id = logger.generate_trace_id()
-        
+
         # Set trace context for this message processing
         logger.set_trace_context(trace_id)
-        
+
         await self.router.route(event)
 
     async def stop_polling(self) -> None:
@@ -165,19 +167,43 @@ class GenericSQSPoller:
                             continue
 
                         for message in messages:
+                            # Start timing for processing duration
+                            start_time = time.time()
+
                             event = self._deserialize_event(message)
                             message_attributes = message.get("MessageAttributes", {})
-                            self.logger.info(f"Event polled, type {event.event_type}, age: {event.get_age()}", extra={
+                            event_age = event.get_age()
+
+                            self.logger.info(f"Event polled, type {event.event_type}, age: {event_age}", extra={
                                 "queue_url": self.queue_url,
                                 "event_type": event.event_type,
-                                "event_age": event.get_age()
+                                "event_age": event_age
                             })
+
                             await self._handle_event(event, message_attributes)
 
                             await sqs_client.delete_message(
                                 QueueUrl=self.queue_url,
                                 ReceiptHandle=message["ReceiptHandle"]
                             )
+
+                            # Record metrics after successful processing
+                            processing_duration = time.time() - start_time
+
+                            metrics.sqs_events_processed_total.labels(
+                                event_type=event.event_type,
+                                queue_name=self.consumer_name
+                            ).inc()
+
+                            metrics.sqs_event_processing_duration_seconds.labels(
+                                event_type=event.event_type,
+                                queue_name=self.consumer_name
+                            ).observe(processing_duration)
+
+                            metrics.sqs_event_age_seconds.labels(
+                                event_type=event.event_type,
+                                queue_name=self.consumer_name
+                            ).observe(event_age)
                     except Exception as e:
                         self.logger.error(f"Failed to poll or process message, url {self.queue_url}", exc_info=e,
                                           extra={"queue_url": self.queue_url})
