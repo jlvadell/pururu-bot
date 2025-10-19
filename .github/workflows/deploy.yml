@@ -83,9 +83,12 @@ jobs:
         docker run -d \
             --name "${APP_NAME}" \
             --restart unless-stopped \
+            -e "PYTHONUNBUFFERED=1" \
+            -p 9090:9090 \
             -v "${CONFIG_DIR}:/home/nonroot/app/config:ro" \
             -v "${DATA_VOLUME}:/home/nonroot/app/data" \
             -v "${APP_HOME}/.aws:/home/nonroot/.aws:ro" \
+            --label "promehteus.scrape=true" \
             "${APP_NAME}:${{ steps.ver.outputs.tag }}"
 
     - name: Clean old images

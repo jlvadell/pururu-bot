@@ -14,7 +14,7 @@ class PostgresPlayerRepositoryImpl(PlayerRepository):
 
     def __init__(self, postgres_engine: PostgresDBEngine):
         self.postgres_engine = postgres_engine.get_engine()
-        self.logger = logger.getLogger(__name__)
+        self.logger = logger.get_logger(__name__)
 
     def get_all(self) -> list[Player]:
         with Session(self.postgres_engine) as session:

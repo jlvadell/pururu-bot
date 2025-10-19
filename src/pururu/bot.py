@@ -140,6 +140,9 @@ class Application:
         # --------------------------------
         self.logger.info("Starting application.......")
 
+        # prometheus metrics
+        metrics.app_info.info({'version': get_version()})
+
         self.scheduler.start()  # start scheduled jobs
         self.config_watcher.start_config_watcher()  # start config file watcher
         self.sqs_adapter.start_polling()  # start SQS polling
@@ -171,7 +174,6 @@ class Application:
 def main():
     """Main entry point for the application."""
     app = Application()
-    metrics.app_info.info({'version': get_version()})
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     for sig in (signal.SIGINT, signal.SIGTERM):
