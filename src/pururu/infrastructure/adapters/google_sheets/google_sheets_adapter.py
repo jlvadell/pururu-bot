@@ -32,7 +32,7 @@ class GoogleSheetsAdapter:
                 self._build_data_notation(sheet=AttendanceSheet.SHEET, col_start=AttendanceSheet.DATA_COL_INIT,
                                           row_start=AttendanceSheet.DATA_ROW_INIT,
                                           col_end=AttendanceSheet.DATA_COL_INIT))
-            session_ids = [str(row[0]) for row in session_id_rows['values']]
+            session_ids = [str(row[0]) if row else '0' for row in session_id_rows['values']]
             row_idx = AttendanceSheet.DATA_ROW_INIT
             row_idx = row_idx + (
                 session_ids.index(attendance.session_id) if attendance.session_id in session_ids else len(session_ids))

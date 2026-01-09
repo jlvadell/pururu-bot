@@ -56,6 +56,29 @@ def test_upsert_attendance_new_session(adapter):
 
 
 @pytest.mark.unit
+def test_upsert_attendance_empty_session_ids(adapter):
+    """Test upserting attendance for a new session"""
+    # Arrange
+    adapter.spreadsheet.values_get.return_value = {'values': [[], []]}
+    attendance = AttendanceSheet(
+        session_id="new_session",
+        game_id=None,
+        absence=["FALSE", "TRUE"],
+        unjustified=["FALSE", "FALSE"],
+        motives=["", ""],
+        date="2025-10-01",
+        description="Juegueo Oficial"
+    )
+
+    # Act
+    result = adapter.upsert_attendance(attendance)
+
+    # Assert
+    assert_that(result, equal_to(6))  # DATA_ROW_INIT(4) + len(existing sessions, no ids)(2)
+    adapter.spreadsheet.values_update.assert_called_once()
+
+
+@pytest.mark.unit
 def test_upsert_attendance_existing_session(adapter):
     """Test upserting attendance for an existing session"""
     # Arrange
