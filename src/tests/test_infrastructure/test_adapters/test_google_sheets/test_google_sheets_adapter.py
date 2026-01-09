@@ -57,7 +57,7 @@ def test_upsert_attendance_new_session(adapter):
 
 @pytest.mark.unit
 def test_upsert_attendance_empty_session_ids(adapter):
-    """Test upserting attendance for a new session"""
+    """Test upserting attendance when spreadsheet contains empty session_id rows"""
     # Arrange
     adapter.spreadsheet.values_get.return_value = {'values': [[], []]}
     attendance = AttendanceSheet(
