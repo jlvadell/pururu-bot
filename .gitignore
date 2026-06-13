@@ -168,3 +168,5 @@ google_creds.json
 # intellij
 .idea/
 *.iml
+
+.DS_Store
