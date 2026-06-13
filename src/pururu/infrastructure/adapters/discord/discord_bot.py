@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 from discord.ext import commands
 
@@ -92,13 +94,20 @@ class PururuDiscordBot(commands.Bot):
                                  "player_name": interaction.user.name,
                                  "session_id": session_id
                              })
-            session = self.event_handler.handle_change_type_command(session_id)  # just to validate the session exists
+            await interaction.response.defer(ephemeral=True)
+            session = await asyncio.to_thread(self.event_handler.handle_change_type_command, session_id)
             if not session:
-                await interaction.response.send_message(f"Session with ID `{session_id}` not found :dumb:.",
-                                                        ephemeral=True)
+                await interaction.followup.send(f"Session with ID `{session_id}` not found :dumb:.")
                 return
             modal = EditSessionTypeModal(session, self.event_handler.handle_session_type_change_modal_submit)
-            await interaction.response.send_modal(modal)
+            view = discord.ui.View(timeout=60)
+            button = discord.ui.Button(label="Cambiar Tipo", style=discord.ButtonStyle.primary, emoji="🔄")
+            async def on_type_button_click(btn_interaction: discord.Interaction):
+                await btn_interaction.response.send_modal(modal)
+            button.callback = on_type_button_click
+            view.add_item(button)
+            await interaction.followup.send(
+                f"Sesión `{session_id}` encontrada. Pulsa el botón para cambiar el tipo:", view=view)
 
         @self.tree.command(
             name="attendance",
@@ -115,14 +124,20 @@ class PururuDiscordBot(commands.Bot):
                     "player_name": interaction.user.name,
                     "session_id": session_id
                 })
-            session = self.event_handler.handle_edit_attendance_command(
-                session_id)  # just to validate the session exists
+            await interaction.response.defer(ephemeral=True)
+            session = await asyncio.to_thread(self.event_handler.handle_edit_attendance_command, session_id)
             if not session:
-                await interaction.response.send_message(f"Session with ID `{session_id}` not found :dumb:.",
-                                                        ephemeral=True)
+                await interaction.followup.send(f"Session with ID `{session_id}` not found :dumb:.")
                 return
             modal = EditAttendanceModal(session, self.event_handler.handle_session_attendance_edit_modal_submit)
-            await interaction.response.send_modal(modal)
+            view = discord.ui.View(timeout=60)
+            button = discord.ui.Button(label="Editar Asistencias", style=discord.ButtonStyle.primary, emoji="✏️")
+            async def on_attendance_button_click(btn_interaction: discord.Interaction):
+                await btn_interaction.response.send_modal(modal)
+            button.callback = on_attendance_button_click
+            view.add_item(button)
+            await interaction.followup.send(
+                f"Sesión `{session_id}` encontrada. Pulsa el botón para editar asistencias:", view=view)
 
     async def send_session_info_view_message(self, channel_id: str, session) -> str:
         # Set trace context for this action
