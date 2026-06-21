@@ -14,6 +14,7 @@ from pururu.domain.messaging.events.session_events import (
     SessionConcludedEvent,
     SessionTypeChangeEvent,
     SessionAttendanceEditEvent,
+    SessionAttendanceRepairEvent,
     SessionCreatedEvent,
     SessionUpdatedEvent,
 )
@@ -63,6 +64,7 @@ def test_subscriptions(handler, mock_event_bus):
         ((SessionConcludedEvent.event_type, handler.handle_session_concluded),),
         ((SessionTypeChangeEvent.event_type, handler.handle_session_type_change),),
         ((SessionAttendanceEditEvent.event_type, handler.handle_session_attendance_edit),),
+        ((SessionAttendanceRepairEvent.event_type, handler.handle_session_attendance_repair),),
         ((SessionCreatedEvent.event_type, handler.handle_session_created),),
         ((SessionUpdatedEvent.event_type, handler.handle_session_updated),),
     ]
@@ -279,6 +281,16 @@ def test_handle_session_attendance_edit(handler, mock_session_service, mock_data
 
     # Assert
     mock_session_service.edit_session_attendance.assert_called_once_with("session123", player_sessions)
+
+
+@pytest.mark.unit
+def test_handle_session_attendance_repair(handler, mock_session_service):
+    event = SessionAttendanceRepairEvent(datetime.now(), "session123", ["player1", "player2"])
+
+    handler.handle_session_attendance_repair(event)
+
+    mock_session_service.repair_session_attendance.assert_called_once_with(
+        "session123", ["player1", "player2"])
 
 
 @pytest.mark.unit

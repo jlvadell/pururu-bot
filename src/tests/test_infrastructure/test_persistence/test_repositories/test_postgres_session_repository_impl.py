@@ -240,3 +240,21 @@ def test_find_latest_by_type_and_status_not_found(mock_orm_session_class, reposi
 
     # Assert
     assert_that(result, none())
+
+
+@pytest.mark.unit
+@patch('pururu.infrastructure.persistence.repositories.postgres_session_repository_impl.OrmSession')
+@patch('pururu.infrastructure.persistence.repositories.postgres_session_repository_impl.PostgresMapper')
+def test_find_completed_by_player_id(mock_mapper, mock_orm_session_class, repository, session):
+    mock_session_context = MagicMock()
+    mock_orm_session_class.return_value.__enter__.return_value = mock_session_context
+    records = [MagicMock(spec=SessionRecord), MagicMock(spec=SessionRecord)]
+    query = mock_session_context.query.return_value
+    query.join.return_value.filter.return_value.order_by.return_value.all.return_value = records
+    mock_mapper.map_record_to_session.side_effect = [session, session]
+
+    result = repository.find_completed_by_player_id("player123", "excluded")
+
+    query.join.assert_called_once()
+    assert_that(result, equal_to([session, session]))
+    assert_that(mock_mapper.map_record_to_session.call_count, equal_to(2))

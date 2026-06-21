@@ -26,20 +26,23 @@ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 def serialize(value) -> any:
     """
     Recursively converts a value to a JSON-serializable format.
-    Handles dicts, lists, datetime objects, and Enums.
+    Handles dicts, lists, tuples, datetime objects, and Enums.
+    Falls back to str() for any non-serializable objects.
     :param value: value to convert
     :return: serializable value
     """
-    if isinstance(value, dict):
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    elif isinstance(value, dict):
         return {k: serialize(v) for k, v in value.items()}
-    elif isinstance(value, list):
+    elif isinstance(value, (list, tuple)):
         return [serialize(v) for v in value]
     elif isinstance(value, datetime):
         return value.isoformat()
     elif isinstance(value, Enum):
         return value.value
     else:
-        return value
+        return str(value)
 
 
 def deserialize(field_type, value) -> any:

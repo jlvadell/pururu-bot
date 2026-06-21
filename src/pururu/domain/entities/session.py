@@ -27,6 +27,7 @@ class Status(Enum):
 class SessionMetadataKey(Enum):
     DISCORD_INFO_MESSAGE_ID = "discord_info_message_id"
     DISCORD_INFO_MESSAGE_CHANNEL_ID = "discord_info_message_channel_id"
+    ATTENDANCE_REPAIRS = "attendance_repairs"
 
     def __str__(self):
         return self.value
@@ -258,13 +259,37 @@ class Session:
             raise CannotConcludeSessionException(
                 f"Session '{self.id}' cannot be concluded because conditions are not met")
         self.end_time = end_time
+        self._evaluate_attendance(min_players, min_playtime)
+        self.increment_version()
+
+    def recalculate_attendance(self, min_players: int = 3, min_playtime: int = 1800) -> None:
+        """
+        Recalculates attendance and the final status of an already concluded session.
+        This is used after correcting incomplete connection data.
+        :param min_players: minimum number of attended players required for a valid session
+        :param min_playtime: minimum playtime in seconds required for attendance
+        :raises CannotConcludeSessionException: if the session has not concluded yet
+        :return: None
+        """
+        if not self.is_concluded():
+            raise CannotConcludeSessionException(
+                f"Session '{self.id}' cannot be recalculated before it is concluded")
+        self._evaluate_attendance(min_players, min_playtime, preserve_absence_details=True)
+        self.increment_version()
+
+    def _evaluate_attendance(self, min_players: int, min_playtime: int,
+                             preserve_absence_details: bool = False) -> None:
+        """Calculates each player's attendance and derives the session status."""
         self.status = Status.COMPLETED
         official_start_time = self.get_official_start_time(min_players)
         official_end_time = self.get_official_end_time(min_players)
         for player in self.players:
             attended = player.has_attended(min_playtime, official_start_time, official_end_time)
             player.attended = attended
-            if not attended and self.type == Type.ADDITIONAL_GAME:
+            if attended:
+                player.justified_absence = False
+                player.motive = None
+            elif self.type == Type.ADDITIONAL_GAME and not preserve_absence_details:
                 player.justified_absence = True
                 player.motive = "Additional game absence"
 
@@ -273,7 +298,6 @@ class Session:
 
         if duration < min_playtime or attended_count < min_players:
             self.status = Status.DISCARDED
-        self.increment_version()
 
     def can_conclude(self) -> bool:
         """

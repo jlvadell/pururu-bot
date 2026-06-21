@@ -108,3 +108,25 @@ class EditAttendanceModal(discord.ui.Modal, title="Editar Asistencias"):
                 player.player_id].value if player.player_id in self.user_motive_dict else ""
         self.callback(self.session.id, justification_dict, motives_dict)
         await interaction.response.send_message("Asistencias actualizadas.", ephemeral=True)
+
+
+class RepairAttendanceModal(discord.ui.Modal, title="Reparar Asistencias"):
+    def __init__(self, session: Session, callback: Callable[[str, list[str]], None]):
+        super().__init__()
+        self.session = session
+        self.callback = callback
+        self.absent_player_ids = {player.player_id for player in session.get_absent_players()}
+        self.player_selector = discord_components.AttendanceRepairUserSelectorLabel(len(self.absent_player_ids))
+        self.add_item(self.player_selector)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        selected_ids = [str(member.id) for member in self.player_selector.component.values]
+        confirmed_attendees = [player_id for player_id in selected_ids if player_id in self.absent_player_ids]
+        if not confirmed_attendees:
+            await interaction.response.send_message(
+                "Selecciona al menos un usuario que figure como ausente en esta sesión.", ephemeral=True)
+            return
+        self.callback(self.session.id, confirmed_attendees)
+        await interaction.response.send_message(
+            "Corrección de asistencia solicitada. La sesión se recalculará con el historial disponible.",
+            ephemeral=True)

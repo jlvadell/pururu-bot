@@ -47,3 +47,13 @@ class SessionRepository(ABC):
         :return: the latest session of the given type if found, None otherwise
         """
         pass
+
+    @abstractmethod
+    def find_completed_by_player_id(self, player_id: str, exclude_session_id: str | None = None) -> list[Session]:
+        """
+        Gets completed sessions in which the player attended.
+        :param player_id: the player whose history should be loaded
+        :param exclude_session_id: optional session to omit from the history
+        :return: completed sessions ordered from newest to oldest
+        """
+        pass
