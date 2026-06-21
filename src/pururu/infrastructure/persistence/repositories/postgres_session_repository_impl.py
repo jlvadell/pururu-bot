@@ -8,7 +8,7 @@ from pururu.domain.entities.session import Session, Status, Type
 from pururu.domain.exceptions import OptimisticLockingFailureException
 from pururu.domain.repositories.session_repository import SessionRepository
 from pururu.infrastructure.adapters.postgres.engine import PostgresDBEngine
-from pururu.infrastructure.adapters.postgres.entities import SessionRecord
+from pururu.infrastructure.adapters.postgres.entities import SessionRecord, PlayerSessionRecord
 from pururu.infrastructure.adapters.postgres.mapper import PostgresMapper
 
 
@@ -93,3 +93,25 @@ class PostgresSessionRepositoryImpl(SessionRepository):
                 ).observe(process_duration)
                 return PostgresMapper.map_record_to_session(record)
             return None
+
+    def find_completed_by_player_id(self, player_id: str,
+                                    exclude_session_id: str | None = None) -> list[Session]:
+        with OrmSession(self.postgres_engine) as orm_session:
+            start = time.time()
+            filters = [
+                SessionRecord.status == Status.COMPLETED.value,
+                PlayerSessionRecord.player_id == player_id,
+                PlayerSessionRecord.attended.is_(True),
+            ]
+            if exclude_session_id:
+                filters.append(SessionRecord.session_id != exclude_session_id)
+            records = (orm_session.query(SessionRecord)
+                       .join(PlayerSessionRecord)
+                       .filter(and_(*filters))
+                       .order_by(SessionRecord.start_time.desc())
+                       .all())
+            process_duration = time.time() - start
+            metrics.database_operation_duration_seconds.labels(
+                operation="find_completed_by_player_id", table="sessions"
+            ).observe(process_duration)
+            return [PostgresMapper.map_record_to_session(record) for record in records]

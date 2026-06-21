@@ -9,7 +9,8 @@ from pururu.domain.entities.session import Session, Status, Type, PlayerSession,
 from pururu.infrastructure.adapters.discord.discord_ui_views import (
     SessionInfoLayoutView,
     EditSessionTypeModal,
-    EditAttendanceModal
+    EditAttendanceModal,
+    RepairAttendanceModal,
 )
 
 
@@ -82,7 +83,8 @@ def mock_callbacks():
     """Create mock callback functions"""
     return {
         'on_session_type_change': Mock(),
-        'on_attendance_edit': Mock()
+        'on_attendance_edit': Mock(),
+        'on_attendance_repair': Mock(),
     }
 
 
@@ -226,6 +228,27 @@ async def test_edit_attendance_modal_on_submit_calls_callback(mock_session_compl
     mock_interaction.response.send_message.assert_called_once()
 
 
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_repair_attendance_modal_only_submits_absent_players(mock_session_completed, mock_callbacks):
+    with patch.object(RepairAttendanceModal, '__init__', lambda self, **kwargs: None):
+        modal = RepairAttendanceModal()
+        modal.session = mock_session_completed
+        modal.callback = mock_callbacks['on_attendance_repair']
+        modal.absent_player_ids = {"123456", "789012"}
+        selected_absent = Mock(id=123456)
+        selected_untracked = Mock(id=999999)
+        modal.player_selector = Mock()
+        modal.player_selector.component.values = [selected_absent, selected_untracked]
+        interaction = Mock(spec=discord.Interaction)
+        interaction.response.send_message = AsyncMock()
+
+    await modal.on_submit(interaction)
+
+    mock_callbacks['on_attendance_repair'].assert_called_once_with("test_session_id", ["123456"])
+    interaction.response.send_message.assert_awaited_once()
+
+
 # ------------------------------
 # Import and Class Existence TESTS
 # ------------------------------
@@ -255,9 +278,16 @@ def test_edit_attendance_modal_class_exists():
 
 
 @pytest.mark.unit
+def test_repair_attendance_modal_class_exists():
+    assert_that(RepairAttendanceModal, is_(not_none()))
+    assert_that(callable(RepairAttendanceModal), is_(True))
+
+
+@pytest.mark.unit
 def test_view_classes_have_required_attributes():
     """Test that view classes have expected attributes"""
     # Assert
     assert_that(hasattr(SessionInfoLayoutView, 'get_accent_color_from_status'), is_(True))
     assert_that(hasattr(EditSessionTypeModal, 'on_submit'), is_(True))
     assert_that(hasattr(EditAttendanceModal, 'on_submit'), is_(True))
+    assert_that(hasattr(RepairAttendanceModal, 'on_submit'), is_(True))

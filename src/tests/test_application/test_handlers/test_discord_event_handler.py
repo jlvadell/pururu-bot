@@ -7,7 +7,8 @@ from hamcrest import assert_that, instance_of, equal_to, none
 from pururu.application.handlers.discord_event_handler import DiscordEventHandler
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
-                                                           SessionTypeChangeEvent, SessionAttendanceEditEvent)
+                                                           SessionTypeChangeEvent, SessionAttendanceEditEvent,
+                                                           SessionAttendanceRepairEvent)
 from pururu.domain.services.session_service import SessionService
 
 
@@ -157,6 +158,27 @@ def test_handle_edit_attendance_command_not_found(handler, mock_session_service)
 
 
 @pytest.mark.unit
+def test_handle_repair_attendance_command_found(handler, mock_session_service):
+    session = MagicMock()
+    mock_session_service.find_session_by_id.return_value = session
+
+    result = handler.handle_repair_attendance_command("session123")
+
+    mock_session_service.find_session_by_id.assert_called_once_with("session123")
+    assert_that(result, equal_to(session))
+
+
+@pytest.mark.unit
+def test_handle_repair_attendance_command_not_found(handler, mock_session_service):
+    mock_session_service.find_session_by_id.return_value = None
+
+    result = handler.handle_repair_attendance_command("session123")
+
+    mock_session_service.find_session_by_id.assert_called_once_with("session123")
+    assert_that(result, none())
+
+
+@pytest.mark.unit
 def test_handle_session_type_change_modal_submit(handler, mock_event_bus):
     # Arrange
     session_type = "someType"
@@ -190,3 +212,13 @@ def test_handle_session_attendance_edit_modal_submit(handler, mock_event_bus):
     assert_that(published_event.session_id, equal_to(session_id))
     assert_that(published_event.justified_absences, equal_to(justifications))
     assert_that(published_event.motives, equal_to(motives))
+
+
+@pytest.mark.unit
+def test_handle_session_attendance_repair_modal_submit(handler, mock_event_bus):
+    handler.handle_session_attendance_repair_modal_submit("session123", ["player1", "player2"])
+
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionAttendanceRepairEvent))
+    assert_that(published_event.session_id, equal_to("session123"))
+    assert_that(published_event.player_ids, equal_to(["player1", "player2"]))

@@ -65,6 +65,16 @@ class SessionAttendanceEditEvent(PrimaryDomainEvent):
 
 
 @dataclass(frozen=True)
+class SessionAttendanceRepairEvent(PrimaryDomainEvent):
+    """
+    Event representing confirmed attendees whose Discord connection data was incomplete.
+    """
+    event_type = "SessionAttendanceRepairEvent"
+    session_id: str
+    player_ids: list[str]
+
+
+@dataclass(frozen=True)
 class SessionCreatedEvent(PrimaryDomainEvent):
     """
     Event representing a session creation.

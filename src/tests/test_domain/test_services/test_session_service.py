@@ -1,10 +1,11 @@
+import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from hamcrest import assert_that, equal_to, instance_of
 
-from pururu.domain.entities.session import Session, Status, Type, PlayerSession, SessionMetadataKey
+from pururu.domain.entities.session import Session, Status, Type, PlayerSession, SessionMetadataKey, Interval
 from pururu.domain.exceptions import (
     SessionNotFoundException,
     SessionAlreadyConcludedException,
@@ -515,6 +516,113 @@ def test_edit_session_attendance_raises_not_found(service, mock_session_reposito
     # Act & Assert
     with pytest.raises(SessionNotFoundException):
         service.edit_session_attendance("nonexistent", [player_session_absent])
+    mock_session_repository.update.assert_not_called()
+
+
+# ============================================================================
+# repair_session_attendance
+# ============================================================================
+
+@pytest.mark.unit
+@patch('pururu.domain.services.session_service.settings')
+def test_repair_session_attendance_uses_player_average_and_revalidates_discarded_session(
+        mock_settings, service, mock_session_repository, mock_event_bus):
+    mock_settings.general.min_attendance_members = 3
+    mock_settings.general.min_attendance_time = 1800
+    target = Session(
+        id="target", season_id="season", start_time=datetime(2025, 10, 1, 10),
+        end_time=datetime(2025, 10, 1, 12), type=Type.ADDITIONAL_GAME, status=Status.DISCARDED,
+        players=[
+            PlayerSession("p1", True, False, None,
+                          [Interval(datetime(2025, 10, 1, 10), datetime(2025, 10, 1, 12))]),
+            PlayerSession("p2", True, False, None,
+                          [Interval(datetime(2025, 10, 1, 10), datetime(2025, 10, 1, 12))]),
+            PlayerSession("p3", False, False, None, []),
+            PlayerSession("p4", False, True, "Previously justified", []),
+        ], version=4)
+    history = Session(
+        id="history", season_id="season", start_time=datetime(2025, 9, 24, 10),
+        end_time=datetime(2025, 9, 24, 12), type=Type.OFFICIAL_GAME, status=Status.COMPLETED,
+        players=[PlayerSession("p3", True, False, None,
+                               [Interval(datetime(2025, 9, 24, 10), datetime(2025, 9, 24, 11))])])
+    mock_session_repository.find_by_id.return_value = target
+    mock_session_repository.find_completed_by_player_id.return_value = [history]
+
+    service.repair_session_attendance("target", ["p3"])
+
+    repaired = target.get_player("p3")
+    assert_that(repaired.get_total_time(), equal_to(3600))
+    assert_that(repaired.attended, equal_to(True))
+    assert_that(target.get_player("p4").justified_absence, equal_to(True))
+    assert_that(target.get_player("p4").motive, equal_to("Previously justified"))
+    assert_that(target.status, equal_to(Status.COMPLETED))
+    assert_that(target.version, equal_to(5))
+    repair_metadata = json.loads(target.metadata[SessionMetadataKey.ATTENDANCE_REPAIRS])
+    assert_that(repair_metadata["p3"]["historical_sessions"], equal_to(1))
+    assert_that(repair_metadata["p3"]["simulated_seconds"], equal_to(3600))
+    mock_session_repository.find_completed_by_player_id.assert_called_once_with("p3", "target")
+    mock_session_repository.update.assert_called_once_with(target)
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))
+
+
+@pytest.mark.unit
+@patch('pururu.domain.services.session_service.settings')
+def test_repair_session_attendance_only_adds_time_missing_from_historical_average(
+        mock_settings, service, mock_session_repository):
+    mock_settings.general.min_attendance_members = 1
+    mock_settings.general.min_attendance_time = 1800
+    target = Session(
+        id="target", season_id="season", start_time=datetime(2025, 10, 1, 10),
+        end_time=datetime(2025, 10, 1, 12), type=Type.OFFICIAL_GAME, status=Status.DISCARDED,
+        players=[PlayerSession("p1", False, False, None,
+                               [Interval(datetime(2025, 10, 1, 10), datetime(2025, 10, 1, 10, 10))])])
+    history = Session(
+        id="history", season_id="season", start_time=datetime(2025, 9, 24, 10),
+        end_time=datetime(2025, 9, 24, 12), type=Type.OFFICIAL_GAME, status=Status.COMPLETED,
+        players=[PlayerSession("p1", True, False, None,
+                               [Interval(datetime(2025, 9, 24, 10), datetime(2025, 9, 24, 11))])])
+    mock_session_repository.find_by_id.return_value = target
+    mock_session_repository.find_completed_by_player_id.return_value = [history]
+
+    service.repair_session_attendance("target", ["p1"])
+
+    repaired = target.get_player("p1")
+    assert_that(repaired.get_total_time(), equal_to(3600))
+    assert_that(len(repaired.intervals), equal_to(2))
+
+
+@pytest.mark.unit
+@patch('pururu.domain.services.session_service.settings')
+def test_repair_session_attendance_falls_back_to_minimum_when_player_has_no_history(
+        mock_settings, service, mock_session_repository):
+    mock_settings.general.min_attendance_members = 1
+    mock_settings.general.min_attendance_time = 1800
+    target = Session(
+        id="target", season_id="season", start_time=datetime(2025, 10, 1, 10),
+        end_time=datetime(2025, 10, 1, 12), type=Type.OFFICIAL_GAME, status=Status.DISCARDED,
+        players=[PlayerSession("p1", False, True, "API failure", [])])
+    mock_session_repository.find_by_id.return_value = target
+    mock_session_repository.find_completed_by_player_id.return_value = []
+
+    service.repair_session_attendance("target", ["p1"])
+
+    repaired = target.get_player("p1")
+    assert_that(repaired.get_total_time(), equal_to(1800))
+    assert_that(repaired.attended, equal_to(True))
+    assert_that(repaired.justified_absence, equal_to(False))
+    assert_that(repaired.motive, equal_to(None))
+
+
+@pytest.mark.unit
+@patch('pururu.domain.services.session_service.settings')
+def test_repair_session_attendance_rejects_active_session(
+        mock_settings, service, mock_session_repository, session):
+    mock_session_repository.find_by_id.return_value = session
+
+    with pytest.raises(CannotConcludeSessionException):
+        service.repair_session_attendance(session.id, ["p1"])
+
     mock_session_repository.update.assert_not_called()
 
 

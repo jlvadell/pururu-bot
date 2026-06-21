@@ -7,7 +7,8 @@ from hamcrest import assert_that, equal_to
 
 from pururu.domain.entities.session import Session
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
-from pururu.infrastructure.adapters.discord.discord_ui_views import EditSessionTypeModal, EditAttendanceModal
+from pururu.infrastructure.adapters.discord.discord_ui_views import (EditSessionTypeModal, EditAttendanceModal,
+                                                                     RepairAttendanceModal)
 from pururu.infrastructure.exceptions import (DiscordChannelNotFoundException, DiscordMessageNotFoundException,
                                               DiscordUnExpectedException)
 
@@ -133,8 +134,6 @@ async def test_change_type_command_ok(modal_mock, mock_logger):
     """Test the type command sets trace context and handles session"""
     # Arrange
     session_mock = Mock(spec=Session, id="123456")
-    modal_instance = Mock(spec=EditSessionTypeModal)
-    modal_mock.return_value = modal_instance
     mock_logger.generate_trace_id.return_value = "test_trace_type_111"
     mock_logger.set_trace_context = Mock()
     
@@ -152,9 +151,9 @@ async def test_change_type_command_ok(modal_mock, mock_logger):
     # Assert
     mock_logger.generate_trace_id.assert_called_once()
     mock_logger.set_trace_context.assert_called_once_with("test_trace_type_111")
-    modal_mock.assert_called_once_with(session_mock, discord_bot.event_handler.handle_session_type_change_modal_submit)
     discord_bot.event_handler.handle_change_type_command.assert_called_once_with("123456")
-    interaction.response.send_modal.assert_awaited_once_with(modal_instance)
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    interaction.followup.send.assert_awaited_once()
 
 
 @pytest.mark.unit
@@ -173,8 +172,8 @@ async def test_change_type_command_not_found():
     await type_command.callback(interaction=interaction, session_id="123456")
     # Assert
     discord_bot.event_handler.handle_change_type_command.assert_called_once_with("123456")
-    interaction.response.send_message.assert_awaited_once()
-    interaction.response.send_modal.assert_not_called()
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    interaction.followup.send.assert_awaited_once()
 
 
 @pytest.mark.unit
@@ -185,8 +184,6 @@ async def test_edit_attendance_command_ok(modal_mock, mock_logger):
     """Test the attendance command sets trace context and handles session"""
     # Arrange
     session_mock = Mock(spec=Session, id="123456")
-    modal_instance = Mock(spec=EditAttendanceModal)
-    modal_mock.return_value = modal_instance
     mock_logger.generate_trace_id.return_value = "test_trace_attendance_222"
     mock_logger.set_trace_context = Mock()
     
@@ -204,10 +201,9 @@ async def test_edit_attendance_command_ok(modal_mock, mock_logger):
     # Assert
     mock_logger.generate_trace_id.assert_called_once()
     mock_logger.set_trace_context.assert_called_once_with("test_trace_attendance_222")
-    modal_mock.assert_called_once_with(session_mock,
-                                       discord_bot.event_handler.handle_session_attendance_edit_modal_submit)
     discord_bot.event_handler.handle_edit_attendance_command.assert_called_once_with("123456")
-    interaction.response.send_modal.assert_awaited_once_with(modal_instance)
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    interaction.followup.send.assert_awaited_once()
 
 
 @pytest.mark.unit
@@ -226,8 +222,32 @@ async def test_edit_attendance_command_not_found():
     await type_command.callback(interaction=interaction, session_id="123456")
     # Assert
     discord_bot.event_handler.handle_edit_attendance_command.assert_called_once_with("123456")
-    interaction.response.send_message.assert_awaited_once()
-    interaction.response.send_modal.assert_not_called()
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    interaction.followup.send.assert_awaited_once()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.infrastructure.adapters.discord.discord_bot.RepairAttendanceModal')
+async def test_repair_attendance_command_opens_repair_flow(modal_mock):
+    session_mock = Mock(spec=Session, id="123456")
+    session_mock.is_concluded.return_value = True
+    session_mock.get_absent_players.return_value = [Mock()]
+    discord_bot = set_up()
+    discord_bot.event_handler.handle_repair_attendance_command.return_value = session_mock
+    discord_bot.setup_commands()
+    command: Command = next(filter(lambda item: item.name == 'repair-attendance',
+                                    discord_bot.tree.get_commands()))
+    interaction = AsyncMock()
+    interaction.response = AsyncMock()
+
+    await command.callback(interaction=interaction, session_id="123456")
+
+    discord_bot.event_handler.handle_repair_attendance_command.assert_called_once_with("123456")
+    modal_mock.assert_called_once_with(
+        session_mock, discord_bot.event_handler.handle_session_attendance_repair_modal_submit)
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    interaction.followup.send.assert_awaited_once()
 
 
 # ------------------------------

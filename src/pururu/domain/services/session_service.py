@@ -1,9 +1,10 @@
+import json
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pururu.common import logger
 from pururu.config import settings
-from pururu.domain.entities.session import (Session, Status, Type, PlayerSession, SessionMetadataKey)
+from pururu.domain.entities.session import (Session, Status, Type, PlayerSession, SessionMetadataKey, Interval)
 from pururu.domain.exceptions import (SessionNotFoundException, SessionAlreadyConcludedException,
                                       CannotConcludeSessionException, PlayerNotConnectedException)
 from pururu.domain.messaging.event_bus import EventBus
@@ -167,6 +168,146 @@ class SessionService:
             session.increment_version()
             self.session_repository.update(session)
             self.event_bus.publish(SessionUpdatedEvent(datetime.now(), session.id))
+
+    def repair_session_attendance(self, session_id: str, player_ids: list[str]) -> None:
+        """
+        Repairs incomplete Discord connection data for confirmed attendees.
+
+        Each repaired player's total playtime is brought up to their average playtime in other completed sessions.
+        Existing intervals are retained and only non-overlapping simulated intervals are added. If the player has no
+        usable history, the minimum attendance time is used as a conservative fallback. The whole session is then
+        recalculated, allowing a discarded session to become completed.
+        :param session_id: the concluded session to repair
+        :param player_ids: players confirmed to have attended
+        :return: None
+        """
+        session = self.find_session_by_id(session_id)
+        if not session.is_concluded():
+            raise CannotConcludeSessionException(
+                f"Session '{session_id}' cannot be repaired before it is concluded")
+
+        repaired_players: dict[str, dict[str, int]] = {}
+        repair_candidates: list[PlayerSession] = []
+        for player_id in dict.fromkeys(player_ids):
+            player_session = session.get_player(player_id)
+            if player_session is None:
+                self.logger.warning(f"Ignoring unknown player '{player_id}' in attendance repair",
+                                    extra={'session_id': session_id, 'player_id': player_id})
+                continue
+            if player_session.attended:
+                continue
+
+            average_playtime, sample_count = self._get_player_average_playtime(player_id, session_id)
+            target_playtime = max(average_playtime, settings.general.min_attendance_time)
+            target_playtime = min(target_playtime, int((session.end_time - session.start_time).total_seconds()))
+            current_playtime = player_session.get_total_time(session.start_time, session.end_time)
+            simulated_seconds = self._add_simulated_playtime(
+                player_session, session.start_time, session.end_time, target_playtime - current_playtime)
+            repair_candidates.append(player_session)
+            repaired_players[player_id] = {
+                "historical_sessions": sample_count,
+                "target_playtime_seconds": target_playtime,
+                "simulated_seconds": simulated_seconds,
+            }
+
+        if not repair_candidates:
+            return
+
+        # Guard against official-session cropping making a repaired player fall below the threshold.
+        official_start = session.get_official_start_time(settings.general.min_attendance_members)
+        official_end = session.get_official_end_time(settings.general.min_attendance_members)
+        for player_session in repair_candidates:
+            cropped_playtime = player_session.get_total_time(official_start, official_end)
+            extra_seconds = self._add_simulated_playtime(
+                player_session, official_start, official_end,
+                settings.general.min_attendance_time - cropped_playtime)
+            repaired_players[player_session.player_id]["simulated_seconds"] += extra_seconds
+
+        if not any(repair["simulated_seconds"] > 0 for repair in repaired_players.values()):
+            return
+
+        session.recalculate_attendance(settings.general.min_attendance_members,
+                                       settings.general.min_attendance_time)
+        self._record_attendance_repairs(session, repaired_players)
+        self.session_repository.update(session)
+        self.event_bus.publish(SessionUpdatedEvent(datetime.now(), session.id))
+
+    def _get_player_average_playtime(self, player_id: str, exclude_session_id: str) -> tuple[int, int]:
+        sessions = self.session_repository.find_completed_by_player_id(player_id, exclude_session_id)
+        playtimes = []
+        for historic_session in sessions:
+            player_session = historic_session.get_player(player_id)
+            if player_session is None:
+                continue
+            official_start = historic_session.get_official_start_time(settings.general.min_attendance_members)
+            official_end = historic_session.get_official_end_time(settings.general.min_attendance_members)
+            playtime = player_session.get_total_time(official_start, official_end)
+            if playtime > 0:
+                playtimes.append(playtime)
+        if not playtimes:
+            return settings.general.min_attendance_time, 0
+        return int(sum(playtimes) / len(playtimes)), len(playtimes)
+
+    @staticmethod
+    def _add_simulated_playtime(player_session: PlayerSession, window_start: datetime, window_end: datetime,
+                                requested_seconds: int) -> int:
+        """Adds requested seconds into free gaps without overlapping the player's recorded intervals."""
+        if requested_seconds <= 0 or window_end <= window_start:
+            return 0
+
+        occupied = []
+        for interval in player_session.intervals:
+            if interval.end is None or interval.end <= window_start or interval.start >= window_end:
+                continue
+            occupied.append((max(interval.start, window_start), min(interval.end, window_end)))
+        occupied.sort(key=lambda value: value[0])
+
+        merged = []
+        for start, end in occupied:
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+            else:
+                merged.append((start, end))
+
+        gaps = []
+        cursor = window_start
+        for start, end in merged:
+            if cursor < start:
+                gaps.append((cursor, start))
+            cursor = max(cursor, end)
+        if cursor < window_end:
+            gaps.append((cursor, window_end))
+
+        remaining = requested_seconds
+        added = 0
+        for start, end in gaps:
+            gap_seconds = int((end - start).total_seconds())
+            seconds = min(remaining, gap_seconds)
+            if seconds <= 0:
+                continue
+            reusable_interval = next(
+                (interval for interval in player_session.intervals
+                 if interval.start == start and interval.end == start), None)
+            if reusable_interval:
+                reusable_interval.end = start + timedelta(seconds=seconds)
+            else:
+                player_session.intervals.append(Interval(start=start, end=start + timedelta(seconds=seconds)))
+            added += seconds
+            remaining -= seconds
+            if remaining == 0:
+                break
+        player_session.intervals.sort(key=lambda interval: interval.start)
+        return added
+
+    @staticmethod
+    def _record_attendance_repairs(session: Session, repaired_players: dict[str, dict[str, int]]) -> None:
+        serialized_repairs = session.metadata.get(SessionMetadataKey.ATTENDANCE_REPAIRS, "{}")
+        try:
+            repairs = json.loads(serialized_repairs)
+        except (TypeError, json.JSONDecodeError):
+            repairs = {}
+        repairs.update(repaired_players)
+        session.metadata[SessionMetadataKey.ATTENDANCE_REPAIRS] = json.dumps(repairs, sort_keys=True)
 
     def _create_session(self, player_id: str, start_time: datetime) -> Session:
         """

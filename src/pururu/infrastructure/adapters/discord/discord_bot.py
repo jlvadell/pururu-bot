@@ -8,7 +8,7 @@ from pururu.application.handlers.discord_event_handler import DiscordEventHandle
 from pururu.common import logger
 from pururu.config import settings
 from pururu.infrastructure.adapters.discord.discord_ui_views import SessionInfoLayoutView, EditSessionTypeModal, \
-    EditAttendanceModal
+    EditAttendanceModal, RepairAttendanceModal
 from pururu.infrastructure.exceptions import (DiscordChannelNotFoundException, DiscordMessageNotFoundException,
                                               DiscordUnExpectedException)
 
@@ -138,6 +138,45 @@ class PururuDiscordBot(commands.Bot):
             view.add_item(button)
             await interaction.followup.send(
                 f"Sesión `{session_id}` encontrada. Pulsa el botón para editar asistencias:", view=view)
+
+        @self.tree.command(
+            name="repair-attendance",
+            description="Repairs missing attendance caused by incomplete Discord connection data"
+        )
+        async def repair_attendance_command(interaction: discord.Interaction, session_id: str):
+            trace_id = logger.generate_trace_id()
+            logger.set_trace_context(trace_id)
+            self.logger.info(
+                f"Repair attendance command received, requester {interaction.user.name} ({interaction.user.id})",
+                extra={
+                    "player_id": interaction.user.id,
+                    "player_name": interaction.user.name,
+                    "session_id": session_id
+                })
+            await interaction.response.defer(ephemeral=True)
+            session = await asyncio.to_thread(self.event_handler.handle_repair_attendance_command, session_id)
+            if not session:
+                await interaction.followup.send(f"Session with ID `{session_id}` not found :dumb:.")
+                return
+            if not session.is_concluded():
+                await interaction.followup.send("La sesión todavía no ha concluido; no se puede reparar aún.")
+                return
+            if not session.get_absent_players():
+                await interaction.followup.send("La sesión no tiene usuarios ausentes que reparar.")
+                return
+
+            modal = RepairAttendanceModal(
+                session, self.event_handler.handle_session_attendance_repair_modal_submit)
+            view = discord.ui.View(timeout=60)
+            button = discord.ui.Button(label="Reparar Asistencias", style=discord.ButtonStyle.primary, emoji="🩹")
+
+            async def on_repair_button_click(btn_interaction: discord.Interaction):
+                await btn_interaction.response.send_modal(modal)
+
+            button.callback = on_repair_button_click
+            view.add_item(button)
+            await interaction.followup.send(
+                f"Sesión `{session_id}` encontrada. Pulsa el botón y confirma quién asistió:", view=view)
 
     async def send_session_info_view_message(self, channel_id: str, session) -> str:
         # Set trace context for this action

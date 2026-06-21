@@ -6,7 +6,8 @@ from pururu.domain.entities.session import Session
 from pururu.domain.exceptions import SessionNotFoundException
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
-                                                           SessionTypeChangeEvent, SessionAttendanceEditEvent)
+                                                           SessionTypeChangeEvent, SessionAttendanceEditEvent,
+                                                           SessionAttendanceRepairEvent)
 from pururu.domain.services.session_service import SessionService
 
 
@@ -87,6 +88,17 @@ class DiscordEventHandler:
                                 extra={"session_id": session_id})
             return None
 
+    def handle_repair_attendance_command(self, session_id: str) -> Session | None:
+        """Loads a session for the attendance repair command."""
+        self.logger.debug(f"Repair attendance command received for session {session_id}",
+                          extra={"session_id": session_id})
+        try:
+            return self.session_service.find_session_by_id(session_id)
+        except SessionNotFoundException:
+            self.logger.warning(f"Session not found for repair attendance command: {session_id}",
+                                extra={"session_id": session_id})
+            return None
+
     # ------------------------
     # UI Components Callbacks
     # ------------------------
@@ -119,3 +131,11 @@ class DiscordEventHandler:
                          extra={"session_id": session_id, "justifications": justifications, "motives": motives})
         event = SessionAttendanceEditEvent(datetime.now(), session_id, justifications, motives)
         self.event_bus.publish(event)
+
+    def handle_session_attendance_repair_modal_submit(self, session_id: str, player_ids: list[str]) -> None:
+        """Publishes a repair request for users confirmed to have attended a session."""
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        self.logger.info(f"Session attendance repair requested for session {session_id}",
+                         extra={"session_id": session_id, "player_ids": player_ids})
+        self.event_bus.publish(SessionAttendanceRepairEvent(datetime.now(), session_id, player_ids))

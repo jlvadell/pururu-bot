@@ -118,6 +118,15 @@ class UserSelectorLabel(discord.ui.Label):
                          component=discord.ui.UserSelect(default_values=ids, min_values=0, max_values=25))
 
 
+class AttendanceRepairUserSelectorLabel(discord.ui.Label):
+    def __init__(self, max_values: int):
+        super().__init__(
+            text="Confirmar asistentes",
+            description="Selecciona los usuarios ausentes que realmente asistieron",
+            component=discord.ui.UserSelect(min_values=1, max_values=max(1, min(max_values, 25)), required=True)
+        )
+
+
 class MotiveTextInput(discord.ui.TextInput):
     def __init__(self, user_name: str, user_id: str, motive: str):
         super().__init__(label=f"{user_name}: Motivo justificación", default=motive, style=discord.TextStyle.paragraph,

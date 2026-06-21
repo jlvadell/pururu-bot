@@ -5,7 +5,8 @@ from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
                                                            SessionConcludeRequestedEvent, SessionConcludedEvent,
                                                            SessionTypeChangeEvent, SessionAttendanceEditEvent,
-                                                           SessionUpdatedEvent, SessionCreatedEvent)
+                                                           SessionAttendanceRepairEvent, SessionUpdatedEvent,
+                                                           SessionCreatedEvent)
 from pururu.domain.services.data_sync_service import DataSyncService
 from pururu.domain.services.discord_service import DiscordService
 from pururu.domain.services.session_service import SessionService
@@ -29,6 +30,7 @@ class SessionEventsHandler:
         self.event_bus.subscribe(SessionCreatedEvent.event_type, self.handle_session_created)
         self.event_bus.subscribe(SessionTypeChangeEvent.event_type, self.handle_session_type_change)
         self.event_bus.subscribe(SessionAttendanceEditEvent.event_type, self.handle_session_attendance_edit)
+        self.event_bus.subscribe(SessionAttendanceRepairEvent.event_type, self.handle_session_attendance_repair)
         self.event_bus.subscribe(SessionUpdatedEvent.event_type, self.handle_session_updated)
 
     async def handle_player_joined(self, event: PlayerJoinedSessionEvent) -> None:
@@ -93,6 +95,12 @@ class SessionEventsHandler:
             ))
 
         self.session_service.edit_session_attendance(event.session_id, players)
+
+    def handle_session_attendance_repair(self, event: SessionAttendanceRepairEvent) -> None:
+        self.logger.info(
+            f"Handling SessionAttendanceRepairEvent for session {event.session_id}",
+            extra={"session_id": event.session_id, "player_ids": event.player_ids})
+        self.session_service.repair_session_attendance(event.session_id, event.player_ids)
 
     async def handle_session_created(self, event: SessionCreatedEvent) -> None:
         self.logger.info(
