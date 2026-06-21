@@ -70,11 +70,39 @@ def test_session_details_text_display_concluded():
     mock_session.end_time = datetime(2025, 1, 1, 12, 30, 0)
     mock_session.is_concluded = Mock(return_value=True)
     mock_session.get_checked_in_players = Mock(return_value=[Mock(), Mock(), Mock()])
+    mock_session.get_official_start_time = Mock(return_value=datetime(2025, 1, 1, 10, 0, 0))
+    mock_session.get_official_end_time = Mock(return_value=datetime(2025, 1, 1, 12, 30, 0))
     # Act
     display = SessionDetailsTextDisplay(session=mock_session)
 
     # Assert
     assert_that(display, is_(not_none()))
+    assert_that(display.content, equal_to(
+        f":video_game: **Type:** `session_value_data`\n\n"
+        f":busts_in_silhouette: **Players:** 3 / 5\n\n"
+        f":clock3: **Started:** <t:{int(datetime(2025, 1, 1, 10, 0, 0).timestamp())}:f>\n\n"
+        f":stopwatch: **Ended:** <t:{int(datetime(2025, 1, 1, 12, 30, 0).timestamp())}:f>\n\n"
+        f":hourglass: **Duration:** 2h 30m\n\n"
+    ))
+
+
+@pytest.mark.unit
+def test_session_details_text_display_concluded_uses_official_session_window():
+    """Test concluded duration excludes pre-session waiting time."""
+    # Arrange
+    mock_session = MagicMock(spec=Session)
+    mock_session.type = Mock(value="session_value_data")
+    mock_session.start_time = datetime(2025, 1, 1, 8, 0, 0)
+    mock_session.end_time = datetime(2025, 1, 1, 12, 30, 0)
+    mock_session.is_concluded = Mock(return_value=True)
+    mock_session.get_checked_in_players = Mock(return_value=[Mock(), Mock(), Mock()])
+    mock_session.get_official_start_time = Mock(return_value=datetime(2025, 1, 1, 10, 0, 0))
+    mock_session.get_official_end_time = Mock(return_value=datetime(2025, 1, 1, 12, 30, 0))
+
+    # Act
+    display = SessionDetailsTextDisplay(session=mock_session)
+
+    # Assert
     assert_that(display.content, equal_to(
         f":video_game: **Type:** `session_value_data`\n\n"
         f":busts_in_silhouette: **Players:** 3 / 5\n\n"

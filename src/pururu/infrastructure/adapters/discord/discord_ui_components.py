@@ -2,6 +2,7 @@ from datetime import datetime
 
 import discord
 
+from pururu.config import settings
 from pururu.domain.entities.session import Session, Status, Type
 
 
@@ -23,14 +24,16 @@ class SessionDetailsTextDisplay(discord.ui.TextDisplay):
         super().__init__(content=content)
 
     def build_concluded_content(self, session: Session) -> str:
-        duration = session.end_time - session.start_time
+        official_start_time = session.get_official_start_time(settings.general.min_attendance_members)
+        official_end_time = session.get_official_end_time(settings.general.min_attendance_members)
+        duration = official_end_time - official_start_time
         hours, remainder = divmod(int(duration.total_seconds()), 3600)
         minutes, _ = divmod(remainder, 60)
         duration_str = f"{hours}h {minutes}m" if hours else f"{minutes}m"
         return (f":video_game: **Type:** `{session.type.value}`\n\n"
                 f":busts_in_silhouette: **Players:** {len(session.get_checked_in_players())} / 5\n\n"
-                f":clock3: **Started:** <t:{int(session.start_time.timestamp())}:f>\n\n"
-                f":stopwatch: **Ended:** <t:{int(session.end_time.timestamp())}:f>\n\n"
+                f":clock3: **Started:** <t:{int(official_start_time.timestamp())}:f>\n\n"
+                f":stopwatch: **Ended:** <t:{int(official_end_time.timestamp())}:f>\n\n"
                 f":hourglass: **Duration:** {duration_str}\n\n")
 
     def build_ongoing_content(self, session: Session) -> str:
