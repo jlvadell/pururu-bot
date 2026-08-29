@@ -11,11 +11,13 @@ from pururu.infrastructure.adapters.discord.discord_ui_components import (
     SessionDetailsTextDisplay,
     EditAttendanceButton,
     ChangeSessionTypeButton,
+    EditSessionGameButton,
     NotifyMissingUsersButton,
     SessionTypeSelectorLabel,
     SessionTypeSelector,
     UserSelectorLabel,
-    MotiveTextInput
+    MotiveTextInput,
+    GameNameTextInput
 )
 
 
@@ -47,6 +49,7 @@ def test_session_details_text_display_ongoing():
     mock_session.is_concluded = Mock(return_value=False)
     mock_session.get_checked_in_players = Mock(return_value=[Mock(), Mock()])
     mock_session.get_first_joiner = Mock(return_value=Mock(player_id="123456"))
+    mock_session.get_game_name = Mock(return_value=None)
     # Act
     display = SessionDetailsTextDisplay(session=mock_session)
 
@@ -54,6 +57,7 @@ def test_session_details_text_display_ongoing():
     assert_that(display, is_(not_none()))
     assert_that(display.content, equal_to(
         f":video_game: **Type:** `session_value_data`\n\n"
+        f":joystick: **Game:** `sin detectar`\n\n"
         f":busts_in_silhouette: **Players:** 2 / 5\n\n"
         f":clock3: **Started:** <t:{int(datetime(2025, 1, 1, 10, 0, 0).timestamp())}:f>\n\n"
         f":athletic_shoe: **Pole:** <@123456>\n\n"
@@ -72,6 +76,7 @@ def test_session_details_text_display_concluded():
     mock_session.get_checked_in_players = Mock(return_value=[Mock(), Mock(), Mock()])
     mock_session.get_official_start_time = Mock(return_value=datetime(2025, 1, 1, 10, 0, 0))
     mock_session.get_official_end_time = Mock(return_value=datetime(2025, 1, 1, 12, 30, 0))
+    mock_session.get_game_name = Mock(return_value=None)
     # Act
     display = SessionDetailsTextDisplay(session=mock_session)
 
@@ -79,6 +84,7 @@ def test_session_details_text_display_concluded():
     assert_that(display, is_(not_none()))
     assert_that(display.content, equal_to(
         f":video_game: **Type:** `session_value_data`\n\n"
+        f":joystick: **Game:** `sin detectar`\n\n"
         f":busts_in_silhouette: **Players:** 3 / 5\n\n"
         f":clock3: **Started:** <t:{int(datetime(2025, 1, 1, 10, 0, 0).timestamp())}:f>\n\n"
         f":stopwatch: **Ended:** <t:{int(datetime(2025, 1, 1, 12, 30, 0).timestamp())}:f>\n\n"
@@ -98,6 +104,7 @@ def test_session_details_text_display_concluded_uses_official_session_window():
     mock_session.get_checked_in_players = Mock(return_value=[Mock(), Mock(), Mock()])
     mock_session.get_official_start_time = Mock(return_value=datetime(2025, 1, 1, 10, 0, 0))
     mock_session.get_official_end_time = Mock(return_value=datetime(2025, 1, 1, 12, 30, 0))
+    mock_session.get_game_name = Mock(return_value=None)
 
     # Act
     display = SessionDetailsTextDisplay(session=mock_session)
@@ -105,11 +112,27 @@ def test_session_details_text_display_concluded_uses_official_session_window():
     # Assert
     assert_that(display.content, equal_to(
         f":video_game: **Type:** `session_value_data`\n\n"
+        f":joystick: **Game:** `sin detectar`\n\n"
         f":busts_in_silhouette: **Players:** 3 / 5\n\n"
         f":clock3: **Started:** <t:{int(datetime(2025, 1, 1, 10, 0, 0).timestamp())}:f>\n\n"
         f":stopwatch: **Ended:** <t:{int(datetime(2025, 1, 1, 12, 30, 0).timestamp())}:f>\n\n"
         f":hourglass: **Duration:** 2h 30m\n\n"
     ))
+
+
+@pytest.mark.unit
+def test_session_details_text_display_shows_detected_game():
+    mock_session = MagicMock(spec=Session)
+    mock_session.type = Mock(value="Official Game")
+    mock_session.start_time = datetime(2025, 1, 1, 10, 0, 0)
+    mock_session.is_concluded = Mock(return_value=False)
+    mock_session.get_checked_in_players = Mock(return_value=[Mock()])
+    mock_session.get_first_joiner = Mock(return_value=Mock(player_id="123456"))
+    mock_session.get_game_name = Mock(return_value="League of Legends")
+
+    display = SessionDetailsTextDisplay(session=mock_session)
+
+    assert_that(":joystick: **Game:** `League of Legends`" in display.content, is_(True))
 
 
 @pytest.mark.unit
@@ -176,6 +199,31 @@ async def test_change_session_type_button_callback():
     await button.callback(mock_interaction)
 
     # Assert
+    mock_interaction.response.send_modal.assert_called_once_with(mock_modal)
+
+
+@pytest.mark.unit
+def test_edit_session_game_button_initialization():
+    mock_modal = Mock(spec=discord.ui.Modal)
+
+    button = EditSessionGameButton(modal=mock_modal)
+
+    assert_that(button.label, equal_to("Indicar juego"))
+    assert_that(button.style, equal_to(discord.ButtonStyle.secondary))
+    assert_that(button.custom_id, equal_to("edit_session_game_btn"))
+    assert_that(button.modal, equal_to(mock_modal))
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_edit_session_game_button_callback():
+    mock_modal = Mock(spec=discord.ui.Modal)
+    button = EditSessionGameButton(modal=mock_modal)
+    mock_interaction = Mock(spec=discord.Interaction)
+    mock_interaction.response.send_modal = AsyncMock()
+
+    await button.callback(mock_interaction)
+
     mock_interaction.response.send_modal.assert_called_once_with(mock_modal)
 
 
@@ -334,3 +382,14 @@ def test_motive_text_input_initialization():
     assert_that(text_input.style, equal_to(discord.TextStyle.paragraph))
     assert_that(text_input.max_length, equal_to(200))
     assert_that(text_input.custom_id, equal_to("Motive-123"))
+
+
+@pytest.mark.unit
+def test_game_name_text_input_initialization():
+    text_input = GameNameTextInput(current_game="VALORANT")
+
+    assert_that(text_input.label, equal_to("Juego"))
+    assert_that(text_input.default, equal_to("VALORANT"))
+    assert_that(text_input.required, is_(True))
+    assert_that(text_input.max_length, equal_to(100))
+    assert_that(text_input.custom_id, equal_to("session_game_name"))

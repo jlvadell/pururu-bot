@@ -4,7 +4,7 @@ import pytest
 from hamcrest import assert_that, equal_to, is_, none, not_none
 
 from pururu.domain.entities.session import (
-    Session, PlayerSession, Interval, Type, Status
+    Session, PlayerSession, Interval, Type, Status, SessionMetadataKey, GameSource
 )
 from pururu.domain.exceptions import (
     SessionAlreadyConcludedException,
@@ -1136,3 +1136,115 @@ def test_session_get_last_joiner_no_players():
     # Act & Assert
     with pytest.raises(NoPlayerIntervalsException):
         session.get_last_joiner()
+
+
+# ============================================================================
+# Session game detection Tests
+# ============================================================================
+
+@pytest.mark.unit
+def test_session_get_game_name_empty():
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[]
+    )
+
+    assert_that(session.get_game_name(), none())
+    assert_that(session.is_game_manually_set(), is_(False))
+
+
+@pytest.mark.unit
+def test_session_record_game_observation_sets_auto_game():
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[]
+    )
+
+    changed = session.record_game_observation("p1", "League of Legends")
+
+    assert_that(changed, is_(True))
+    assert_that(session.get_game_name(), equal_to("League of Legends"))
+    assert_that(session.metadata[SessionMetadataKey.GAME_SOURCE], equal_to(GameSource.AUTO.value))
+
+
+@pytest.mark.unit
+def test_session_record_game_observation_majority_and_manual_lock():
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[]
+    )
+    session.record_game_observation("p1", "League of Legends")
+    session.record_game_observation("p2", "League of Legends")
+    session.record_game_observation("p3", "VALORANT")
+    assert_that(session.get_game_name(), equal_to("League of Legends"))
+
+    assert_that(session.set_game_name_manual("Minecraft"), is_(True))
+    assert_that(session.is_game_manually_set(), is_(True))
+    assert_that(session.record_game_observation("p3", "VALORANT"), is_(False))
+    assert_that(session.get_game_name(), equal_to("Minecraft"))
+
+
+@pytest.mark.unit
+def test_session_record_game_observation_same_game_is_noop():
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[]
+    )
+    session.record_game_observation("p1", "League of Legends")
+
+    assert_that(session.record_game_observation("p1", "League of Legends"), is_(False))
+
+
+@pytest.mark.unit
+def test_session_set_game_name_manual_ignores_blank():
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[]
+    )
+
+    assert_that(session.set_game_name_manual("   "), is_(False))
+    assert_that(session.get_game_name(), none())
+
+
+@pytest.mark.unit
+def test_session_game_observations_ignore_invalid_json():
+    session = Session(
+        id="session123",
+        season_id="season456",
+        start_time=datetime(2025, 10, 1, 10, 0, 0),
+        end_time=None,
+        type=Type.OFFICIAL_GAME,
+        status=Status.DRAFT,
+        players=[],
+        metadata={SessionMetadataKey.GAME_OBSERVATIONS: "not-json"}
+    )
+
+    changed = session.record_game_observation("p1", "League of Legends")
+
+    assert_that(changed, is_(True))
+    assert_that(session.get_game_name(), equal_to("League of Legends"))

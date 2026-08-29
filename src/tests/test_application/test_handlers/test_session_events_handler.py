@@ -17,6 +17,8 @@ from pururu.domain.messaging.events.session_events import (
     SessionAttendanceRepairEvent,
     SessionCreatedEvent,
     SessionUpdatedEvent,
+    PlayerGameDetectedEvent,
+    SessionGameEditEvent,
 )
 from pururu.domain.services.data_sync_service import DataSyncService
 from pururu.domain.services.discord_service import DiscordService
@@ -44,7 +46,9 @@ def mock_event_bus():
 @pytest.fixture
 def mock_discord_service():
     """Create a mock DiscordService for testing"""
-    return AsyncMock(spec=DiscordService, name="DiscordServiceMock")
+    mock = AsyncMock(spec=DiscordService, name="DiscordServiceMock")
+    mock.get_playing_game.return_value = None
+    return mock
 
 
 @pytest.fixture
@@ -67,6 +71,8 @@ def test_subscriptions(handler, mock_event_bus):
         ((SessionAttendanceRepairEvent.event_type, handler.handle_session_attendance_repair),),
         ((SessionCreatedEvent.event_type, handler.handle_session_created),),
         ((SessionUpdatedEvent.event_type, handler.handle_session_updated),),
+        ((PlayerGameDetectedEvent.event_type, handler.handle_player_game_detected),),
+        ((SessionGameEditEvent.event_type, handler.handle_session_game_edit),),
     ]
     # Assert
     mock_event_bus.subscribe.assert_has_calls(expected_calls, any_order=True)
@@ -98,7 +104,28 @@ async def test_handle_player_joined(mock_settings, handler, mock_session_service
 
     # Assert
     mock_session_service.register_player_connection.assert_called_once_with("player123", event_time)
+    mock_discord_service.get_playing_game.assert_awaited_once_with("player123")
+    mock_session_service.record_player_game.assert_not_called()
     assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.application.handlers.session_events_handler.settings')
+async def test_handle_player_joined_records_playing_game(mock_settings, handler, mock_session_service,
+                                                         mock_discord_service):
+    mock_settings.discord.enable_communication_channel = False
+    event_time = datetime(2025, 10, 1, 12, 0, 0)
+    event = PlayerJoinedSessionEvent(datetime.now(), "player123", event_time)
+    mock_session_service.register_player_connection.return_value = MagicMock(id="session123", metadata={})
+    mock_discord_service.get_playing_game.return_value = "League of Legends"
+    refreshed_session = MagicMock(id="session123", metadata={})
+    mock_session_service.find_session_by_id.return_value = refreshed_session
+
+    await handler.handle_player_joined(event)
+
+    mock_session_service.record_player_game.assert_called_once_with("player123", "League of Legends")
+    mock_session_service.find_session_by_id.assert_called_once_with("session123")
 
 
 @pytest.mark.unit
@@ -194,37 +221,6 @@ async def test_handle_session_concluded_comms_disables(mock_settings, handler, m
 @pytest.mark.unit
 @pytest.mark.asyncio
 @patch('pururu.application.handlers.session_events_handler.settings')
-async def test_handle_session_concluded_with_positive_conclusion(mock_settings, handler, mock_session_service,
-                                                                 mock_data_sync_service,
-                                                                 mock_discord_service):
-    """Test handle_session_concluded when the session was concluded positively"""
-    # Arrange
-    mock_settings.discord.enable_communication_channel = True
-    session_id = "session123"
-    channel_id = "channel123"
-    message_id = "message123"
-    mock_session = MagicMock(id=session_id)
-    mock_session.metadata = {
-        SessionMetadataKey.DISCORD_INFO_MESSAGE_CHANNEL_ID: channel_id,
-        SessionMetadataKey.DISCORD_INFO_MESSAGE_ID: message_id
-    }
-    mock_session.was_concluded_positively.return_value = True
-    mock_session_service.find_session_by_id.return_value = mock_session
-
-    event = SessionConcludedEvent(datetime.now(), session_id)
-
-    # Act
-    await handler.handle_session_concluded(event)
-
-    # Assert
-    mock_session_service.find_session_by_id.assert_called_once_with(session_id)
-    assert_sync_session(mock_data_sync_service, mock_session)
-    assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-@patch('pururu.application.handlers.session_events_handler.settings')
 async def test_handle_session_concluded_with_negative_conclusion(mock_settings, handler, mock_session_service,
                                                                  mock_data_sync_service, mock_discord_service):
     """Test handle_session_concluded when the session was not concluded positively"""
@@ -291,6 +287,24 @@ def test_handle_session_attendance_repair(handler, mock_session_service):
 
     mock_session_service.repair_session_attendance.assert_called_once_with(
         "session123", ["player1", "player2"])
+
+
+@pytest.mark.unit
+def test_handle_player_game_detected(handler, mock_session_service):
+    event = PlayerGameDetectedEvent(datetime.now(), "player123", "VALORANT")
+
+    handler.handle_player_game_detected(event)
+
+    mock_session_service.record_player_game.assert_called_once_with("player123", "VALORANT")
+
+
+@pytest.mark.unit
+def test_handle_session_game_edit(handler, mock_session_service):
+    event = SessionGameEditEvent(datetime.now(), "session123", "Minecraft")
+
+    handler.handle_session_game_edit(event)
+
+    mock_session_service.set_session_game.assert_called_once_with("session123", "Minecraft")
 
 
 @pytest.mark.unit

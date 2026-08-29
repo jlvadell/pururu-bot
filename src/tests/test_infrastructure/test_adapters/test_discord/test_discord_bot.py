@@ -97,6 +97,81 @@ async def test_on_voice_state_update_ok(mock_logger):
                                                                                          'after_state')
 
 
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.extract_playing_game_name')
+async def test_on_presence_update_reports_new_game_when_in_voice(mock_extract):
+    discord_bot = set_up()
+    mock_extract.side_effect = ["League of Legends", None]
+    after = Mock(spec=discord.Member)
+    after.id = 123456
+    after.name = "member"
+    after.voice = Mock(channel=Mock())
+    after.activities = ()
+    before = Mock(spec=discord.Member)
+    before.activities = ()
+
+    await discord_bot.on_presence_update(before, after)
+
+    discord_bot.event_handler.handle_player_game_activity_event.assert_called_once_with(
+        "123456", "member", "League of Legends")
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.extract_playing_game_name')
+async def test_on_presence_update_ignores_members_not_in_voice(mock_extract):
+    discord_bot = set_up()
+    after = Mock(spec=discord.Member)
+    after.voice = None
+
+    await discord_bot.on_presence_update(Mock(), after)
+
+    mock_extract.assert_not_called()
+    discord_bot.event_handler.handle_player_game_activity_event.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.extract_playing_game_name')
+async def test_on_presence_update_ignores_unchanged_game(mock_extract):
+    discord_bot = set_up()
+    mock_extract.return_value = "League of Legends"
+    after = Mock(spec=discord.Member)
+    after.voice = Mock(channel=Mock())
+    after.activities = ()
+    before = Mock(spec=discord.Member)
+    before.activities = ()
+
+    await discord_bot.on_presence_update(before, after)
+
+    discord_bot.event_handler.handle_player_game_activity_event.assert_not_called()
+
+
+@pytest.mark.unit
+@patch('pururu.infrastructure.adapters.discord.discord_bot.settings')
+@patch('pururu.infrastructure.adapters.discord.discord_bot.extract_playing_game_name')
+def test_scan_voice_games_reports_playing_members(mock_extract, mock_settings):
+    mock_settings.discord.guild_id = 123
+    discord_bot = set_up()
+    playing_member = Mock()
+    playing_member.bot = False
+    playing_member.voice = Mock(channel=Mock())
+    playing_member.id = 111
+    playing_member.name = "p1"
+    bot_member = Mock(bot=True, voice=Mock(channel=Mock()))
+    offline = Mock(bot=False, voice=None)
+    guild = Mock()
+    guild.members = [playing_member, bot_member, offline]
+    discord_bot.get_guild = Mock(return_value=guild)
+    mock_extract.return_value = "League of Legends"
+
+    discord_bot._scan_voice_games()
+
+    discord_bot.event_handler.handle_player_game_activity_event.assert_called_once_with(
+        "111", "p1", "League of Legends")
+
+
 # ------------------------------
 # SLASH COMMAND TESTS
 # ------------------------------
@@ -325,6 +400,7 @@ async def test_send_session_view_message_ok(mock_view_class, mock_logger):
         session,
         on_session_type_change=discord_bot.event_handler.handle_session_type_change_modal_submit,
         on_attendance_edit=discord_bot.event_handler.handle_session_attendance_edit_modal_submit,
+        on_session_game_edit=discord_bot.event_handler.handle_session_game_edit_modal_submit,
         thumbnail_url=mock_user.avatar.url
     )
     discord_bot.get_channel.assert_called_once_with(123456)
@@ -432,6 +508,7 @@ async def test_edit_session_info_view_message_ok(mock_view_class, mock_logger):
         session,
         on_session_type_change=discord_bot.event_handler.handle_session_type_change_modal_submit,
         on_attendance_edit=discord_bot.event_handler.handle_session_attendance_edit_modal_submit,
+        on_session_game_edit=discord_bot.event_handler.handle_session_game_edit_modal_submit,
         thumbnail_url=mock_user.avatar.url
     )
     discord_bot.get_channel.assert_called_once_with(123456)

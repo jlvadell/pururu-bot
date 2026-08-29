@@ -3,9 +3,11 @@ import time
 import discord
 
 from pururu.common import logger, metrics
+from pururu.config import settings
 from pururu.domain.entities.poll import PollReference, Poll
 from pururu.domain.services.discord_service import DiscordService
 from pururu.infrastructure.adapters.discord.discord_bot import PururuDiscordBot
+from pururu.infrastructure.adapters.discord.discord_game_activity import extract_playing_game_name
 from pururu.infrastructure.exceptions import InfrastructureException
 
 
@@ -81,3 +83,16 @@ class DiscordServiceImpl(DiscordService):
         except InfrastructureException:
             self.logger.error(f"Failed to update session info view message {message_id} in channel {channel_id}",
                               extra={"channel_id": channel_id, "message_id": message_id}, exc_info=True)
+
+    async def get_playing_game(self, player_id: str) -> str | None:
+        guild = self.bot.get_guild(int(settings.discord.guild_id))
+        if not guild:
+            self.logger.debug(f"Unable to resolve playing game for player {player_id}; guild not found",
+                              extra={"player_id": player_id})
+            return None
+        member = guild.get_member(int(player_id))
+        if not member:
+            self.logger.debug(f"Unable to resolve playing game for player {player_id}; member not in cache",
+                              extra={"player_id": player_id})
+            return None
+        return extract_playing_game_name(member.activities)

@@ -6,7 +6,8 @@ from pururu.common import logger
 from pururu.config import settings
 from pururu.domain.entities.session import (Session, Status, Type, PlayerSession, SessionMetadataKey, Interval)
 from pururu.domain.exceptions import (SessionNotFoundException, SessionAlreadyConcludedException,
-                                      CannotConcludeSessionException, PlayerNotConnectedException)
+                                      CannotConcludeSessionException, PlayerNotConnectedException,
+                                      OptimisticLockingFailureException)
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (SessionConcludeRequestedEvent, SessionConcludedEvent,
                                                            SessionUpdatedEvent, SessionCreatedEvent)
@@ -123,6 +124,56 @@ class SessionService:
         session.metadata.update(updates)
         session.increment_version()
         self.session_repository.update(session)
+
+    def record_player_game(self, player_id: str, game_name: str) -> None:
+        """
+        Records a game observed for a player in the active session.
+        Ignored when there is no active session, the player is not currently connected, or the game was set manually.
+        """
+        for attempt in range(3):
+            session = self.session_repository.find_active_session()
+            if not session:
+                self.logger.debug(f"Ignoring game observation for player '{player_id}'; no active session",
+                                  extra={'player_id': player_id, 'game_name': game_name})
+                return
+            player_session = session.get_player(player_id)
+            if player_session is None or not player_session.is_online():
+                self.logger.debug(
+                    f"Ignoring game observation for player '{player_id}' in session '{session.id}'; player is not in call",
+                    extra={'session_id': session.id, 'player_id': player_id, 'game_name': game_name})
+                return
+            previous_game = session.get_game_name()
+            if not session.record_game_observation(player_id, game_name):
+                return
+            session.increment_version()
+            try:
+                self.session_repository.update(session)
+            except OptimisticLockingFailureException:
+                self.logger.warning(
+                    f"Optimistic lock while recording game for session '{session.id}', retry {attempt + 1}",
+                    extra={'session_id': session.id, 'player_id': player_id, 'game_name': game_name})
+                continue
+            if session.get_game_name() != previous_game:
+                self.logger.info(f"Session '{session.id}' game detected as '{session.get_game_name()}'",
+                                 extra={'session_id': session.id, 'game_name': session.get_game_name(),
+                                        'player_id': player_id})
+                self.event_bus.publish(SessionUpdatedEvent(datetime.now(), session.id))
+            return
+        self.logger.error(f"Failed to record game observation for player '{player_id}' after retries",
+                          extra={'player_id': player_id, 'game_name': game_name})
+
+    def set_session_game(self, session_id: str, game_name: str) -> None:
+        """
+        Manually sets the game of the session. Manual values are not overwritten by auto-detection.
+        """
+        session = self.find_session_by_id(session_id)
+        if not session.set_game_name_manual(game_name):
+            return
+        session.increment_version()
+        self.session_repository.update(session)
+        self.logger.info(f"Session '{session_id}' game set manually to '{session.get_game_name()}'",
+                         extra={'session_id': session_id, 'game_name': session.get_game_name()})
+        self.event_bus.publish(SessionUpdatedEvent(datetime.now(), session.id))
 
     def change_session_type(self, session_id: str, new_type: Type) -> None:
         """

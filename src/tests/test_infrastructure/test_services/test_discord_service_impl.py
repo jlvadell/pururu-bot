@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from hamcrest import assert_that, equal_to, none, instance_of, is_
@@ -217,3 +217,40 @@ async def test_update_session_info_view_message_handle_error(service, mock_disco
 
     # Assert
     mock_discord_bot.edit_session_info_view_message.assert_called_once_with(channel_id, message_id, session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.infrastructure.services.discord_service_impl.settings')
+async def test_get_playing_game_success(mock_settings, service, mock_discord_bot):
+    mock_settings.discord.guild_id = 111
+    playing = MagicMock()
+    playing.type = __import__('discord').ActivityType.playing
+    playing.name = "League of Legends"
+    member = MagicMock()
+    member.activities = (playing,)
+    guild = MagicMock()
+    guild.get_member.return_value = member
+    mock_discord_bot.get_guild.return_value = guild
+
+    result = await service.get_playing_game("123456")
+
+    assert_that(result, equal_to("League of Legends"))
+    mock_discord_bot.get_guild.assert_called_once_with(111)
+    guild.get_member.assert_called_once_with(123456)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('pururu.infrastructure.services.discord_service_impl.settings')
+async def test_get_playing_game_guild_or_member_missing(mock_settings, service, mock_discord_bot):
+    mock_settings.discord.guild_id = 111
+    mock_discord_bot.get_guild.return_value = None
+
+    assert_that(await service.get_playing_game("123456"), none())
+
+    guild = MagicMock()
+    guild.get_member.return_value = None
+    mock_discord_bot.get_guild.return_value = guild
+
+    assert_that(await service.get_playing_game("123456"), none())

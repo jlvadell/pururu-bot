@@ -42,3 +42,11 @@ class DiscordService(ABC):
         :return: None
         """
         pass
+
+    async def get_playing_game(self, player_id: str) -> str | None:
+        """
+        Returns the game Discord reports the player is currently playing, if any.
+        :param player_id: Discord user id
+        :return: game name or None
+        """
+        return None

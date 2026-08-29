@@ -8,7 +8,8 @@ from pururu.application.handlers.discord_event_handler import DiscordEventHandle
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
                                                            SessionTypeChangeEvent, SessionAttendanceEditEvent,
-                                                           SessionAttendanceRepairEvent)
+                                                           SessionAttendanceRepairEvent, PlayerGameDetectedEvent,
+                                                           SessionGameEditEvent)
 from pururu.domain.services.session_service import SessionService
 
 
@@ -222,3 +223,36 @@ def test_handle_session_attendance_repair_modal_submit(handler, mock_event_bus):
     assert_that(published_event, instance_of(SessionAttendanceRepairEvent))
     assert_that(published_event.session_id, equal_to("session123"))
     assert_that(published_event.player_ids, equal_to(["player1", "player2"]))
+
+
+@pytest.mark.unit
+@patch('pururu.application.handlers.discord_event_handler.settings')
+def test_handle_player_game_activity_event_tracked(mock_settings, handler, mock_event_bus):
+    mock_settings.general.players.keys.return_value = ["123", "456"]
+
+    handler.handle_player_game_activity_event("123", "player1", "League of Legends")
+
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(PlayerGameDetectedEvent))
+    assert_that(published_event.player_id, equal_to("123"))
+    assert_that(published_event.game_name, equal_to("League of Legends"))
+
+
+@pytest.mark.unit
+@patch('pururu.application.handlers.discord_event_handler.settings')
+def test_handle_player_game_activity_event_untracked(mock_settings, handler, mock_event_bus):
+    mock_settings.general.players.keys.return_value = ["123"]
+
+    handler.handle_player_game_activity_event("999", "unknown", "League of Legends")
+
+    mock_event_bus.publish.assert_not_called()
+
+
+@pytest.mark.unit
+def test_handle_session_game_edit_modal_submit(handler, mock_event_bus):
+    handler.handle_session_game_edit_modal_submit("session123", "Minecraft")
+
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionGameEditEvent))
+    assert_that(published_event.session_id, equal_to("session123"))
+    assert_that(published_event.game_name, equal_to("Minecraft"))
