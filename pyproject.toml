@@ -31,6 +31,7 @@ dependencies = [
     "APScheduler~=3.11.0",
     "aioboto3~=15.2.0",
     "dynaconf~=3.2.12",
+    "httpx>=0.27,<1",
     "watchdog~=6.0.0",
     "ulid-py~=1.1.0",
     "sqlalchemy~=2.0.44",

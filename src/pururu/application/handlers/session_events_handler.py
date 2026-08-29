@@ -11,6 +11,21 @@ from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEv
 from pururu.domain.services.data_sync_service import DataSyncService
 from pururu.domain.services.discord_service import DiscordService
 from pururu.domain.services.session_service import SessionService
+from pururu.infrastructure.adapters.keronworld.session_packs_client import post_session_packs
+
+_DEFAULT_KERONWORLD_APP_URL = "https://app.keronworld.org"
+
+
+def _as_bool(value) -> bool:
+    if value is True or value == 1:
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
+def _as_str(value) -> str:
+    return value.strip() if isinstance(value, str) else ""
 
 
 class SessionEventsHandler:
@@ -75,6 +90,7 @@ class SessionEventsHandler:
         session = self.session_service.find_session_by_id(event.session_id)
         await self._update_session_info_view(session)
         self._sync_session(session)
+        await self._notify_session_packs(session)
 
     def handle_session_type_change(self, event: SessionTypeChangeEvent) -> None:
         self.logger.info(
@@ -159,3 +175,102 @@ class SessionEventsHandler:
     def _sync_session(self, session: Session) -> None:
         if session.was_concluded_positively():
             self.data_sync_service.sync_session(session)
+
+    async def _notify_session_packs(self, session: Session) -> None:
+        if not session.was_concluded_positively():
+            return
+        enabled, packs_url, packs_secret, app_url = self._keronworld_packs_config()
+        if not enabled or not packs_url or not packs_secret:
+            return
+        attendees = [ps for ps in (session.players or []) if getattr(ps, "attended", False) is True]
+        if not attendees:
+            self.logger.info(
+                "Skipping KeroWorld pack notify; no attendees",
+                extra={"session_id": session.id},
+            )
+            return
+        payload = self._build_session_packs_payload(session, attendees)
+        try:
+            result = await post_session_packs(packs_url, packs_secret, payload)
+        except Exception:
+            self.logger.error(
+                "KeroWorld pack notify raised unexpectedly",
+                extra={"session_id": session.id},
+                exc_info=True,
+            )
+            return
+        if result is None or not (200 <= result.status_code < 300):
+            return
+        if result.body.get("missingChestType") is True or result.body.get("success") is False:
+            self.logger.warning(
+                "KeroWorld pack notify did not grant packs; skipping Discord message",
+                extra={
+                    "session_id": session.id,
+                    "success": result.body.get("success"),
+                    "missing_chest_type": result.body.get("missingChestType"),
+                },
+            )
+            return
+        await self._send_session_packs_discord_message(session, attendees, result.body, app_url)
+
+    def _keronworld_packs_config(self) -> tuple[bool, str, str, str]:
+        try:
+            keronworld = getattr(settings, "keronworld", None)
+        except Exception:
+            keronworld = None
+        if keronworld is None:
+            return False, "", "", _DEFAULT_KERONWORLD_APP_URL
+        enabled = _as_bool(getattr(keronworld, "enabled", False))
+        packs_url = _as_str(getattr(keronworld, "packs_url", ""))
+        packs_secret = _as_str(getattr(keronworld, "packs_secret", ""))
+        app_url = _as_str(getattr(keronworld, "app_url", "")) or _DEFAULT_KERONWORLD_APP_URL
+        return enabled, packs_url, packs_secret, app_url
+
+    def _build_session_packs_payload(self, session: Session, attendees: list[PlayerSession]) -> dict:
+        payload: dict = {
+            "sessionId": session.id,
+            "attendees": [{"discordId": ps.player_id} for ps in attendees],
+        }
+        session_type = getattr(session, "type", None)
+        if session_type is not None:
+            value = getattr(session_type, "value", None)
+            payload["sessionType"] = value if isinstance(value, str) else str(session_type)
+        game_name = None
+        getter = getattr(session, "get_game_name", None)
+        if callable(getter):
+            try:
+                game_name = getter()
+            except Exception:
+                game_name = None
+        if isinstance(game_name, str) and game_name.strip():
+            payload["gameName"] = game_name.strip()
+        return payload
+
+    async def _send_session_packs_discord_message(
+            self, session: Session, attendees: list[PlayerSession], body: dict, app_url: str) -> None:
+        channel_id = getattr(settings.discord, "discord_communication_channel_id", None)
+        if not channel_id:
+            self.logger.warning(
+                "Skipping Discord pack message; discord_communication_channel_id is not set",
+                extra={"session_id": session.id},
+            )
+            return
+        granted = [str(item) for item in (body.get("granted") or []) if item]
+        skipped = [str(item) for item in (body.get("skipped") or []) if item]
+        if granted:
+            mentions = " ".join(f"<@{discord_id}>" for discord_id in granted)
+            content = f"Hay un sobre de cartas para {mentions}. Ábrelo en {app_url}"
+        elif skipped:
+            content = f"Ya teníais sobre de esta sesión. {app_url}"
+        else:
+            mentions = " ".join(f"<@{ps.player_id}>" for ps in attendees)
+            content = f"Hay un sobre de cartas para {mentions}. Ábrelo en {app_url}"
+        try:
+            await self.discord_service.send_simple_message(str(channel_id), content)
+        except Exception:
+            self.logger.error(
+                "Failed to send Discord pack message",
+                extra={"session_id": session.id, "channel_id": str(channel_id)},
+                exc_info=True,
+            )
+

@@ -5,6 +5,7 @@ import pytest
 from hamcrest import assert_that, equal_to
 
 from pururu.application.handlers.session_events_handler import SessionEventsHandler
+from pururu.infrastructure.adapters.keronworld.session_packs_client import SessionPacksHttpResult
 from pururu.domain.entities.session import Type, PlayerSession, SessionMetadataKey
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (
@@ -164,6 +165,7 @@ async def test_handle_session_concluded_with_positive_conclusion(mock_settings, 
                                                                  mock_discord_service):
     """Test handle_session_concluded when the session was concluded positively"""
     # Arrange
+    mock_settings.keronworld.enabled = False
     mock_settings.discord.enable_communication_channel = True
     session_id = "session123"
     channel_id = "channel123"
@@ -195,6 +197,7 @@ async def test_handle_session_concluded_comms_disables(mock_settings, handler, m
                                                        mock_discord_service):
     """Test handle_session_concluded do not update message when comms are disabled"""
     # Arrange
+    mock_settings.keronworld.enabled = False
     mock_settings.discord.enable_communication_channel = False
     session_id = "session123"
     channel_id = "channel123"
@@ -244,7 +247,7 @@ async def test_handle_session_concluded_with_negative_conclusion(mock_settings, 
 
     # Assert
     mock_session_service.find_session_by_id.assert_called_once_with("session123")
-    mock_session.was_concluded_positively.assert_called_once()
+    assert mock_session.was_concluded_positively.call_count == 2
     mock_data_sync_service.sync_session.assert_not_called()
     assert_update_session_info_view(mock_discord_service, channel_id, message_id, mock_session)
 
@@ -479,6 +482,226 @@ async def test_handle_session_updated_on_going_session(mock_settings, handler, m
 
     # Assert
     mock_data_sync_service.assert_not_called()
+
+
+
+def _player(player_id: str, attended: bool) -> MagicMock:
+    player = MagicMock(spec=PlayerSession)
+    player.player_id = player_id
+    player.attended = attended
+    return player
+
+
+def _enable_keronworld(mock_settings, channel_id="channel123"):
+    mock_settings.keronworld.enabled = True
+    mock_settings.keronworld.packs_url = "https://api.keronworld.org/api/internal/session-packs"
+    mock_settings.keronworld.packs_secret = "test-pack-webhook-secret"
+    mock_settings.keronworld.app_url = "https://app.keronworld.org"
+    mock_settings.discord.enable_communication_channel = True
+    mock_settings.discord.discord_communication_channel_id = channel_id
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_discarded_does_not_notify_keronworld(
+        mock_settings, mock_post_session_packs, handler, mock_session_service, mock_data_sync_service,
+        mock_discord_service):
+    """Discarded sessions must not call KeroWorld even if pack notify is enabled."""
+    _enable_keronworld(mock_settings)
+    session_id = "session123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = False
+    mock_session.players = [_player("111", True)]
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.enable_communication_channel = False
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), session_id))
+
+    mock_post_session_packs.assert_not_called()
+    mock_data_sync_service.sync_session.assert_not_called()
+    mock_discord_service.send_simple_message.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_completed_notifies_keronworld(
+        mock_settings, mock_post_session_packs, handler, mock_session_service, mock_data_sync_service,
+        mock_discord_service):
+    """Completed sessions with attendees should POST to KeroWorld and announce packs."""
+    channel_id = "channel123"
+    _enable_keronworld(mock_settings, channel_id)
+    session_id = "session123"
+    mock_session = MagicMock(id=session_id)
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = True
+    mock_session.players = [_player("111", True), _player("222", False), _player("333", True)]
+    mock_session.type = Type.OFFICIAL_GAME
+    mock_session.get_game_name.return_value = "League of Legends"
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.enable_communication_channel = False
+    mock_post_session_packs.return_value = SessionPacksHttpResult(
+        status_code=200,
+        body={"success": True, "granted": ["111", "333"], "skipped": [], "missingChestType": False},
+    )
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), session_id))
+
+    mock_post_session_packs.assert_awaited_once_with(
+        "https://api.keronworld.org/api/internal/session-packs",
+        "test-pack-webhook-secret",
+        {
+            "sessionId": session_id,
+            "attendees": [{"discordId": "111"}, {"discordId": "333"}],
+            "sessionType": "Official Game",
+            "gameName": "League of Legends",
+        },
+    )
+    mock_discord_service.send_simple_message.assert_awaited_once_with(
+        channel_id,
+        "Hay un sobre de cartas para <@111> <@333>. Ábrelo en https://app.keronworld.org",
+    )
+    assert_sync_session(mock_data_sync_service, mock_session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_completed_without_attendees_skips_notify(
+        mock_settings, mock_post_session_packs, handler, mock_session_service, mock_discord_service):
+    _enable_keronworld(mock_settings)
+    mock_session = MagicMock(id="session123")
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = True
+    mock_session.players = [_player("111", False)]
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.enable_communication_channel = False
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), "session123"))
+
+    mock_post_session_packs.assert_not_called()
+    mock_discord_service.send_simple_message.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_keronworld_failure_does_not_raise_or_announce(
+        mock_settings, mock_post_session_packs, handler, mock_session_service, mock_data_sync_service,
+        mock_discord_service):
+    _enable_keronworld(mock_settings)
+    mock_session = MagicMock(id="session123")
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = True
+    mock_session.players = [_player("111", True)]
+    mock_session.type = Type.OFFICIAL_GAME
+    mock_session.get_game_name.return_value = None
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.enable_communication_channel = False
+    mock_post_session_packs.return_value = None
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), "session123"))
+
+    mock_post_session_packs.assert_awaited_once()
+    mock_discord_service.send_simple_message.assert_not_called()
+    assert_sync_session(mock_data_sync_service, mock_session)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_already_granted_sends_shorter_discord_message(
+        mock_settings, mock_post_session_packs, handler, mock_session_service, mock_discord_service):
+    _enable_keronworld(mock_settings)
+    mock_session = MagicMock(id="session123")
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = True
+    mock_session.players = [_player("111", True)]
+    mock_session.type = Type.ADDITIONAL_GAME
+    mock_session.get_game_name.return_value = None
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.enable_communication_channel = False
+    mock_post_session_packs.return_value = SessionPacksHttpResult(
+        status_code=200,
+        body={"success": True, "granted": [], "skipped": ["111"], "missingChestType": False},
+    )
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), "session123"))
+
+    mock_discord_service.send_simple_message.assert_awaited_once_with(
+        "channel123",
+        "Ya teníais sobre de esta sesión. https://app.keronworld.org",
+    )
+
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "enabled,packs_url,packs_secret",
+    [
+        (False, "https://api.keronworld.org/api/internal/session-packs", "test-pack-webhook-secret"),
+        (True, "", "test-pack-webhook-secret"),
+        (True, "https://api.keronworld.org/api/internal/session-packs", ""),
+    ],
+)
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_skips_when_disabled_or_missing_config(
+        mock_settings, mock_post_session_packs, enabled, packs_url, packs_secret,
+        handler, mock_session_service, mock_discord_service):
+    mock_settings.keronworld.enabled = enabled
+    mock_settings.keronworld.packs_url = packs_url
+    mock_settings.keronworld.packs_secret = packs_secret
+    mock_settings.keronworld.app_url = "https://app.keronworld.org"
+    mock_settings.discord.enable_communication_channel = False
+    mock_session = MagicMock(id="session123")
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = True
+    mock_session.players = [_player("111", True)]
+    mock_session_service.find_session_by_id.return_value = mock_session
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), "session123"))
+
+    mock_post_session_packs.assert_not_called()
+    mock_discord_service.send_simple_message.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"success": True, "granted": ["111"], "skipped": [], "missingChestType": True},
+        {"success": False, "granted": ["111"], "skipped": [], "missingChestType": False},
+    ],
+)
+@patch("pururu.application.handlers.session_events_handler.post_session_packs", new_callable=AsyncMock)
+@patch("pururu.application.handlers.session_events_handler.settings")
+async def test_handle_session_concluded_does_not_send_discord_when_packs_not_granted(
+        mock_settings, mock_post_session_packs, body, handler, mock_session_service, mock_discord_service):
+    _enable_keronworld(mock_settings)
+    mock_session = MagicMock(id="session123")
+    mock_session.metadata = {}
+    mock_session.was_concluded_positively.return_value = True
+    mock_session.players = [_player("111", True)]
+    mock_session.type = Type.OFFICIAL_GAME
+    mock_session.get_game_name.return_value = None
+    mock_session_service.find_session_by_id.return_value = mock_session
+    mock_settings.discord.enable_communication_channel = False
+    mock_post_session_packs.return_value = SessionPacksHttpResult(status_code=200, body=body)
+
+    await handler.handle_session_concluded(SessionConcludedEvent(datetime.now(), "session123"))
+
+    mock_post_session_packs.assert_awaited_once()
+    mock_discord_service.send_simple_message.assert_not_called()
 
 
 # ==================================================================
