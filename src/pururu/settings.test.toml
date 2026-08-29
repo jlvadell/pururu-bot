@@ -56,6 +56,23 @@
     player2 = "F"
     player3 = "I"
 
+
+# ----------------------------------------
+# KeroWorld session packs (optional)
+# Pi production: add these keys to /home/nonroot/app/config/settings.toml
+# Put packs_secret in /home/nonroot/app/config/.secrets.toml (never commit a real secret).
+# Env vars (prefix PURURU, nested with __):
+#   PURURU_KERONWORLD__ENABLED
+#   PURURU_KERONWORLD__PACKS_URL
+#   PURURU_KERONWORLD__PACKS_SECRET
+#   PURURU_KERONWORLD__APP_URL
+# ----------------------------------------
+[default.keronworld]
+    enabled = false
+    packs_url = "https://api.keronworld.org/api/internal/session-packs"
+    packs_secret = "test-pack-webhook-secret"
+    app_url = "https://app.keronworld.org"
+
 # ----------------------------------------
 # Secrets
 # ----------------------------------------
