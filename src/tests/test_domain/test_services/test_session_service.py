@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -9,7 +10,7 @@ from pururu.domain.entities.session import Session, Status, Type, PlayerSession,
 from pururu.domain.exceptions import (
     SessionNotFoundException,
     SessionAlreadyConcludedException,
-    CannotConcludeSessionException, PlayerNotConnectedException
+    CannotConcludeSessionException, PlayerNotConnectedException, OptimisticLockingFailureException
 )
 from pururu.domain.messaging.events.session_events import (
     SessionConcludeRequestedEvent,
@@ -703,3 +704,98 @@ def test_infer_session_type_from_start_time_returns_additional(
 
     # Assert
     assert_that(result, equal_to(Type.ADDITIONAL_GAME), description)
+
+
+# ============================================================================
+# record_player_game / set_session_game
+# ============================================================================
+
+@pytest.mark.unit
+def test_record_player_game_no_active_session(service, mock_session_repository, mock_event_bus):
+    mock_session_repository.find_active_session.return_value = None
+
+    service.record_player_game("player123", "League of Legends")
+
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.publish.assert_not_called()
+
+
+@pytest.mark.unit
+def test_record_player_game_player_not_online(service, mock_session_repository, mock_event_bus, session,
+                                              player_session):
+    player_session.intervals[-1].end = datetime(2025, 10, 1, 11, 0, 0)
+    session.players = [player_session]
+    mock_session_repository.find_active_session.return_value = session
+
+    service.record_player_game("player123", "League of Legends")
+
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.publish.assert_not_called()
+
+
+@pytest.mark.unit
+def test_record_player_game_detects_and_publishes(service, mock_session_repository, mock_event_bus,
+                                                  on_going_session):
+    mock_session_repository.find_active_session.return_value = on_going_session
+
+    service.record_player_game("player123", "League of Legends")
+
+    mock_session_repository.update.assert_called_once_with(on_going_session)
+    assert_that(on_going_session.get_game_name(), equal_to("League of Legends"))
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))
+
+
+@pytest.mark.unit
+def test_record_player_game_manual_lock_skips_auto(service, mock_session_repository, mock_event_bus,
+                                                   on_going_session):
+    on_going_session.set_game_name_manual("Minecraft")
+    mock_session_repository.find_active_session.return_value = on_going_session
+
+    service.record_player_game("player123", "League of Legends")
+
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.publish.assert_not_called()
+    assert_that(on_going_session.get_game_name(), equal_to("Minecraft"))
+
+
+@pytest.mark.unit
+def test_set_session_game_success(service, mock_session_repository, mock_event_bus, session):
+    mock_session_repository.find_by_id.return_value = session
+
+    service.set_session_game(session.id, "VALORANT")
+
+    mock_session_repository.update.assert_called_once_with(session)
+    assert_that(session.get_game_name(), equal_to("VALORANT"))
+    assert_that(session.is_game_manually_set(), equal_to(True))
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))
+
+
+@pytest.mark.unit
+def test_set_session_game_blank_is_noop(service, mock_session_repository, mock_event_bus, session):
+    mock_session_repository.find_by_id.return_value = session
+
+    service.set_session_game(session.id, "  ")
+
+    mock_session_repository.update.assert_not_called()
+    mock_event_bus.publish.assert_not_called()
+
+
+@pytest.mark.unit
+def test_record_player_game_retries_on_optimistic_lock(service, mock_session_repository, mock_event_bus,
+                                                       on_going_session):
+    first_read = deepcopy(on_going_session)
+    second_read = deepcopy(on_going_session)
+    mock_session_repository.find_active_session.side_effect = [first_read, second_read]
+    mock_session_repository.update.side_effect = [
+        OptimisticLockingFailureException("conflict"),
+        second_read,
+    ]
+
+    service.record_player_game("player123", "League of Legends")
+
+    assert_that(mock_session_repository.update.call_count, equal_to(2))
+    assert_that(second_read.get_game_name(), equal_to("League of Legends"))
+    published_event = mock_event_bus.publish.call_args[0][0]
+    assert_that(published_event, instance_of(SessionUpdatedEvent))

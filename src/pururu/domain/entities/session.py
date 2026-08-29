@@ -1,9 +1,11 @@
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
 from pururu.domain.exceptions import (SessionAlreadyConcludedException, CannotConcludeSessionException,
                                       PlayerNotConnectedException, NoPlayerIntervalsException)
+from pururu.domain.services.session_game_detection import infer_session_game
 
 
 class Type(Enum):
@@ -28,6 +30,17 @@ class SessionMetadataKey(Enum):
     DISCORD_INFO_MESSAGE_ID = "discord_info_message_id"
     DISCORD_INFO_MESSAGE_CHANNEL_ID = "discord_info_message_channel_id"
     ATTENDANCE_REPAIRS = "attendance_repairs"
+    GAME_NAME = "game_name"
+    GAME_SOURCE = "game_source"
+    GAME_OBSERVATIONS = "game_observations"
+
+    def __str__(self):
+        return self.value
+
+
+class GameSource(Enum):
+    AUTO = "auto"
+    MANUAL = "manual"
 
     def __str__(self):
         return self.value
@@ -156,6 +169,61 @@ class Session:
         :return: PlayerSession or None
         """
         return next((ps for ps in self.players if ps.player_id == player_id), None)
+
+    def get_game_name(self) -> str | None:
+        """Returns the detected or manually set game name, or None if unknown."""
+        value = self.metadata.get(SessionMetadataKey.GAME_NAME)
+        if not value:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    def is_game_manually_set(self) -> bool:
+        """Returns True if the session game was set manually and must not be overwritten by auto-detection."""
+        return self.metadata.get(SessionMetadataKey.GAME_SOURCE) == GameSource.MANUAL.value
+
+    def record_game_observation(self, player_id: str, game_name: str) -> bool:
+        """
+        Records that a player was seen playing a game. Updates the displayed game unless it was set manually.
+        :return: True if session metadata changed (observations and/or displayed game)
+        """
+        game_name = game_name.strip() if game_name else ""
+        if not game_name or self.is_game_manually_set():
+            return False
+        observations = self._get_game_observations()
+        if observations.get(player_id) == game_name:
+            return False
+        observations[player_id] = game_name
+        self.metadata[SessionMetadataKey.GAME_OBSERVATIONS] = json.dumps(observations, sort_keys=True)
+        inferred = infer_session_game(observations, self.get_game_name())
+        if inferred:
+            self.metadata[SessionMetadataKey.GAME_NAME] = inferred
+            self.metadata[SessionMetadataKey.GAME_SOURCE] = GameSource.AUTO.value
+        return True
+
+    def set_game_name_manual(self, game_name: str) -> bool:
+        """
+        Sets the session game manually. Manual values win over auto-detection.
+        :return: True if the stored game or source changed
+        """
+        game_name = game_name.strip() if game_name else ""
+        if not game_name:
+            return False
+        if self.get_game_name() == game_name and self.is_game_manually_set():
+            return False
+        self.metadata[SessionMetadataKey.GAME_NAME] = game_name
+        self.metadata[SessionMetadataKey.GAME_SOURCE] = GameSource.MANUAL.value
+        return True
+
+    def _get_game_observations(self) -> dict[str, str]:
+        raw = self.metadata.get(SessionMetadataKey.GAME_OBSERVATIONS, "{}")
+        try:
+            data = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(key): str(value) for key, value in data.items() if key and value}
 
     def add_player(self, player_id: str, attended: bool = False, justified_absence: bool = False,
                    motive: str = "") -> PlayerSession:

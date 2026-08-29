@@ -91,3 +91,23 @@ class SessionUpdatedEvent(PrimaryDomainEvent):
     """
     event_type = "SessionUpdatedEvent"
     session_id: str
+
+
+@dataclass(frozen=True)
+class PlayerGameDetectedEvent(PrimaryDomainEvent):
+    """
+    Event representing a tracked player seen playing a game while in a voice session.
+    """
+    event_type = "PlayerGameDetectedEvent"
+    player_id: str
+    game_name: str
+
+
+@dataclass(frozen=True)
+class SessionGameEditEvent(PrimaryDomainEvent):
+    """
+    Event representing a manual edit of the session game name.
+    """
+    event_type = "SessionGameEditEvent"
+    session_id: str
+    game_name: str

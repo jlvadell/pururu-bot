@@ -31,6 +31,7 @@ class SessionDetailsTextDisplay(discord.ui.TextDisplay):
         minutes, _ = divmod(remainder, 60)
         duration_str = f"{hours}h {minutes}m" if hours else f"{minutes}m"
         return (f":video_game: **Type:** `{session.type.value}`\n\n"
+                f":joystick: **Game:** `{self._format_game_name(session)}`\n\n"
                 f":busts_in_silhouette: **Players:** {len(session.get_checked_in_players())} / 5\n\n"
                 f":clock3: **Started:** <t:{int(official_start_time.timestamp())}:f>\n\n"
                 f":stopwatch: **Ended:** <t:{int(official_end_time.timestamp())}:f>\n\n"
@@ -38,9 +39,15 @@ class SessionDetailsTextDisplay(discord.ui.TextDisplay):
 
     def build_ongoing_content(self, session: Session) -> str:
         return (f":video_game: **Type:** `{session.type.value}`\n\n"
+                f":joystick: **Game:** `{self._format_game_name(session)}`\n\n"
                 f":busts_in_silhouette: **Players:** {len(session.get_checked_in_players())} / 5\n\n"
                 f":clock3: **Started:** <t:{int(session.start_time.timestamp())}:f>\n\n"
                 f":athletic_shoe: **Pole:** <@{session.get_first_joiner().player_id}>\n\n")
+
+    @staticmethod
+    def _format_game_name(session: Session) -> str:
+        game_name = session.get_game_name()
+        return game_name if game_name else "sin detectar"
 
 
 class EditAttendanceButton(discord.ui.Button):
@@ -57,6 +64,16 @@ class ChangeSessionTypeButton(discord.ui.Button):
     def __init__(self, modal: discord.ui.Modal):
         super().__init__(label="Cambiar Tipo", style=discord.ButtonStyle.secondary, custom_id="change_session_type_btn",
                          emoji="🔄")
+        self.modal = modal
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_modal(self.modal)
+
+
+class EditSessionGameButton(discord.ui.Button):
+    def __init__(self, modal: discord.ui.Modal):
+        super().__init__(label="Indicar juego", style=discord.ButtonStyle.secondary, custom_id="edit_session_game_btn",
+                         emoji="🎮")
         self.modal = modal
 
     async def callback(self, interaction: discord.Interaction):
@@ -132,3 +149,10 @@ class MotiveTextInput(discord.ui.TextInput):
         super().__init__(label=f"{user_name}: Motivo justificación", default=motive, style=discord.TextStyle.paragraph,
                          placeholder="Escribe el motivo aquí...", required=False, max_length=200,
                          custom_id=f"Motive-{user_id}")
+
+
+class GameNameTextInput(discord.ui.TextInput):
+    def __init__(self, current_game: str | None):
+        super().__init__(label="Juego", default=current_game or "", style=discord.TextStyle.short,
+                         placeholder="Ej: League of Legends", required=True, max_length=100,
+                         custom_id="session_game_name")

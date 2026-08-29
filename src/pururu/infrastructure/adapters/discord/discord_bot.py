@@ -7,6 +7,7 @@ from pururu.__version__ import get_version
 from pururu.application.handlers.discord_event_handler import DiscordEventHandler
 from pururu.common import logger
 from pururu.config import settings
+from pururu.infrastructure.adapters.discord.discord_game_activity import extract_playing_game_name
 from pururu.infrastructure.adapters.discord.discord_ui_views import SessionInfoLayoutView, EditSessionTypeModal, \
     EditAttendanceModal, RepairAttendanceModal
 from pururu.infrastructure.exceptions import (DiscordChannelNotFoundException, DiscordMessageNotFoundException,
@@ -16,6 +17,9 @@ from pururu.infrastructure.exceptions import (DiscordChannelNotFoundException, D
 class PururuDiscordBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
+        # Privileged intents: required to read the game a member is playing while in a voice call.
+        intents.members = True
+        intents.presences = True
         super().__init__(command_prefix="/", intents=intents)
         self.logger = logger.get_logger(__name__)
         self.event_handler: DiscordEventHandler | None = None
@@ -52,6 +56,25 @@ class PururuDiscordBot(commands.Bot):
         })
         self.event_handler.handle_on_voice_state_update_event(str(member.id), member.name, before_name, after_name)
 
+    async def on_presence_update(self, before: discord.Member, after: discord.Member):
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        in_voice = after.voice is not None and after.voice.channel is not None
+        if not in_voice:
+            return
+        after_game = extract_playing_game_name(after.activities)
+        if not after_game:
+            return
+        before_game = extract_playing_game_name(before.activities) if before else None
+        if after_game == before_game:
+            return
+        self.logger.info(f"Presence game change for member {after.name}: {before_game} -> {after_game}", extra={
+            "member": after.name,
+            "before_game": before_game,
+            "after_game": after_game
+        })
+        self.event_handler.handle_player_game_activity_event(str(after.id), after.name, after_game)
+
     async def on_ready(self):
         # Set trace context for bot ready event
         trace_id = logger.generate_trace_id()
@@ -59,6 +82,19 @@ class PururuDiscordBot(commands.Bot):
         
         self.logger.info("Pururu Discord Bot is ready!")
         self.event_handler.handle_on_ready_event()
+        self._scan_voice_games()
+
+    def _scan_voice_games(self) -> None:
+        """Re-reads games of members already in voice, e.g. after a bot restart."""
+        guild = self.get_guild(int(settings.discord.guild_id))
+        if not guild:
+            return
+        for member in guild.members:
+            if member.bot or member.voice is None or member.voice.channel is None:
+                continue
+            game = extract_playing_game_name(member.activities)
+            if game:
+                self.event_handler.handle_player_game_activity_event(str(member.id), member.name, game)
 
     def setup_commands(self):
         self.logger.debug("Setting up commands...")
@@ -196,6 +232,7 @@ class PururuDiscordBot(commands.Bot):
             view = SessionInfoLayoutView(session,
                                          on_session_type_change=self.event_handler.handle_session_type_change_modal_submit,
                                          on_attendance_edit=self.event_handler.handle_session_attendance_edit_modal_submit,
+                                         on_session_game_edit=self.event_handler.handle_session_game_edit_modal_submit,
                                          thumbnail_url=avatar_url)
             message = await channel.send(view=view)
             return str(message.id)
@@ -229,6 +266,7 @@ class PururuDiscordBot(commands.Bot):
             view = SessionInfoLayoutView(session,
                                          on_session_type_change=self.event_handler.handle_session_type_change_modal_submit,
                                          on_attendance_edit=self.event_handler.handle_session_attendance_edit_modal_submit,
+                                         on_session_game_edit=self.event_handler.handle_session_game_edit_modal_submit,
                                          thumbnail_url=avatar_url)
             await message.edit(view=view)
         except Exception:

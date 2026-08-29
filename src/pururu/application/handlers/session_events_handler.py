@@ -6,7 +6,8 @@ from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEv
                                                            SessionConcludeRequestedEvent, SessionConcludedEvent,
                                                            SessionTypeChangeEvent, SessionAttendanceEditEvent,
                                                            SessionAttendanceRepairEvent, SessionUpdatedEvent,
-                                                           SessionCreatedEvent)
+                                                           SessionCreatedEvent, PlayerGameDetectedEvent,
+                                                           SessionGameEditEvent)
 from pururu.domain.services.data_sync_service import DataSyncService
 from pururu.domain.services.discord_service import DiscordService
 from pururu.domain.services.session_service import SessionService
@@ -32,6 +33,8 @@ class SessionEventsHandler:
         self.event_bus.subscribe(SessionAttendanceEditEvent.event_type, self.handle_session_attendance_edit)
         self.event_bus.subscribe(SessionAttendanceRepairEvent.event_type, self.handle_session_attendance_repair)
         self.event_bus.subscribe(SessionUpdatedEvent.event_type, self.handle_session_updated)
+        self.event_bus.subscribe(PlayerGameDetectedEvent.event_type, self.handle_player_game_detected)
+        self.event_bus.subscribe(SessionGameEditEvent.event_type, self.handle_session_game_edit)
 
     async def handle_player_joined(self, event: PlayerJoinedSessionEvent) -> None:
         self.logger.info(
@@ -40,6 +43,10 @@ class SessionEventsHandler:
                 "time": event.time.isoformat()
             })
         session = self.session_service.register_player_connection(event.player_id, event.time)
+        game_name = await self.discord_service.get_playing_game(event.player_id)
+        if game_name:
+            self.session_service.record_player_game(event.player_id, game_name)
+            session = self.session_service.find_session_by_id(session.id)
         await self._update_session_info_view(session)
 
     def handle_player_left(self, event: PlayerLeftSessionEvent) -> None:
@@ -101,6 +108,18 @@ class SessionEventsHandler:
             f"Handling SessionAttendanceRepairEvent for session {event.session_id}",
             extra={"session_id": event.session_id, "player_ids": event.player_ids})
         self.session_service.repair_session_attendance(event.session_id, event.player_ids)
+
+    def handle_player_game_detected(self, event: PlayerGameDetectedEvent) -> None:
+        self.logger.info(
+            f"Handling PlayerGameDetectedEvent for player {event.player_id} playing {event.game_name}",
+            extra={"player_id": event.player_id, "game_name": event.game_name})
+        self.session_service.record_player_game(event.player_id, event.game_name)
+
+    def handle_session_game_edit(self, event: SessionGameEditEvent) -> None:
+        self.logger.info(
+            f"Handling SessionGameEditEvent for session {event.session_id} to game {event.game_name}",
+            extra={"session_id": event.session_id, "game_name": event.game_name})
+        self.session_service.set_session_game(event.session_id, event.game_name)
 
     async def handle_session_created(self, event: SessionCreatedEvent) -> None:
         self.logger.info(

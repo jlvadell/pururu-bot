@@ -9,12 +9,14 @@ from pururu.domain.entities.session import Session, Status
 
 class SessionInfoLayoutView(discord.ui.LayoutView):
     def __init__(self, session: Session, on_session_type_change: Callable[[str, str], None],
-                 on_attendance_edit: Callable[[str, dict[str, bool], dict[str, str]], None], thumbnail_url: str):
+                 on_attendance_edit: Callable[[str, dict[str, bool], dict[str, str]], None],
+                 on_session_game_edit: Callable[[str, str], None], thumbnail_url: str):
         super().__init__(timeout=None)
         self.session = session
         self.thumbnail_url = thumbnail_url
         self.on_session_type_change = on_session_type_change
         self.on_attendance_edit = on_attendance_edit
+        self.on_session_game_edit = on_session_game_edit
         self._build()
 
     def _build(self):
@@ -34,6 +36,8 @@ class SessionInfoLayoutView(discord.ui.LayoutView):
         action_row = discord.ui.ActionRow()
         action_row.add_item(discord_components.ChangeSessionTypeButton(
             modal=EditSessionTypeModal(session=self.session, callback=self.on_session_type_change)))
+        action_row.add_item(discord_components.EditSessionGameButton(
+            modal=EditSessionGameModal(session=self.session, callback=self.on_session_game_edit)))
         offline_users = [player.player_id for player in self.session.get_offline_players()]
         if not self.session.is_concluded() and offline_users:
             action_row.add_item(discord_components.NotifyMissingUsersButton(missing_users=offline_users))
@@ -69,6 +73,24 @@ class EditSessionTypeModal(discord.ui.Modal, title="Cambiar Tipo de Sesión"):
         new_type = self.selector.component.values[0]
         self.callback(self.session.id, new_type)
         await interaction.response.send_message(f"El tipo de sesión ha sido cambiado a `{new_type}`.", ephemeral=True)
+
+
+class EditSessionGameModal(discord.ui.Modal, title="Indicar juego"):
+    def __init__(self, session: Session, callback: Callable[[str, str], None]):
+        super().__init__()
+        self.session = session
+        self.callback = callback
+        self.game_input = discord_components.GameNameTextInput(session.get_game_name())
+        self.add_item(self.game_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        game_name = (self.game_input.value or "").strip()
+        if not game_name:
+            await interaction.response.send_message("Indica un nombre de juego.", ephemeral=True)
+            return
+        self.callback(self.session.id, game_name)
+        await interaction.response.send_message(f"Juego de la sesión actualizado a `{game_name}`.",
+                                                ephemeral=True)
 
 
 class EditAttendanceModal(discord.ui.Modal, title="Editar Asistencias"):

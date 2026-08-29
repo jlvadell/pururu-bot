@@ -7,7 +7,8 @@ from pururu.domain.exceptions import SessionNotFoundException
 from pururu.domain.messaging.event_bus import EventBus
 from pururu.domain.messaging.events.session_events import (PlayerJoinedSessionEvent, PlayerLeftSessionEvent,
                                                            SessionTypeChangeEvent, SessionAttendanceEditEvent,
-                                                           SessionAttendanceRepairEvent)
+                                                           SessionAttendanceRepairEvent, PlayerGameDetectedEvent,
+                                                           SessionGameEditEvent)
 from pururu.domain.services.session_service import SessionService
 
 
@@ -139,3 +140,33 @@ class DiscordEventHandler:
         self.logger.info(f"Session attendance repair requested for session {session_id}",
                          extra={"session_id": session_id, "player_ids": player_ids})
         self.event_bus.publish(SessionAttendanceRepairEvent(datetime.now(), session_id, player_ids))
+
+    def handle_player_game_activity_event(self, player_id: str, player_name: str, game_name: str) -> None:
+        """
+        Handles a Discord presence/activity update that reports a game being played.
+        :param player_id: player id
+        :param player_name: player moniker
+        :param game_name: game reported by Discord
+        :return: None
+        """
+        self.logger.info(
+            f"Player game activity detected, player: {player_id} [{player_name}], game: {game_name}",
+            extra={"player_id": player_id, "game_name": game_name})
+        if player_id not in settings.general.players.keys():
+            self.logger.debug(f"Non-tracked player game ignored: {player_id} [{player_name}]",
+                              extra={"player_id": player_id, "game_name": game_name})
+            return
+        self.event_bus.publish(PlayerGameDetectedEvent(datetime.now(), player_id, game_name))
+
+    def handle_session_game_edit_modal_submit(self, session_id: str, game_name: str) -> None:
+        """
+        Handles the session game edit modal submit event
+        :param session_id: session id
+        :param game_name: game name entered by the user
+        :return: None
+        """
+        trace_id = logger.generate_trace_id()
+        logger.set_trace_context(trace_id)
+        self.logger.info(f"Session game change requested for session {session_id} to {game_name}",
+                         extra={"session_id": session_id, "game_name": game_name})
+        self.event_bus.publish(SessionGameEditEvent(datetime.now(), session_id, game_name))

@@ -11,6 +11,7 @@ from pururu.infrastructure.adapters.discord.discord_ui_views import (
     EditSessionTypeModal,
     EditAttendanceModal,
     RepairAttendanceModal,
+    EditSessionGameModal,
 )
 
 
@@ -85,6 +86,7 @@ def mock_callbacks():
         'on_session_type_change': Mock(),
         'on_attendance_edit': Mock(),
         'on_attendance_repair': Mock(),
+        'on_session_game_edit': Mock(),
     }
 
 
@@ -189,9 +191,42 @@ async def test_edit_session_type_modal_on_submit_calls_callback(mock_session_dra
     mock_interaction.response.send_message.assert_called_once()
 
 
-# ------------------------------
-# EditAttendanceModal TESTS
-# ------------------------------
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_edit_session_game_modal_on_submit_calls_callback(mock_session_draft, mock_callbacks):
+    with patch.object(EditSessionGameModal, '__init__', lambda self, **kwargs: None):
+        modal = EditSessionGameModal()
+        modal.session = mock_session_draft
+        modal.callback = mock_callbacks['on_session_game_edit']
+        mock_input = Mock()
+        mock_input.value = "  League of Legends  "
+        modal.game_input = mock_input
+        mock_interaction = Mock(spec=discord.Interaction)
+        mock_interaction.response.send_message = AsyncMock()
+
+    await modal.on_submit(mock_interaction)
+
+    mock_callbacks['on_session_game_edit'].assert_called_once_with("test_session_id", "League of Legends")
+    mock_interaction.response.send_message.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_edit_session_game_modal_rejects_blank_name(mock_session_draft, mock_callbacks):
+    with patch.object(EditSessionGameModal, '__init__', lambda self, **kwargs: None):
+        modal = EditSessionGameModal()
+        modal.session = mock_session_draft
+        modal.callback = mock_callbacks['on_session_game_edit']
+        mock_input = Mock()
+        mock_input.value = "   "
+        modal.game_input = mock_input
+        mock_interaction = Mock(spec=discord.Interaction)
+        mock_interaction.response.send_message = AsyncMock()
+
+    await modal.on_submit(mock_interaction)
+
+    mock_callbacks['on_session_game_edit'].assert_not_called()
+    mock_interaction.response.send_message.assert_called_once()
 
 @pytest.mark.asyncio
 @pytest.mark.unit
@@ -291,3 +326,4 @@ def test_view_classes_have_required_attributes():
     assert_that(hasattr(EditSessionTypeModal, 'on_submit'), is_(True))
     assert_that(hasattr(EditAttendanceModal, 'on_submit'), is_(True))
     assert_that(hasattr(RepairAttendanceModal, 'on_submit'), is_(True))
+    assert_that(hasattr(EditSessionGameModal, 'on_submit'), is_(True))
